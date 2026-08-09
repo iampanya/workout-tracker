@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listExercises } from "@/lib/exercises/service";
 import { AddExerciseForm } from "./AddExerciseForm";
@@ -15,7 +16,9 @@ export default async function ExercisesPage() {
         {exercises.map((exercise) => (
           <li key={exercise.id} className="flex items-center justify-between py-2">
             <span>
-              {exercise.name}
+              <Link href={`/exercises/${exercise.id}`} className="underline">
+                {exercise.name}
+              </Link>
               {exercise.muscle_group && (
                 <span className="ml-2 text-sm text-gray-500">{exercise.muscle_group}</span>
               )}
