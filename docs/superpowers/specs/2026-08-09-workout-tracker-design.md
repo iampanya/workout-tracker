@@ -16,7 +16,7 @@ Requirements were gathered interactively:
 
 ## Tech Stack
 
-**Next.js 14+ (TypeScript, App Router) + Supabase (Postgres + Auth) + Vercel + Tailwind CSS + Recharts.**
+**Next.js 16.3 (TypeScript, App Router) + Supabase (Postgres + Auth) + Vercel + Tailwind CSS + Recharts.**
 
 - **Vercel**: free Hobby tier, git-push deploys, ideal for a responsive mobile+desktop personal app.
 - **Supabase**: free Postgres + built-in email/password Auth + Row Level Security — a good fit for this relational schema (routines → sessions → sets) and avoids hand-rolling auth.
