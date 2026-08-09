@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { LogoutButton } from "./LogoutButton";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient();
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/routines">Routines</Link>
         <Link href="/exercises">Exercises</Link>
         <Link href="/history">History</Link>
+        <LogoutButton />
       </nav>
     </div>
   );
