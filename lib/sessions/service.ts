@@ -15,6 +15,15 @@ export async function startSessionForUser(
 ): Promise<Session> {
   const parsed = startSessionSchema.parse(input);
 
+  // Verify routine ownership BEFORE inserting the session row: getRoutineWithExercises
+  // throws if the routine doesn't exist or isn't owned by userId. Doing this first (rather
+  // than after the sessions insert) prevents an orphaned sessions row from being created
+  // that permanently references another user's routine_id — the FK only checks existence,
+  // not ownership, so a check performed after the insert is too late to prevent that row.
+  const exercises = parsed.routineId
+    ? (await getRoutineWithExercises(supabase, userId, parsed.routineId)).exercises
+    : [];
+
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
     .insert({
@@ -27,19 +36,16 @@ export async function startSessionForUser(
     .single();
   if (sessionError) throw new Error(sessionError.message);
 
-  if (parsed.routineId) {
-    const { exercises } = await getRoutineWithExercises(supabase, userId, parsed.routineId);
-    if (exercises.length > 0) {
-      const { error: insertError } = await supabase.from("session_exercises").insert(
-        exercises.map((entry) => ({
-          session_id: session.id,
-          user_id: userId,
-          exercise_id: entry.exercise_id,
-          position: entry.position,
-        }))
-      );
-      if (insertError) throw new Error(insertError.message);
-    }
+  if (exercises.length > 0) {
+    const { error: insertError } = await supabase.from("session_exercises").insert(
+      exercises.map((entry) => ({
+        session_id: session.id,
+        user_id: userId,
+        exercise_id: entry.exercise_id,
+        position: entry.position,
+      }))
+    );
+    if (insertError) throw new Error(insertError.message);
   }
 
   return session;

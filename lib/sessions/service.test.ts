@@ -77,6 +77,21 @@ describe("sessions service", () => {
     expect(sessionExercises).toEqual([]);
   });
 
+  it("rejects starting a session with another user's routineId, leaving no orphaned session row", async () => {
+    const owner = await createTestUser(admin);
+    const routine = await createRoutineForUser(owner.client, owner.userId, { name: "Not Yours" });
+
+    await expect(
+      startSessionForUser(client, userId, { routineId: routine.id, sessionDate: "2026-01-06" })
+    ).rejects.toThrow();
+
+    const { data: sessions } = await admin
+      .from("sessions")
+      .select("id")
+      .eq("routine_id", routine.id);
+    expect(sessions).toEqual([]);
+  });
+
   it("marks the first logged set for a fresh exercise as a PR", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("First Set Exercise"),
