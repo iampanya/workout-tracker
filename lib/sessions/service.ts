@@ -69,15 +69,35 @@ export async function addExerciseToSessionForUser(
     .single();
   if (sessionError || !session) throw new Error("Session not found or not owned by user");
 
-  const { count, error: countError } = await supabase
+  // Verify the exercise exists and is visible to this user (RLS scopes visibility to
+  // presets plus the caller's own custom exercises). Without this check, a caller could
+  // insert a reference to a nonexistent or archived exercise, which later crashes
+  // getSessionDetail's consumers when they read entry.exercise.name off a null join.
+  const { data: exercise, error: exerciseError } = await supabase
+    .from("exercises")
+    .select("id")
+    .eq("id", exerciseId)
+    .single();
+  if (exerciseError || !exercise) {
+    throw new Error("Exercise not found or not visible to user");
+  }
+
+  // Use max(position) + 1, not count(*): removing an exercise from the middle of a
+  // session leaves a gap in the position sequence, so count(*) would recompute a
+  // position that collides with the unique(session_id, position) constraint.
+  const { data: maxRow, error: maxError } = await supabase
     .from("session_exercises")
-    .select("id", { count: "exact", head: true })
-    .eq("session_id", sessionId);
-  if (countError) throw new Error(countError.message);
+    .select("position")
+    .eq("session_id", sessionId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (maxError) throw new Error(maxError.message);
+  const nextPosition = maxRow ? maxRow.position + 1 : 0;
 
   const { data, error } = await supabase
     .from("session_exercises")
-    .insert({ session_id: sessionId, user_id: userId, exercise_id: exerciseId, position: count ?? 0 })
+    .insert({ session_id: sessionId, user_id: userId, exercise_id: exerciseId, position: nextPosition })
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -117,11 +137,18 @@ export async function logSetForUser(
 
   const priorMax = parsed.isWarmup ? null : await getPriorMaxWeight(supabase, userId, exerciseId);
 
-  const { count, error: countError } = await supabase
+  // Use max(set_number) + 1, not count(*) + 1: deleting a set from the middle leaves
+  // a gap in the set_number sequence, so count(*) would recompute a set_number that
+  // collides with the unique(session_exercise_id, set_number) constraint.
+  const { data: maxRow, error: maxError } = await supabase
     .from("sets")
-    .select("id", { count: "exact", head: true })
-    .eq("session_exercise_id", parsed.sessionExerciseId);
-  if (countError) throw new Error(countError.message);
+    .select("set_number")
+    .eq("session_exercise_id", parsed.sessionExerciseId)
+    .order("set_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (maxError) throw new Error(maxError.message);
+  const nextSetNumber = maxRow ? maxRow.set_number + 1 : 1;
 
   const { data: set, error } = await supabase
     .from("sets")
@@ -129,7 +156,7 @@ export async function logSetForUser(
       session_exercise_id: parsed.sessionExerciseId,
       user_id: userId,
       exercise_id: exerciseId,
-      set_number: (count ?? 0) + 1,
+      set_number: nextSetNumber,
       weight_kg: parsed.weightKg,
       reps: parsed.reps,
       is_warmup: parsed.isWarmup,

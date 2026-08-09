@@ -89,11 +89,31 @@ export async function addExerciseToRoutineForUser(
     throw new Error("Routine not found or not owned by user");
   }
 
-  const { count, error: countError } = await supabase
+  // Verify the exercise exists and is visible to this user (RLS scopes visibility to
+  // presets plus the caller's own custom exercises). Without this check, a caller could
+  // insert a reference to a nonexistent or archived exercise, which later crashes
+  // getRoutineWithExercises' consumers when they read entry.exercise.name off a null join.
+  const { data: exercise, error: exerciseError } = await supabase
+    .from("exercises")
+    .select("id")
+    .eq("id", parsed.exerciseId)
+    .single();
+  if (exerciseError || !exercise) {
+    throw new Error("Exercise not found or not visible to user");
+  }
+
+  // Use max(position) + 1, not count(*): removing an exercise from the middle of a
+  // routine leaves a gap (e.g. positions [0,2] after removing 1), so count(*) would
+  // recompute a position that collides with the unique(routine_id, position) constraint.
+  const { data: maxRow, error: maxError } = await supabase
     .from("routine_exercises")
-    .select("id", { count: "exact", head: true })
-    .eq("routine_id", parsed.routineId);
-  if (countError) throw new Error(countError.message);
+    .select("position")
+    .eq("routine_id", parsed.routineId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (maxError) throw new Error(maxError.message);
+  const nextPosition = maxRow ? maxRow.position + 1 : 0;
 
   const { data, error } = await supabase
     .from("routine_exercises")
@@ -101,7 +121,7 @@ export async function addExerciseToRoutineForUser(
       routine_id: parsed.routineId,
       user_id: userId,
       exercise_id: parsed.exerciseId,
-      position: count ?? 0,
+      position: nextPosition,
       target_sets: parsed.targetSets ?? null,
     })
     .select()

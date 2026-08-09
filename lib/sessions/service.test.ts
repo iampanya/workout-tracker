@@ -184,6 +184,48 @@ describe("sessions service", () => {
     expect(after.isPr).toBe(true); // the 120kg set was deleted, so this exercise has no prior history left
   });
 
+  it("logs a new set after deleting a middle set, without a set_number collision", async () => {
+    // Regression test: set_numbers [1,2,3], delete the middle one -> [1,3] remain.
+    // A naive count(*)-based set_number calculation would compute set_number 3 for
+    // the next insert, colliding with the unique(session_exercise_id, set_number)
+    // constraint.
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Set Number Gap Exercise"),
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-13" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 60,
+      reps: 5,
+      isWarmup: false,
+    });
+    const second = await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 70,
+      reps: 5,
+      isWarmup: false,
+    });
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 80,
+      reps: 5,
+      isWarmup: false,
+    });
+
+    await deleteSetForUser(client, userId, second.set.id);
+
+    await expect(
+      logSetForUser(client, userId, {
+        sessionExerciseId: sessionExercise.id,
+        weightKg: 90,
+        reps: 5,
+        isWarmup: false,
+      })
+    ).resolves.not.toThrow();
+  });
+
   it("finishes a session by setting completed_at", async () => {
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-11" });
     await finishSessionForUser(client, userId, session.id);

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   listRoutines,
   createRoutineForUser,
@@ -95,6 +96,38 @@ describe("routines service", () => {
     await deleteRoutineForUser(client, userId, routine.id);
     const { data } = await admin.from("routine_exercises").select("id").eq("routine_id", routine.id);
     expect(data).toEqual([]);
+  });
+
+  it("adds a new exercise after removing a middle one, without a position collision", async () => {
+    // Regression test: positions [0,1,2], remove the middle one -> [0,2] remain.
+    // A naive count(*)-based position calculation would compute position 2 for the
+    // next insert, colliding with the unique(routine_id, position) constraint.
+    const routine = await createRoutineForUser(client, userId, { name: "Position Gap Test" });
+    const customExercise = await createCustomExerciseForUser(client, userId, {
+      name: `Position Gap Exercise ${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    });
+
+    await addExerciseToRoutineForUser(client, userId, {
+      routineId: routine.id,
+      exerciseId: benchId,
+    });
+    const second = await addExerciseToRoutineForUser(client, userId, {
+      routineId: routine.id,
+      exerciseId: squatId,
+    });
+    await addExerciseToRoutineForUser(client, userId, {
+      routineId: routine.id,
+      exerciseId: customExercise.id,
+    });
+
+    await removeRoutineExerciseForUser(client, userId, second.id);
+
+    await expect(
+      addExerciseToRoutineForUser(client, userId, {
+        routineId: routine.id,
+        exerciseId: squatId,
+      })
+    ).resolves.not.toThrow();
   });
 
   it("rejects adding an exercise to another user's routine", async () => {
