@@ -1,4 +1,6 @@
+import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { listExercises } from "@/lib/exercises/service";
 import { QueryProvider } from "./QueryProvider";
 import { LoggingClient } from "./LoggingClient";
 
@@ -11,11 +13,17 @@ export default async function LogSessionPage({
   const supabase = await createServerSupabaseClient();
 
   const { data: session } = await supabase.from("sessions").select("*").eq("id", sessionId).single();
-  const { data: sessionExercises } = await supabase
-    .from("session_exercises")
-    .select("*, exercise:exercises(id, name), sets(*)")
-    .eq("session_id", sessionId)
-    .order("position");
+  if (!session) {
+    notFound();
+  }
+  const [{ data: sessionExercises }, availableExercises] = await Promise.all([
+    supabase
+      .from("session_exercises")
+      .select("*, exercise:exercises(id, name), sets(*)")
+      .eq("session_id", sessionId)
+      .order("position"),
+    listExercises(supabase),
+  ]);
 
   const exercises = (sessionExercises ?? []).map((se) => ({
     sessionExerciseId: se.id,
@@ -30,8 +38,12 @@ export default async function LogSessionPage({
     <QueryProvider>
       <LoggingClient
         sessionId={sessionId}
-        sessionName={session?.name ?? "Workout"}
+        sessionName={session.name ?? "Workout"}
         initialExercises={exercises as never}
+        availableExercises={availableExercises.map((exercise) => ({
+          id: exercise.id,
+          name: exercise.name,
+        }))}
       />
     </QueryProvider>
   );
