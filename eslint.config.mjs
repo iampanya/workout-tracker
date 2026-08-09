@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Supabase CLI's generated scratch files, not part of the app source.
+    "supabase/.temp/**",
   ]),
 ]);
 

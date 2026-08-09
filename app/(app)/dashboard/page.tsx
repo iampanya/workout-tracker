@@ -38,7 +38,7 @@ export default async function DashboardPage() {
 
       {recentPrs.length > 0 && (
         <section>
-          <h2 className="font-medium">PRs from your last workout</h2>
+          <h2 className="font-medium">Top lifts from your last workout</h2>
           <ul className="space-y-1">
             {recentPrs.map((pr) => (
               <li key={pr.exerciseName} className="rounded bg-yellow-50 px-3 py-2">
