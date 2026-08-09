@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import path from "node:path";
+import type { Database } from "./database.types";
 
 // Vitest (unlike Next.js) does not auto-load .env.local, so point dotenv at it explicitly.
 dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
@@ -11,10 +12,10 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 describe("database schema and RLS", () => {
-  const admin = createClient(url, serviceKey);
+  const admin = createClient<Database>(url, serviceKey);
   let userA: string;
   let userB: string;
-  let clientA: ReturnType<typeof createClient>;
+  let clientA: ReturnType<typeof createClient<Database>>;
 
   beforeAll(async () => {
     const a = await admin.auth.admin.createUser({
@@ -30,7 +31,7 @@ describe("database schema and RLS", () => {
     userA = a.data.user!.id;
     userB = b.data.user!.id;
 
-    clientA = createClient(url, anonKey);
+    clientA = createClient<Database>(url, anonKey);
     await clientA.auth.signInWithPassword({
       email: a.data.user!.email!,
       password: "password123",
