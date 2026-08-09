@@ -127,4 +127,61 @@ describe("database schema and RLS", () => {
     expect(error).toBeNull();
     expect(Number(pr!.pr_weight_kg)).toBe(100); // the 999 warmup is excluded
   });
+
+  it("blocks a user from reading another user's PRs through the exercise_prs view (RLS through view)", async () => {
+    const { data: exercise } = await admin
+      .from("exercises")
+      .select("id")
+      .eq("is_preset", true)
+      .limit(1)
+      .single();
+
+    const { data: session } = await admin
+      .from("sessions")
+      .insert({ user_id: userB, session_date: "2026-01-06" })
+      .select()
+      .single();
+    const { data: sessionExercise } = await admin
+      .from("session_exercises")
+      .insert({
+        session_id: session!.id,
+        user_id: userB,
+        exercise_id: exercise!.id,
+        position: 0,
+      })
+      .select()
+      .single();
+    await admin.from("sets").insert({
+      session_exercise_id: sessionExercise!.id,
+      user_id: userB,
+      exercise_id: exercise!.id,
+      set_number: 1,
+      weight_kg: 250,
+      reps: 3,
+      is_warmup: false,
+    });
+
+    // Sanity check: the admin (service_role) client, which bypasses RLS,
+    // really does see userB's PR row via the view.
+    const { data: adminView } = await admin
+      .from("exercise_prs")
+      .select("pr_weight_kg")
+      .eq("user_id", userB)
+      .eq("exercise_id", exercise!.id)
+      .single();
+    expect(Number(adminView!.pr_weight_kg)).toBe(250);
+
+    // clientA is authenticated as userA. Querying the view for userB's PR
+    // must return nothing: without `security_invoker = true` on the view,
+    // Postgres would evaluate RLS as the view's owner (a superuser that
+    // bypasses RLS), leaking userB's PR to userA.
+    const { data, error } = await clientA
+      .from("exercise_prs")
+      .select("pr_weight_kg")
+      .eq("user_id", userB)
+      .eq("exercise_id", exercise!.id);
+
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
 });

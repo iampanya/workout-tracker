@@ -98,7 +98,13 @@ create policy sets_all on public.sets for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- live PR view (never store/cache this)
-create view public.exercise_prs as
+-- `security_invoker = true` is required: without it, a view evaluates RLS as
+-- the view's OWNER (the migration-running `postgres` superuser, which bypasses
+-- RLS entirely), not as the querying role, so every caller would see every
+-- user's PRs. With it, the view runs the underlying `sets` query as the
+-- querying role, so the `sets_all` policy (`user_id = auth.uid()`) applies.
+create view public.exercise_prs
+  with (security_invoker = true) as
   select user_id, exercise_id, max(weight_kg) as pr_weight_kg
   from public.sets
   where not is_warmup
@@ -108,7 +114,11 @@ create view public.exercise_prs as
 -- (local and hosted) no longer auto-expose new public-schema relations to
 -- anon/authenticated/service_role (see `auto_expose_new_tables` in config.toml),
 -- so PostgREST returns "permission denied" without these explicit grants.
--- Row Level Security policies above still govern per-row access.
-grant usage on schema public to anon, authenticated, service_role;
+-- Only `authenticated` and `service_role` are granted: every feature in this
+-- app requires a logged-in user (see the design spec / task brief), so the
+-- unauthenticated `anon` role has no legitimate use for any table or view
+-- here and is granted nothing. Row Level Security policies above (and, for
+-- exercise_prs, `security_invoker` on the view) govern per-row access for the
+-- `authenticated` role; `service_role` bypasses RLS by design.
+grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
-grant select on all tables in schema public to anon;
