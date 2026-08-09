@@ -49,12 +49,18 @@ describe("session history", () => {
     });
 
     const detail = await getSessionDetail(client, session.id);
-    expect(detail.session.id).toBe(session.id);
-    expect(detail.exercises).toEqual([
+    expect(detail).not.toBeNull();
+    expect(detail!.session.id).toBe(session.id);
+    expect(detail!.exercises).toEqual([
       {
         exerciseName: exercise.name,
         sets: [{ weight_kg: 60, reps: 10, is_warmup: false, set_number: 1 }],
       },
     ]);
+  });
+
+  it("returns null for a nonexistent session id, so the page can 404 instead of throwing", async () => {
+    const detail = await getSessionDetail(client, "00000000-0000-0000-0000-000000000000");
+    expect(detail).toBeNull();
   });
 });

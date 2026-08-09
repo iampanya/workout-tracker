@@ -9,7 +9,7 @@ export type SessionDetail = {
     exerciseName: string;
     sets: { weight_kg: number; reps: number; is_warmup: boolean; set_number: number }[];
   }[];
-};
+} | null;
 
 export async function listCompletedSessions(
   supabase: SupabaseClient<Database>
@@ -31,8 +31,9 @@ export async function getSessionDetail(
     .from("sessions")
     .select("*")
     .eq("id", sessionId)
-    .single();
+    .maybeSingle();
   if (sessionError) throw new Error(sessionError.message);
+  if (!session) return null;
 
   const { data: sessionExercises, error: exercisesError } = await supabase
     .from("session_exercises")

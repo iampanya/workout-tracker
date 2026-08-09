@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionDetail } from "@/lib/sessions/history";
 
@@ -8,7 +9,11 @@ export default async function SessionDetailPage({
 }) {
   const { sessionId } = await params;
   const supabase = await createServerSupabaseClient();
-  const { session, exercises } = await getSessionDetail(supabase, sessionId);
+  const detail = await getSessionDetail(supabase, sessionId);
+  if (!detail) {
+    notFound();
+  }
+  const { session, exercises } = detail;
 
   return (
     <div className="space-y-6">
