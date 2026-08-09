@@ -39,4 +39,17 @@ describe("exercises service", () => {
     const exercises = await listExercises(client);
     expect(exercises.find((e) => e.id === exercise.id)).toBeUndefined();
   });
+
+  it("rejects a duplicate exercise name that differs only by case", async () => {
+    await createCustomExerciseForUser(client, userId, { name: "Incline Press" });
+    await expect(
+      createCustomExerciseForUser(client, userId, { name: "incline press" })
+    ).rejects.toThrow();
+  });
+
+  it("throws when archiving an exercise that doesn't exist or isn't owned by the user", async () => {
+    await expect(
+      archiveExerciseForUser(client, userId, "00000000-0000-0000-0000-000000000000")
+    ).rejects.toThrow();
+  });
 });

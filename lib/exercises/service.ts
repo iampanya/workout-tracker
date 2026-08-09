@@ -42,10 +42,14 @@ export async function archiveExerciseForUser(
   userId: string,
   exerciseId: string
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("exercises")
     .update({ is_archived: true })
     .eq("id", exerciseId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select();
   if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("Exercise not found or not owned by user");
+  }
 }

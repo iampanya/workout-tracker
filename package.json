@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --exclude lib/supabase/schema.test.ts",
-    "test:db": "echo 'Requires: supabase start (running locally) and .env.local populated, see .env.local.example' && vitest run lib/supabase/schema.test.ts"
+    "test": "vitest run lib/date.test.ts lib/validation.test.ts lib/pr.test.ts lib/progress.test.ts lib/supabase/middleware.test.ts",
+    "test:db": "echo 'Requires: supabase start (running locally) and .env.local populated, see .env.local.example' && vitest run --exclude lib/date.test.ts --exclude lib/validation.test.ts --exclude lib/pr.test.ts --exclude lib/progress.test.ts --exclude lib/supabase/middleware.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
