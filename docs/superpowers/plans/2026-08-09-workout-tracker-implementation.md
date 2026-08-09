@@ -1985,6 +1985,21 @@ describe("sessions service", () => {
     expect(sessionExercise.position).toBe(0);
   });
 
+  it("rejects adding an exercise to another user's session", async () => {
+    const victimSession = await startSessionForUser(client, userId, { sessionDate: "2026-01-06" });
+    const attacker = await createTestUser(admin);
+
+    await expect(
+      addExerciseToSessionForUser(attacker.client, attacker.userId, victimSession.id, benchId)
+    ).rejects.toThrow();
+
+    const { data: sessionExercises } = await admin
+      .from("session_exercises")
+      .select("id")
+      .eq("session_id", victimSession.id);
+    expect(sessionExercises).toEqual([]);
+  });
+
   it("marks the first logged set for a fresh exercise as a PR", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("First Set Exercise"),
@@ -2174,6 +2189,18 @@ export async function addExerciseToSessionForUser(
   sessionId: string,
   exerciseId: string
 ): Promise<SessionExercise> {
+  // Ownership check: the RLS policy on session_exercises only checks the
+  // inserted row's own user_id, not that session_id belongs to that user —
+  // without this, a malicious authenticated user could add rows to another
+  // user's session (same class of gap fixed in Task 6's addExerciseToRoutineForUser).
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("user_id", userId)
+    .single();
+  if (sessionError || !session) throw new Error("Session not found or not owned by user");
+
   const { count, error: countError } = await supabase
     .from("session_exercises")
     .select("id", { count: "exact", head: true })
@@ -2282,7 +2309,7 @@ export async function discardSessionForUser(
 - [ ] **Step 4: Run to verify pass**
 
 Run: `npx vitest run lib/sessions/service.test.ts`
-Expected: PASS (8 tests)
+Expected: PASS (9 tests)
 
 - [ ] **Step 5: Add the thin Server Action wrappers**
 
