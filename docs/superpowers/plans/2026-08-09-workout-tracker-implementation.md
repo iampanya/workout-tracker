@@ -405,7 +405,10 @@ create policy sets_all on public.sets for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- live PR view (never store/cache this)
-create view public.exercise_prs as
+-- security_invoker = true is required: without it, Postgres evaluates RLS on
+-- `sets` as the view's OWNER (the migration-running superuser, which bypasses
+-- RLS), not as the querying role, leaking every user's PRs to any caller.
+create view public.exercise_prs with (security_invoker = true) as
   select user_id, exercise_id, max(weight_kg) as pr_weight_kg
   from public.sets
   where not is_warmup
