@@ -751,7 +751,7 @@ git commit -m "feat: add validation schemas, PR comparison, and progress aggrega
 **Files:**
 - Create: `lib/supabase/server.ts`, `lib/supabase/client.ts`
 - Create: `lib/supabase/middleware.ts`, `lib/supabase/middleware.test.ts`
-- Create: `middleware.ts`
+- Create: `proxy.ts` (Next.js 16 renamed the root `middleware.ts` convention to `proxy.ts`, exporting `proxy` instead of `middleware` — see `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`; the request/response API is unchanged, only the file and export names)
 - Create: `app/login/page.tsx`
 - Create: `app/(app)/layout.tsx`, `app/(app)/dashboard/page.tsx`
 
@@ -885,14 +885,14 @@ export async function updateSession(request: NextRequest) {
 Run: `npx vitest run lib/supabase/middleware.test.ts`
 Expected: PASS (3 tests)
 
-- [ ] **Step 5: Wire up the root middleware**
+- [ ] **Step 5: Wire up the root proxy (Next.js 16's renamed middleware)**
 
-Create `middleware.ts`:
+Create `proxy.ts` (not `middleware.ts` — Next.js 16 deprecated that file name and renamed the export from `middleware` to `proxy`; behavior is otherwise identical):
 ```typescript
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
@@ -1020,7 +1020,7 @@ Run: `npm run dev`
 - [ ] **Step 10: Commit**
 
 ```bash
-git add lib/supabase/server.ts lib/supabase/client.ts lib/supabase/middleware.ts lib/supabase/middleware.test.ts middleware.ts "app/login" "app/(app)"
+git add lib/supabase/server.ts lib/supabase/client.ts lib/supabase/middleware.ts lib/supabase/middleware.test.ts proxy.ts "app/login" "app/(app)"
 git commit -m "feat: add Supabase auth clients, middleware route protection, and login flow"
 ```
 
