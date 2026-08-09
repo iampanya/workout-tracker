@@ -32,7 +32,7 @@ describe("routines service", () => {
   it("creates and lists a routine", async () => {
     const routine = await createRoutineForUser(client, userId, { name: "Push Day" });
     expect(routine.user_id).toBe(userId);
-    const routines = await listRoutines(client);
+    const routines = await listRoutines(client, userId);
     expect(routines.some((r) => r.id === routine.id)).toBe(true);
   });
 
@@ -95,5 +95,21 @@ describe("routines service", () => {
     await deleteRoutineForUser(client, userId, routine.id);
     const { data } = await admin.from("routine_exercises").select("id").eq("routine_id", routine.id);
     expect(data).toEqual([]);
+  });
+
+  it("rejects adding an exercise to another user's routine", async () => {
+    const routine = await createRoutineForUser(client, userId, { name: "Owned By Victim" });
+
+    const attacker = await createTestUser(admin);
+
+    await expect(
+      addExerciseToRoutineForUser(attacker.client, attacker.userId, {
+        routineId: routine.id,
+        exerciseId: benchId,
+      })
+    ).rejects.toThrow();
+
+    const { exercises } = await getRoutineWithExercises(client, userId, routine.id);
+    expect(exercises).toHaveLength(0);
   });
 });

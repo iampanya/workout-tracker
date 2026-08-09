@@ -6,7 +6,10 @@ import { DeleteRoutineButton } from "./DeleteRoutineButton";
 
 export default async function RoutinesPage() {
   const supabase = await createServerSupabaseClient();
-  const routines = await listRoutines(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const routines = await listRoutines(supabase, user!.id);
 
   return (
     <div className="space-y-6">

@@ -8,10 +8,14 @@ export type RoutineExerciseWithExercise = RoutineExercise & {
   exercise: { id: string; name: string; muscle_group: string | null };
 };
 
-export async function listRoutines(supabase: SupabaseClient<Database>): Promise<Routine[]> {
+export async function listRoutines(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<Routine[]> {
   const { data, error } = await supabase
     .from("routines")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -74,6 +78,16 @@ export async function addExerciseToRoutineForUser(
   input: unknown
 ): Promise<RoutineExercise> {
   const parsed = addRoutineExerciseSchema.omit({ position: true }).parse(input);
+
+  const { data: routine, error: routineError } = await supabase
+    .from("routines")
+    .select("id")
+    .eq("id", parsed.routineId)
+    .eq("user_id", userId)
+    .single();
+  if (routineError || !routine) {
+    throw new Error("Routine not found or not owned by user");
+  }
 
   const { count, error: countError } = await supabase
     .from("routine_exercises")
