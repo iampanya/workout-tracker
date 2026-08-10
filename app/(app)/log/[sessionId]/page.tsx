@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listExercises } from "@/lib/exercises/service";
 import { getPriorMaxWeights } from "@/lib/sessions/service";
+import { sessionDisplayName } from "@/lib/sessions/history";
 import { QueryProvider } from "./QueryProvider";
 import { LoggingClient } from "./LoggingClient";
 
@@ -16,10 +17,18 @@ export default async function LogSessionPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: session } = await supabase.from("sessions").select("*").eq("id", sessionId).single();
-  if (!session) {
+  const { data: sessionRow } = await supabase
+    .from("sessions")
+    .select("*, routine:routines(name)")
+    .eq("id", sessionId)
+    .single();
+  if (!sessionRow) {
     notFound();
   }
+  const { routine, ...session } = sessionRow as typeof sessionRow & {
+    routine: { name: string } | null;
+  };
+  const displayName = sessionDisplayName({ name: session.name, routineName: routine?.name ?? null });
   const [{ data: sessionExercises }, availableExercises] = await Promise.all([
     supabase
       .from("session_exercises")
@@ -46,11 +55,12 @@ export default async function LogSessionPage({
     <QueryProvider>
       <LoggingClient
         sessionId={sessionId}
-        sessionName={session.name ?? "Workout"}
+        sessionName={displayName}
         initialExercises={exercises as never}
         availableExercises={availableExercises.map((exercise) => ({
           id: exercise.id,
           name: exercise.name,
+          muscleGroup: exercise.muscle_group,
         }))}
       />
     </QueryProvider>

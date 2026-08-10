@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Plus } from "@phosphor-icons/react/ssr";
 import { addExerciseToRoutine } from "@/lib/actions/routines";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { ExerciseCombobox, type ExerciseOption } from "@/components/ui/ExerciseCombobox";
 
 export function AddExerciseToRoutine({
   routineId,
   availableExercises,
 }: {
   routineId: string;
-  availableExercises: { id: string; name: string }[];
+  availableExercises: ExerciseOption[];
 }) {
   const [exerciseId, setExerciseId] = useState(availableExercises[0]?.id ?? "");
   const [pending, setPending] = useState(false);
@@ -33,18 +33,13 @@ export function AddExerciseToRoutine({
   return (
     <div>
       <div className="flex items-end gap-2">
-        <Select
+        <ExerciseCombobox
           label="Exercise"
+          exercises={availableExercises}
           value={exerciseId}
-          onChange={(e) => setExerciseId(e.target.value)}
+          onChange={setExerciseId}
           wrapperClassName="flex-1"
-        >
-          {availableExercises.map((exercise) => (
-            <option key={exercise.id} value={exercise.id}>
-              {exercise.name}
-            </option>
-          ))}
-        </Select>
+        />
         <Button variant="secondary" icon={<Plus className="h-4 w-4" />} loading={pending} onClick={handleAdd}>
           Add
         </Button>

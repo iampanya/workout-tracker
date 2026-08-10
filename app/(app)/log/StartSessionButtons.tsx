@@ -9,8 +9,12 @@ import { Button } from "@/components/ui/Button";
 export function StartSessionButtons({ routines }: { routines: { id: string; name: string }[] }) {
   const router = useRouter();
 
-  async function handleStart(routineId?: string) {
-    const session = await startSession({ routineId, sessionDate: getLocalDateString() });
+  async function handleStart(routine?: { id: string; name: string }) {
+    const session = await startSession({
+      routineId: routine?.id,
+      name: routine?.name,
+      sessionDate: getLocalDateString(),
+    });
     router.push(`/log/${session.id}`);
   }
 
@@ -21,7 +25,7 @@ export function StartSessionButtons({ routines }: { routines: { id: string; name
           key={routine.id}
           variant="secondary"
           icon={<Play className="h-4 w-4" />}
-          onClick={() => handleStart(routine.id)}
+          onClick={() => handleStart(routine)}
           className="w-full"
         >
           {routine.name}

@@ -1,7 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { getLocalDateString, getWeekStart, getWeekEnd } from "@/lib/date";
+import { computeStreakDays } from "./streak";
 
-export type InProgressSession = Database["public"]["Tables"]["sessions"]["Row"];
+export type InProgressSession = Database["public"]["Tables"]["sessions"]["Row"] & {
+  routineName: string | null;
+};
 export type SessionPr = { exerciseName: string; weightKg: number };
 
 export async function listInProgressSessions(
@@ -9,11 +13,185 @@ export async function listInProgressSessions(
 ): Promise<InProgressSession[]> {
   const { data, error } = await supabase
     .from("sessions")
-    .select("*")
+    .select("*, routine:routines(name)")
     .is("completed_at", null)
     .order("started_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).map((row) => {
+    const { routine, ...session } = row as typeof row & { routine: { name: string } | null };
+    return { ...session, routineName: routine?.name ?? null };
+  });
+}
+
+export type OverviewStats = {
+  streakDays: number;
+  sessionsThisWeek: number;
+  volumeThisWeekKg: number;
+};
+
+const STREAK_LOOKBACK_DAYS = 90;
+
+// `now` is injectable (default wall-clock) so tests can pin "today". This runs
+// server-side; `session_date` is written client-side using the browser's local
+// calendar day (getLocalDateString in app/(app)/log/StartSessionButtons.tsx). If
+// server and user are in different timezones, "today"/"this week" can be off by a
+// day — a pre-existing property of how session_date works, not new here.
+export async function getOverviewStats(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  now: Date = new Date()
+): Promise<OverviewStats> {
+  const todayStr = getLocalDateString(now);
+  const lookbackStart = getLocalDateString(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - STREAK_LOOKBACK_DAYS)
+  );
+  const weekStart = getWeekStart(now);
+  const weekEnd = getWeekEnd(now);
+
+  const { data: recentSessions, error: recentError } = await supabase
+    .from("sessions")
+    .select("id, session_date")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .gte("session_date", lookbackStart)
+    .lte("session_date", todayStr)
+    .order("session_date", { ascending: false });
+  if (recentError) throw new Error(recentError.message);
+
+  const streakDays = computeStreakDays(
+    (recentSessions ?? []).map((s) => s.session_date),
+    todayStr
+  );
+
+  const weekSessions = (recentSessions ?? []).filter(
+    (s) => s.session_date >= weekStart && s.session_date <= weekEnd
+  );
+  const sessionsThisWeek = weekSessions.length;
+
+  let volumeThisWeekKg = 0;
+  if (weekSessions.length > 0) {
+    const weekSessionIds = weekSessions.map((s) => s.id);
+    const { data: weekSets, error: setsError } = await supabase
+      .from("sets")
+      .select("weight_kg, reps, session_exercises!inner(session_id)")
+      .in("session_exercises.session_id", weekSessionIds)
+      .eq("user_id", userId)
+      .eq("is_warmup", false);
+    if (setsError) throw new Error(setsError.message);
+    volumeThisWeekKg = (weekSets ?? []).reduce(
+      (sum, s) => sum + Number(s.weight_kg) * s.reps,
+      0
+    );
+  }
+
+  return { streakDays, sessionsThisWeek, volumeThisWeekKg };
+}
+
+export type WeeklyVolumePoint = { weekStart: string; volumeKg: number };
+
+// Training volume (sum of weight_kg × reps over non-warmup sets) bucketed by the
+// Monday-start week of each session's session_date, oldest→newest, zero-filled so
+// the chart always shows a continuous `weeks`-wide window.
+export async function getWeeklyVolume(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  weeks = 8,
+  now: Date = new Date()
+): Promise<WeeklyVolumePoint[]> {
+  // Build the ordered list of week-start labels (oldest → current).
+  const buckets: WeeklyVolumePoint[] = [];
+  const bucketIndex = new Map<string, number>();
+  for (let i = weeks - 1; i >= 0; i--) {
+    const ref = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+    const weekStart = getWeekStart(ref);
+    if (!bucketIndex.has(weekStart)) {
+      bucketIndex.set(weekStart, buckets.length);
+      buckets.push({ weekStart, volumeKg: 0 });
+    }
+  }
+  const windowStart = buckets[0].weekStart;
+
+  const { data: sessions, error: sessionsError } = await supabase
+    .from("sessions")
+    .select("id, session_date")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .gte("session_date", windowStart)
+    .lte("session_date", getLocalDateString(now));
+  if (sessionsError) throw new Error(sessionsError.message);
+  if (!sessions || sessions.length === 0) return buckets;
+
+  const weekBySessionId = new Map<string, string>();
+  for (const session of sessions) {
+    weekBySessionId.set(session.id, getWeekStart(new Date(`${session.session_date}T00:00:00`)));
+  }
+
+  const { data: sets, error: setsError } = await supabase
+    .from("sets")
+    .select("weight_kg, reps, session_exercises!inner(session_id)")
+    .in(
+      "session_exercises.session_id",
+      sessions.map((s) => s.id)
+    )
+    .eq("user_id", userId)
+    .eq("is_warmup", false);
+  if (setsError) throw new Error(setsError.message);
+
+  for (const set of (sets ?? []) as unknown as {
+    weight_kg: number;
+    reps: number;
+    session_exercises: { session_id: string };
+  }[]) {
+    const weekStart = weekBySessionId.get(set.session_exercises.session_id);
+    if (weekStart === undefined) continue;
+    const idx = bucketIndex.get(weekStart);
+    if (idx === undefined) continue; // outside the window (shouldn't happen given the filter)
+    buckets[idx].volumeKg += Number(set.weight_kg) * set.reps;
+  }
+
+  return buckets;
+}
+
+export type TopPr = { exerciseName: string; weightKg: number };
+
+// All-time top lifts (max non-warmup weight per exercise), from the live exercise_prs view.
+// Exercise names are fetched in a second query rather than a PostgREST embed: exercise_prs
+// is a view without FK metadata, so `exercises(name)` embedding isn't reliably resolvable.
+export async function listTopPrs(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  limit = 6
+): Promise<TopPr[]> {
+  const { data: prs, error: prsError } = await supabase
+    .from("exercise_prs")
+    .select("exercise_id, pr_weight_kg")
+    .eq("user_id", userId)
+    .order("pr_weight_kg", { ascending: false })
+    .limit(limit);
+  if (prsError) throw new Error(prsError.message);
+
+  const rows = (prs ?? []).filter(
+    (row): row is { exercise_id: string; pr_weight_kg: number } =>
+      row.exercise_id !== null && row.pr_weight_kg !== null
+  );
+  if (rows.length === 0) return [];
+
+  const { data: exercises, error: exercisesError } = await supabase
+    .from("exercises")
+    .select("id, name")
+    .in(
+      "id",
+      rows.map((r) => r.exercise_id)
+    );
+  if (exercisesError) throw new Error(exercisesError.message);
+
+  const nameById = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+  return rows
+    .filter((row) => nameById.has(row.exercise_id))
+    .map((row) => ({
+      exerciseName: nameById.get(row.exercise_id)!,
+      weightKg: Number(row.pr_weight_kg),
+    }));
 }
 
 export async function listPrsFromLastCompletedSession(

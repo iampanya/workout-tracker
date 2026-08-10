@@ -104,6 +104,27 @@ export async function addExerciseToSessionForUser(
   return data;
 }
 
+export async function removeExerciseFromSessionForUser(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  sessionExerciseId: string
+): Promise<void> {
+  // Scope the delete by user_id (mirror removeRoutineExerciseForUser): the RLS policy
+  // already restricts to the caller's rows, but the explicit filter makes ownership
+  // enforcement obvious and guards against a mis-scoped delete. `sets` cascade on delete;
+  // the gap this leaves in the position sequence is fine (inserts use max(position)+1).
+  const { data, error } = await supabase
+    .from("session_exercises")
+    .delete()
+    .eq("id", sessionExerciseId)
+    .eq("user_id", userId)
+    .select();
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("Exercise not found or not owned by user");
+  }
+}
+
 export async function getPriorMaxWeight(
   supabase: SupabaseClient<Database>,
   userId: string,
@@ -242,6 +263,23 @@ export async function finishSessionForUser(
   userId: string,
   sessionId: string
 ): Promise<void> {
+  // Reject finishing while any exercise has zero sets — the user must remove empty
+  // exercises first (defense in depth; the client blocks this too). Fetch each
+  // session_exercise with its sets (inner-less left join) and check the count.
+  const { data: sessionExercises, error: seError } = await supabase
+    .from("session_exercises")
+    .select("id, sets(id)")
+    .eq("session_id", sessionId)
+    .eq("user_id", userId);
+  if (seError) throw new Error(seError.message);
+
+  const hasEmptyExercise = (
+    sessionExercises as unknown as { id: string; sets: { id: string }[] }[] | null
+  )?.some((se) => (se.sets ?? []).length === 0);
+  if (hasEmptyExercise) {
+    throw new Error("Remove exercises with no sets before finishing");
+  }
+
   const { error } = await supabase
     .from("sessions")
     .update({ completed_at: new Date().toISOString() })

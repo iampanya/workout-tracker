@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   startSessionForUser,
   addExerciseToSessionForUser,
+  removeExerciseFromSessionForUser,
   logSetForUser,
   updateSetForUser,
   deleteSetForUser,
@@ -37,6 +38,12 @@ export async function addExerciseToSession(sessionId: string, exerciseId: string
   return { ...sessionExercise, prWeightKg };
 }
 
+export async function removeExerciseFromSession(sessionExerciseId: string) {
+  const supabase = await createServerSupabaseClient();
+  const userId = await currentUserId(supabase);
+  await removeExerciseFromSessionForUser(supabase, userId, sessionExerciseId);
+}
+
 export async function logSet(input: unknown) {
   const supabase = await createServerSupabaseClient();
   const userId = await currentUserId(supabase);
@@ -67,5 +74,15 @@ export async function discardSession(sessionId: string) {
   const supabase = await createServerSupabaseClient();
   const userId = await currentUserId(supabase);
   await discardSessionForUser(supabase, userId, sessionId);
+  revalidatePath("/dashboard");
+}
+
+// Deletes a completed workout from History. Same cascade as discardSession
+// (session_exercises → sets), but revalidates the History list too.
+export async function deleteCompletedSession(sessionId: string) {
+  const supabase = await createServerSupabaseClient();
+  const userId = await currentUserId(supabase);
+  await discardSessionForUser(supabase, userId, sessionId);
+  revalidatePath("/history");
   revalidatePath("/dashboard");
 }

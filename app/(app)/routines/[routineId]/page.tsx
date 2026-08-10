@@ -29,7 +29,14 @@ export default async function RoutineEditorPage({
           />
         ))}
       </div>
-      <AddExerciseToRoutine routineId={routineId} availableExercises={allExercises} />
+      <AddExerciseToRoutine
+        routineId={routineId}
+        availableExercises={allExercises.map((exercise) => ({
+          id: exercise.id,
+          name: exercise.name,
+          muscleGroup: exercise.muscle_group,
+        }))}
+      />
     </div>
   );
 }

@@ -11,13 +11,15 @@ import {
   finishSession,
   discardSession,
   addExerciseToSession,
+  removeExerciseFromSession,
 } from "@/lib/actions/sessions";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Select } from "@/components/ui/Select";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NumberField, applyStep } from "@/components/ui/NumberField";
+import { ExerciseCombobox } from "@/components/ui/ExerciseCombobox";
 
 type SetEntry = {
   id: string;
@@ -35,7 +37,7 @@ type ExerciseEntry = {
   prWeightKg: number | null;
 };
 type SetFormInput = { weight: string; reps: string; warmup: boolean };
-type AvailableExercise = { id: string; name: string };
+type AvailableExercise = { id: string; name: string; muscleGroup: string | null };
 
 function buildInputsFromExercises(list: ExerciseEntry[]): Record<string, SetFormInput> {
   const result: Record<string, SetFormInput> = {};
@@ -100,6 +102,12 @@ export function LoggingClient({
   const [editError, setEditError] = useState<string | null>(null);
   const [flashSetId, setFlashSetId] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmRemoveExerciseId, setConfirmRemoveExerciseId] = useState<string | null>(null);
+  const [removeExercisePending, setRemoveExercisePending] = useState(false);
+  const [removeExerciseError, setRemoveExerciseError] = useState<string | null>(null);
+  const [finishBlocked, setFinishBlocked] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const [finishPending, setFinishPending] = useState(false);
 
   const logSetMutation = useMutation({
     mutationFn: (vars: {
@@ -300,15 +308,68 @@ export function LoggingClient({
     }
   }
 
+  function requestRemoveExercise(exercise: ExerciseEntry) {
+    setRemoveExerciseError(null);
+    if (exercise.sets.length > 0) {
+      setConfirmRemoveExerciseId(exercise.sessionExerciseId);
+    } else {
+      handleRemoveExercise(exercise.sessionExerciseId);
+    }
+  }
+
+  async function handleRemoveExercise(sessionExerciseId: string) {
+    const index = exercises.findIndex((e) => e.sessionExerciseId === sessionExerciseId);
+    const removed = exercises[index];
+    if (!removed) return;
+    setRemoveExercisePending(true);
+    setRemoveExerciseError(null);
+    setExercises((prev) => prev.filter((e) => e.sessionExerciseId !== sessionExerciseId));
+    try {
+      await removeExerciseFromSession(sessionExerciseId);
+      setConfirmRemoveExerciseId(null);
+    } catch (err) {
+      // Roll back to the original position so ordering is preserved.
+      setExercises((prev) => {
+        const next = [...prev];
+        next.splice(index, 0, removed);
+        return next;
+      });
+      setRemoveExerciseError(err instanceof Error ? err.message : "Failed to remove exercise");
+    } finally {
+      setRemoveExercisePending(false);
+    }
+  }
+
   async function handleFinish() {
-    await finishSession(sessionId);
-    router.push("/dashboard");
+    const emptyExercises = exercises.filter((e) => e.sets.length === 0);
+    if (emptyExercises.length > 0) {
+      setFinishBlocked(true);
+      setFinishError(
+        `Remove or add a set to ${emptyExercises
+          .map((e) => e.exerciseName)
+          .join(", ")} before finishing.`
+      );
+      return;
+    }
+    setFinishBlocked(false);
+    setFinishError(null);
+    setFinishPending(true);
+    try {
+      await finishSession(sessionId);
+      router.push("/dashboard");
+    } catch (err) {
+      setFinishError(err instanceof Error ? err.message : "Failed to finish workout");
+      setFinishPending(false);
+    }
   }
 
   async function handleDiscard() {
     await discardSession(sessionId);
     router.push("/dashboard");
   }
+
+  const removeTarget =
+    exercises.find((e) => e.sessionExerciseId === confirmRemoveExerciseId) ?? null;
 
   return (
     <div className="space-y-6">
@@ -326,19 +387,40 @@ export function LoggingClient({
       )}
       {deleteError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{deleteError}</div>}
       {editError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{editError}</div>}
+      {removeExerciseError && (
+        <div className="rounded-xl bg-danger/15 p-3 text-danger">{removeExerciseError}</div>
+      )}
+      {finishError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{finishError}</div>}
       {exercises.map((exercise) => {
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
         const hasPendingSet = exercise.sets.some((s) => s.pending);
+        const isEmptyAndBlocked = finishBlocked && exercise.sets.length === 0;
         return (
-          <Card key={exercise.sessionExerciseId}>
-            <div className="flex items-center gap-2">
-              <h2 className="font-medium">{exercise.exerciseName}</h2>
-              {exercise.prWeightKg !== null && (
-                <Badge tone="success" icon={<Trophy className="h-3 w-3" />}>
-                  PR {exercise.prWeightKg}kg
-                </Badge>
-              )}
+          <Card
+            key={exercise.sessionExerciseId}
+            className={isEmptyAndBlocked ? "ring-2 ring-danger" : ""}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="font-medium">{exercise.exerciseName}</h2>
+                {exercise.prWeightKg !== null && (
+                  <Badge tone="success" icon={<Trophy className="h-3 w-3" />}>
+                    PR {exercise.prWeightKg}kg
+                  </Badge>
+                )}
+              </div>
+              <IconButton
+                icon={<Trash className="h-4 w-4" />}
+                aria-label={`Remove ${exercise.exerciseName}`}
+                variant="danger"
+                onClick={() => requestRemoveExercise(exercise)}
+              />
             </div>
+            {isEmptyAndBlocked && (
+              <p className="mt-1 text-sm text-danger">
+                Add a set or remove this exercise before finishing.
+              </p>
+            )}
             <ul className="mt-3 space-y-1.5 text-sm">
               {exercise.sets.map((set) => (
                 <li key={set.id} className={set.pending ? "opacity-50" : ""}>
@@ -505,18 +587,13 @@ export function LoggingClient({
         <Card>
           <h2 className="font-medium">Add Exercise</h2>
           <div className="mt-3 flex items-end gap-2">
-            <Select
+            <ExerciseCombobox
               label="Exercise"
+              exercises={availableExercises}
               value={pickerExerciseId}
-              onChange={(e) => setPickerExerciseId(e.target.value)}
+              onChange={setPickerExerciseId}
               wrapperClassName="flex-1"
-            >
-              {availableExercises.map((exercise) => (
-                <option key={exercise.id} value={exercise.id}>
-                  {exercise.name}
-                </option>
-              ))}
-            </Select>
+            />
             <Button
               variant="secondary"
               icon={<Plus className="h-4 w-4" />}
@@ -534,6 +611,7 @@ export function LoggingClient({
           variant="success"
           size="lg"
           icon={<CheckCircle className="h-5 w-5" />}
+          loading={finishPending}
           onClick={handleFinish}
           className="w-full"
         >
@@ -562,6 +640,24 @@ export function LoggingClient({
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="Remove this exercise?"
+        description={
+          removeTarget && (
+            <>
+              &ldquo;{removeTarget.exerciseName}&rdquo; and its {removeTarget.sets.length}{" "}
+              logged {removeTarget.sets.length === 1 ? "set" : "sets"} will be removed from this
+              workout.
+            </>
+          )
+        }
+        confirmLabel="Remove"
+        tone="danger"
+        loading={removeExercisePending}
+        onConfirm={() => removeTarget && handleRemoveExercise(removeTarget.sessionExerciseId)}
+        onCancel={() => setConfirmRemoveExerciseId(null)}
+      />
     </div>
   );
 }

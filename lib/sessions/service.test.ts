@@ -6,6 +6,7 @@ import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   startSessionForUser,
   addExerciseToSessionForUser,
+  removeExerciseFromSessionForUser,
   logSetForUser,
   updateSetForUser,
   deleteSetForUser,
@@ -242,6 +243,73 @@ describe("sessions service", () => {
       .eq("id", session.id)
       .single();
     expect(data!.completed_at).not.toBeNull();
+  });
+
+  it("removes an exercise from a session, cascading its sets", async () => {
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Remove Exercise"),
+      muscleGroup: "Chest",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-19" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 70,
+      reps: 8,
+      isWarmup: false,
+    });
+
+    await removeExerciseFromSessionForUser(client, userId, sessionExercise.id);
+
+    const { data: remaining } = await admin
+      .from("session_exercises")
+      .select("id")
+      .eq("id", sessionExercise.id);
+    expect(remaining).toEqual([]);
+    const { data: sets } = await admin
+      .from("sets")
+      .select("id")
+      .eq("session_exercise_id", sessionExercise.id);
+    expect(sets).toEqual([]);
+  });
+
+  it("rejects removing another user's session exercise", async () => {
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-19" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, benchId);
+    const attacker = await createTestUser(admin);
+
+    await expect(
+      removeExerciseFromSessionForUser(attacker.client, attacker.userId, sessionExercise.id)
+    ).rejects.toThrow();
+
+    const { data } = await admin
+      .from("session_exercises")
+      .select("id")
+      .eq("id", sessionExercise.id);
+    expect(data).toHaveLength(1);
+  });
+
+  it("refuses to finish while an exercise has no sets, and allows it once removed", async () => {
+    const withSets = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Finish Guard With Sets"),
+      muscleGroup: "Chest",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-20" });
+    const withSetsSe = await addExerciseToSessionForUser(client, userId, session.id, withSets.id);
+    await logSetForUser(client, userId, {
+      sessionExerciseId: withSetsSe.id,
+      weightKg: 60,
+      reps: 5,
+      isWarmup: false,
+    });
+    const emptySe = await addExerciseToSessionForUser(client, userId, session.id, benchId);
+
+    await expect(finishSessionForUser(client, userId, session.id)).rejects.toThrow(
+      /no sets/i
+    );
+
+    await removeExerciseFromSessionForUser(client, userId, emptySe.id);
+    await expect(finishSessionForUser(client, userId, session.id)).resolves.not.toThrow();
   });
 
   it("discarding a session cascades to remove its sets", async () => {

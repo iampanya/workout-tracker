@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getSessionDetail } from "@/lib/sessions/history";
+import { getSessionDetail, sessionDisplayName } from "@/lib/sessions/history";
 import { Card } from "@/components/ui/Card";
 
 export default async function SessionDetailPage({
@@ -18,7 +18,7 @@ export default async function SessionDetailPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{session.name ?? "Workout"}</h1>
+      <h1 className="text-2xl font-semibold">{sessionDisplayName(session)}</h1>
       <p className="text-sm text-muted">{session.session_date}</p>
       {exercises.map((exercise, i) => (
         <Card key={i}>

@@ -25,7 +25,7 @@ export default async function RoutinesPage() {
               <CaretRight className="h-4 w-4 shrink-0 text-muted" />
             </Link>
             <div className="pr-2">
-              <DeleteRoutineButton routineId={routine.id} />
+              <DeleteRoutineButton routineId={routine.id} routineName={routine.name} />
             </div>
           </Card>
         ))}

@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { Trash } from "@phosphor-icons/react/ssr";
-import { deleteRoutine } from "@/lib/actions/routines";
+import { deleteCompletedSession } from "@/lib/actions/sessions";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-export function DeleteRoutineButton({
-  routineId,
-  routineName,
+export function DeleteHistorySessionButton({
+  sessionId,
+  sessionName,
 }: {
-  routineId: string;
-  routineName: string;
+  sessionId: string;
+  sessionName: string;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -21,10 +21,10 @@ export function DeleteRoutineButton({
     setPending(true);
     setError(null);
     try {
-      await deleteRoutine(routineId);
+      await deleteCompletedSession(sessionId);
       setConfirmOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete routine");
+      setError(err instanceof Error ? err.message : "Failed to delete workout");
     } finally {
       setPending(false);
     }
@@ -34,16 +34,17 @@ export function DeleteRoutineButton({
     <div>
       <IconButton
         icon={<Trash className="h-4 w-4" />}
-        aria-label="Delete routine"
+        aria-label="Delete workout"
         variant="danger"
         onClick={() => setConfirmOpen(true)}
       />
       <ConfirmDialog
         open={confirmOpen}
-        title="Delete this routine?"
+        title="Delete this workout?"
         description={
           <>
-            &ldquo;{routineName}&rdquo; will be permanently deleted. This cannot be undone.
+            &ldquo;{sessionName}&rdquo; and all its logged sets will be permanently deleted. This
+            cannot be undone.
           </>
         }
         confirmLabel="Delete"
