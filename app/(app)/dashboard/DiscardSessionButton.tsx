@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { discardSession } from "@/lib/actions/sessions";
+import { IconButton } from "@/components/ui/IconButton";
 
 export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
   const [pending, setPending] = useState(false);
@@ -21,14 +23,14 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
 
   return (
     <div>
-      <button
+      <IconButton
+        icon={<Trash2 className="h-4 w-4" />}
+        aria-label="Discard session"
+        variant="danger"
+        loading={pending}
         onClick={handleDiscard}
-        disabled={pending}
-        className="text-sm text-gray-500 underline disabled:opacity-50"
-      >
-        {pending ? "Discarding..." : "Discard"}
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      />
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
