@@ -5,6 +5,9 @@ import {
   addRoutineExerciseSchema,
   startSessionSchema,
   logSetSchema,
+  usernameSchema,
+  loginSchema,
+  signupSchema,
 } from "./validation";
 
 describe("createExerciseSchema", () => {
@@ -90,5 +93,75 @@ describe("logSetSchema", () => {
       isWarmup: false,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("usernameSchema", () => {
+  it("lowercases a valid mixed-case username", () => {
+    const result = usernameSchema.safeParse("Panya_P1");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe("panya_p1");
+  });
+  it("rejects usernames shorter than 3 characters", () => {
+    expect(usernameSchema.safeParse("ab").success).toBe(false);
+  });
+  it("rejects usernames longer than 30 characters", () => {
+    expect(usernameSchema.safeParse("a".repeat(31)).success).toBe(false);
+  });
+  it("rejects disallowed characters", () => {
+    expect(usernameSchema.safeParse("bad name!").success).toBe(false);
+    expect(usernameSchema.safeParse("dot.name").success).toBe(false);
+  });
+});
+
+describe("loginSchema", () => {
+  it("accepts a username and password", () => {
+    expect(loginSchema.safeParse({ username: "Panya", password: "secret" }).success).toBe(true);
+  });
+  it("rejects an empty password", () => {
+    expect(loginSchema.safeParse({ username: "panya", password: "" }).success).toBe(false);
+  });
+});
+
+describe("signupSchema", () => {
+  it("accepts a valid signup and lowercases the username", () => {
+    const result = signupSchema.safeParse({
+      username: "NewUser",
+      email: "new@example.com",
+      password: "password123",
+      inviteCode: "abc123",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.username).toBe("newuser");
+  });
+  it("rejects an invalid email", () => {
+    expect(
+      signupSchema.safeParse({
+        username: "newuser",
+        email: "not-an-email",
+        password: "password123",
+        inviteCode: "abc123",
+      }).success
+    ).toBe(false);
+  });
+  it("rejects a password shorter than 6 characters", () => {
+    expect(
+      signupSchema.safeParse({
+        username: "newuser",
+        email: "new@example.com",
+        password: "short",
+        inviteCode: "abc123",
+      }).success
+    ).toBe(false);
+  });
+  it("rejects a missing invite code", () => {
+    expect(
+      signupSchema.safeParse({
+        username: "newuser",
+        email: "new@example.com",
+        password: "password123",
+        inviteCode: "",
+      }).success
+    ).toBe(false);
   });
 });

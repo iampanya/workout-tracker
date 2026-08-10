@@ -1,8 +1,9 @@
 # Username login + multi-user signup — design
 
-> Status: **Not started.** Requirements + phased plan captured 2026-08-11 for a future session. The
-> UX pass from the same brainstorm (delete confirmations, history labels, dashboard, combobox, etc.)
-> shipped separately; this document covers only the auth/multi-user change.
+> Status: **Implemented 2026-08-11** (phases B1–B4). Migration `0003_profiles_and_invites.sql`,
+> `lib/supabase/admin.ts`, `lib/auth/service.ts` (+ tests), `lib/actions/auth.ts`, the username login +
+> `/signup` pages, and the middleware/docs updates all landed. B5 (password reset) is the only deferred
+> follow-up. This document is the original design; see `CLAUDE.md` and `README.md` for current usage.
 
 ## Why
 

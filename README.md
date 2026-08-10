@@ -1,6 +1,10 @@
 # Weight Training Tracker
 
-A personal weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, Supabase (Postgres + Auth), Tailwind CSS, and Recharts.
+A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, Supabase (Postgres + Auth), Tailwind CSS, and Recharts.
+
+**Multi-user, invite-gated.** Login is by **username**; each user has an isolated profile (enforced by
+row-level security). New accounts self-register on `/signup` but require a valid single-use **invite
+code** — there is no open public signup.
 
 ## Local Development
 
@@ -11,17 +15,25 @@ A personal weight-training log: routines, per-set weight/reps tracking, progress
 5. Run the app: `npm run dev`
 6. Run unit tests (no DB required): `npm test`
 7. Run the full suite including DB-backed integration tests (requires `supabase start` to be running, and `DOTENV_CONFIG_PATH=.env.local` set): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
-8. Create the one local user account: open Supabase Studio (`supabase status` prints its URL, typically `http://127.0.0.1:54323`) → Authentication → Users → Add user
+8. Create a local account. `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`) — the signup flow uses it server-side. Then either:
+   - **Via the app (recommended):** issue an invite code, then register at `/signup`. Insert a code in Supabase Studio's SQL Editor (`supabase status` prints its URL, typically `http://127.0.0.1:54323`):
+     ```sql
+     insert into public.invite_codes (code) values ('dev-invite');
+     ```
+     Open `/signup`, fill in a username, email, password, and `dev-invite`.
+   - **Via Studio directly:** Authentication → Users → Add user creates the auth user, but you must also insert a matching `public.profiles` row (`id` = the new user's id, a lowercase `username`) or username login won't find it.
 
 ## Deployment
 
-This is a single-user app — public signup is disabled on both the local and hosted Supabase projects, and there is exactly one account.
+Accounts are invite-gated: users self-register at `/signup` with a single-use invite code. Supabase's
+own public signup stays **disabled** — the app mints users server-side via the service-role admin API,
+which is what enforces the invite gate.
 
 ### 1. Create the hosted Supabase project
 
-Create a new project at [supabase.com](https://supabase.com). Note its project ref, database password, API URL, and anon key.
+Create a new project at [supabase.com](https://supabase.com). Note its project ref, database password, API URL, anon key, and **service role key**.
 
-In the hosted project's dashboard: **Authentication → Settings → disable "Allow new users to sign up"**.
+In the hosted project's dashboard: **Authentication → Settings → disable "Allow new users to sign up"** (kept off on purpose — the app's own invite-gated flow creates accounts).
 
 ### 2. Push the schema
 
@@ -32,9 +44,15 @@ supabase db push
 
 Then, in the hosted project's **SQL Editor**, run the contents of `supabase/seed.sql` once to seed the preset exercises (the CLI does not auto-run `seed.sql` against a linked remote project).
 
-### 3. Create the one production user account
+### 3. Seed the first invite code
 
-In the hosted dashboard: **Authentication → Users → Add user**. Use your real email and a strong password.
+In the hosted project's **SQL Editor**, insert an invite code so you (and anyone you invite) can register:
+
+```sql
+insert into public.invite_codes (code) values ('<a-long-random-string>');
+```
+
+Each code is single-use. Issue more the same way as you invite people; add `expires_at` to time-limit one.
 
 ### 4. Deploy to Vercel
 
@@ -42,14 +60,22 @@ In the hosted dashboard: **Authentication → Users → Add user**. Use your rea
 npx vercel link
 npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
 npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
 npx vercel --prod
 ```
 
-Paste the **hosted** project's URL and anon key when prompted — never the local Docker ones, and never the service role key (no server code needs it at runtime).
+Paste the **hosted** project's URL, anon key, and service role key when prompted — never the local Docker
+ones. `SUPABASE_SERVICE_ROLE_KEY` is required at runtime by the auth server actions (username login and
+invite-gated signup); it is server-only and must never be exposed as a `NEXT_PUBLIC_*` variable.
 
-### 5. Verify
+### 5. Create your account
 
-Visit the deployed URL from both a phone and a desktop browser: start a workout, log a few sets, confirm a "New PR" banner appears when you exceed a prior best, finish the workout, and confirm the dashboard shows it.
+Visit `<deployed-url>/signup` and register with a username, your email, a strong password, and the invite
+code from step 3.
+
+### 6. Verify
+
+Log in with your username from both a phone and a desktop browser: start a workout, log a few sets, confirm a "New PR" banner appears when you exceed a prior best, finish the workout, and confirm the dashboard shows it.
 
 ## Notes
 

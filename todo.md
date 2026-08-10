@@ -14,10 +14,13 @@ along with a broader UX pass:
 - Delete a workout from History; remove an exercise mid-workout; finish-workout validation (no empty
   exercises). Searchable `ExerciseCombobox` (filter by name or muscle group) in the log + routine pickers.
 
-## Next — Username login + multi-user signup (separate session)
+## Done — Username login + multi-user signup (2026-08-11)
 
-Full requirements and a phased plan are in
-`docs/superpowers/specs/2026-08-11-username-login-multiuser-design.md`. Not started.
+Implemented phases B1–B4: username login, invite-gated `/signup`, `profiles`/`invite_codes` schema
+(migration `0003`), server-side auth actions, and docs. See
+`docs/superpowers/specs/2026-08-11-username-login-multiuser-design.md`.
+
+**Deferred:** B5 (password reset by email).
 
 ## Follow-up (separate, unrelated task)
 

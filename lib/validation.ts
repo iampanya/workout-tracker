@@ -35,3 +35,26 @@ export const updateSetSchema = z.object({
   reps: z.number().int().positive().max(999),
   isWarmup: z.boolean(),
 });
+
+// Usernames are the login handle: 3–30 chars, letters/digits/underscore, stored and
+// compared lowercased (accept mixed-case input, normalize to lowercase).
+export const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters")
+  .max(30, "Username must be at most 30 characters")
+  .regex(/^[a-zA-Z0-9_]+$/, "Use only letters, numbers, and underscores")
+  .transform((value) => value.toLowerCase());
+
+export const loginSchema = z.object({
+  username: usernameSchema,
+  password: z.string().min(1, "Password is required"),
+});
+
+export const signupSchema = z.object({
+  username: usernameSchema,
+  email: z.string().trim().email("Enter a valid email"),
+  // Matches Supabase's minimum_password_length (config.toml).
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  inviteCode: z.string().trim().min(1, "Invite code is required"),
+});

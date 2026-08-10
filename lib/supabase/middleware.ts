@@ -2,8 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
+const PUBLIC_ROUTES = new Set(["/login", "/signup"]);
+
 export function isProtectedRoute(pathname: string): boolean {
-  return pathname !== "/login";
+  return !PUBLIC_ROUTES.has(pathname);
 }
 
 export async function updateSession(request: NextRequest) {
