@@ -1891,3 +1891,241 @@ values (auth.uid(), 'Test Invalid', 'Cardio');
 Expected: rejected with a `check constraint "exercises_muscle_group_check"` violation.
 
 This task has no commit — it's a verification gate confirming Tasks 1–14 together satisfy the spec's Verification section.
+
+---
+
+## Task 16: Apply the design system to the 5 screens the original plan missed
+
+**Context (added post-review):** The final whole-branch review (after Tasks 1–15) found that the plan's file list, while exhaustively covering the icon-mapping table and the two features, never named five screens that still run the pre-refresh look: `app/login/page.tsx`, `app/(app)/history/page.tsx`, `app/(app)/history/[sessionId]/page.tsx`, `app/(app)/log/StartSessionButtons.tsx`, and `app/(app)/exercises/[exerciseId]/page.tsx` (plus its child `ProgressChart.tsx`). Two of these are literal, not just cosmetic, spec violations: the exercise-progress page still shows the 🏆 emoji PR badge the spec's icon-mapping table explicitly replaces with a `Trophy` icon, and the progress chart's line is hardcoded `stroke="#000000"` — invisible against the app's `#0b0c0f` dark background.
+
+**Files:**
+- Modify: `app/login/page.tsx`
+- Modify: `app/(app)/history/page.tsx`
+- Modify: `app/(app)/history/[sessionId]/page.tsx`
+- Modify: `app/(app)/log/StartSessionButtons.tsx`
+- Modify: `app/(app)/exercises/[exerciseId]/page.tsx`
+- Modify: `app/(app)/exercises/[exerciseId]/ProgressChart.tsx`
+
+**Interfaces:**
+- Consumes: `Button`/`Card` from `components/ui/` (Tasks 2, 4), CSS tokens from `app/globals.css` (Task 1), `Play`/`Shuffle`/`Trophy` icons from `lucide-react`.
+
+- [ ] **Step 1: Rewrite `app/login/page.tsx`**
+
+```tsx
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { LogIn } from "lucide-react";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const supabase = createBrowserSupabaseClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (signInError) {
+      setError(signInError.message);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <Card className="w-full max-w-sm">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <h1 className="text-2xl font-semibold">Log in</h1>
+          <input
+            type="email"
+            required
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2"
+          />
+          <input
+            type="password"
+            required
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2"
+          />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <Button
+            type="submit"
+            variant="primary"
+            icon={<LogIn className="h-4 w-4" />}
+            loading={loading}
+            className="w-full"
+          >
+            Log in
+          </Button>
+        </form>
+      </Card>
+    </main>
+  );
+}
+```
+
+- [ ] **Step 2: Update the divider color in `app/(app)/history/page.tsx`**
+
+Change:
+```tsx
+      <ul className="divide-y">
+```
+to:
+```tsx
+      <ul className="divide-y divide-border">
+```
+
+- [ ] **Step 3: Rewrite `app/(app)/history/[sessionId]/page.tsx`**
+
+```tsx
+import { notFound } from "next/navigation";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSessionDetail } from "@/lib/sessions/history";
+import { Card } from "@/components/ui/Card";
+
+export default async function SessionDetailPage({
+  params,
+}: {
+  params: Promise<{ sessionId: string }>;
+}) {
+  const { sessionId } = await params;
+  const supabase = await createServerSupabaseClient();
+  const detail = await getSessionDetail(supabase, sessionId);
+  if (!detail) {
+    notFound();
+  }
+  const { session, exercises } = detail;
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">{session.name ?? "Workout"}</h1>
+      <p className="text-sm text-muted">{session.session_date}</p>
+      {exercises.map((exercise, i) => (
+        <Card key={i}>
+          <h2 className="font-medium">{exercise.exerciseName}</h2>
+          <ul className="mt-2 space-y-1 text-sm">
+            {exercise.sets.map((set, j) => (
+              <li key={j}>
+                Set {set.set_number}: {set.weight_kg}kg × {set.reps}
+                {set.is_warmup ? " (warmup)" : ""}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ))}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Rewrite `app/(app)/log/StartSessionButtons.tsx`**
+
+```tsx
+"use client";
+
+import { useRouter } from "next/navigation";
+import { Play, Shuffle } from "lucide-react";
+import { getLocalDateString } from "@/lib/date";
+import { startSession } from "@/lib/actions/sessions";
+import { Button } from "@/components/ui/Button";
+
+export function StartSessionButtons({ routines }: { routines: { id: string; name: string }[] }) {
+  const router = useRouter();
+
+  async function handleStart(routineId?: string) {
+    const session = await startSession({ routineId, sessionDate: getLocalDateString() });
+    router.push(`/log/${session.id}`);
+  }
+
+  return (
+    <div className="space-y-2">
+      {routines.map((routine) => (
+        <Button
+          key={routine.id}
+          variant="secondary"
+          icon={<Play className="h-4 w-4" />}
+          onClick={() => handleStart(routine.id)}
+          className="w-full"
+        >
+          {routine.name}
+        </Button>
+      ))}
+      <Button
+        variant="secondary"
+        icon={<Shuffle className="h-4 w-4" />}
+        onClick={() => handleStart(undefined)}
+        className="w-full border-dashed"
+      >
+        Freeform Workout
+      </Button>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: Fix the PR badge in `app/(app)/exercises/[exerciseId]/page.tsx`**
+
+Add `Trophy` to the imports:
+```tsx
+import { Trophy } from "lucide-react";
+```
+
+Replace:
+```tsx
+      {pr !== null && <div className="rounded bg-yellow-100 p-3 text-yellow-800">🏆 PR: {pr}kg</div>}
+```
+with:
+```tsx
+      {pr !== null && (
+        <div className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2 text-warning">
+          <Trophy className="h-4 w-4" />
+          PR: {pr}kg
+        </div>
+      )}
+```
+
+- [ ] **Step 6: Fix the chart line color in `app/(app)/exercises/[exerciseId]/ProgressChart.tsx`**
+
+Change:
+```tsx
+          <Line type="monotone" dataKey="maxWeight" stroke="#000000" name="Max Weight (kg)" />
+```
+to:
+```tsx
+          <Line type="monotone" dataKey="maxWeight" stroke="#84cc16" name="Max Weight (kg)" />
+```
+
+(A literal hex rather than the `--accent` CSS variable: recharts sets `stroke` as a plain SVG presentation attribute, not a `style` property, and CSS custom properties don't resolve inside plain SVG attribute values. `#84cc16` is a lime green with enough contrast against both the light `#f7f7f5` and dark `#0b0c0f` page backgrounds.)
+
+- [ ] **Step 7: Typecheck**
+
+Run: `npx tsc --noEmit`
+Expected: no errors.
+
+- [ ] **Step 8: Manual smoke test**
+
+Run `npm run dev`, visit `/login` (log out first if needed), `/history`, a session's `/history/[sessionId]` detail, `/log` (routine picker), and an exercise's progress page at `/exercises/[exerciseId]` — confirm all read correctly in both light and dark OS color schemes, and that the progress chart's line is visible in dark mode.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add app/login/page.tsx "app/(app)/history/page.tsx" "app/(app)/history/[sessionId]/page.tsx" "app/(app)/log/StartSessionButtons.tsx" "app/(app)/exercises/[exerciseId]/page.tsx" "app/(app)/exercises/[exerciseId]/ProgressChart.tsx"
+git commit -m "feat: apply design system to login, history, and progress screens"
+```
