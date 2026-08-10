@@ -19,7 +19,7 @@ export default async function RoutineEditorPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{routine.name}</h1>
-      <ul className="divide-y">
+      <ul className="divide-y divide-border">
         {exercises.map((entry) => (
           <RoutineExerciseRow
             key={entry.id}

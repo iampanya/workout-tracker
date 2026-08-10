@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { addExerciseToRoutine } from "@/lib/actions/routines";
+import { Button } from "@/components/ui/Button";
 
 export function AddExerciseToRoutine({
   routineId,
@@ -33,7 +35,7 @@ export function AddExerciseToRoutine({
         <select
           value={exerciseId}
           onChange={(e) => setExerciseId(e.target.value)}
-          className="flex-1 rounded border px-3 py-2"
+          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
         >
           {availableExercises.map((exercise) => (
             <option key={exercise.id} value={exercise.id}>
@@ -41,15 +43,11 @@ export function AddExerciseToRoutine({
             </option>
           ))}
         </select>
-        <button
-          onClick={handleAdd}
-          disabled={pending}
-          className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-        >
-          {pending ? "Adding..." : "Add"}
-        </button>
+        <Button variant="secondary" icon={<Plus className="h-4 w-4" />} loading={pending} onClick={handleAdd}>
+          Add
+        </Button>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
     </div>
   );
 }

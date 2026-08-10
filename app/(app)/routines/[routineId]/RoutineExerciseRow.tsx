@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { removeRoutineExercise, moveRoutineExercise } from "@/lib/actions/routines";
+import { IconButton } from "@/components/ui/IconButton";
 
 type PendingAction = "up" | "down" | "remove" | null;
 
@@ -45,23 +47,32 @@ export function RoutineExerciseRow({
     <li className="py-2">
       <div className="flex items-center justify-between">
         <span>{name}</span>
-        <div className="flex gap-2 text-sm">
-          <button onClick={() => handleMove("up")} disabled={pending !== null}>
-            ↑
-          </button>
-          <button onClick={() => handleMove("down")} disabled={pending !== null}>
-            ↓
-          </button>
-          <button
+        <div className="flex items-center gap-1">
+          <IconButton
+            icon={<ChevronUp className="h-4 w-4" />}
+            aria-label="Move exercise up"
+            loading={pending === "up"}
+            disabled={pending !== null && pending !== "up"}
+            onClick={() => handleMove("up")}
+          />
+          <IconButton
+            icon={<ChevronDown className="h-4 w-4" />}
+            aria-label="Move exercise down"
+            loading={pending === "down"}
+            disabled={pending !== null && pending !== "down"}
+            onClick={() => handleMove("down")}
+          />
+          <IconButton
+            icon={<X className="h-4 w-4" />}
+            aria-label="Remove exercise from routine"
+            variant="danger"
+            loading={pending === "remove"}
+            disabled={pending !== null && pending !== "remove"}
             onClick={handleRemove}
-            disabled={pending !== null}
-            className="text-gray-500 underline disabled:opacity-50"
-          >
-            Remove
-          </button>
+          />
         </div>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </li>
   );
 }
