@@ -55,6 +55,7 @@ export function LoggingClient({
   const [editInputs, setEditInputs] = useState<Record<string, SetFormInput>>({});
   const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const logSetMutation = useMutation({
     mutationFn: (vars: {
@@ -135,6 +136,10 @@ export function LoggingClient({
       }
       setEditingSetId(null);
     },
+    onError: (err) => {
+      setEditError(err instanceof Error ? err.message : "Failed to save that set");
+      setEditingSetId(null);
+    },
   });
 
   function handleAddSet(sessionExerciseId: string) {
@@ -162,6 +167,7 @@ export function LoggingClient({
   function confirmEdit(sessionExerciseId: string, setId: string) {
     const input = editInputs[setId];
     if (!input?.weight || !input?.reps) return;
+    setEditError(null);
     updateSetMutation.mutate({
       setId,
       sessionExerciseId,
@@ -241,6 +247,7 @@ export function LoggingClient({
         </div>
       )}
       {deleteError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{deleteError}</div>}
+      {editError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{editError}</div>}
       {exercises.map((exercise) => {
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
         return (
@@ -324,12 +331,14 @@ export function LoggingClient({
                             <IconButton
                               icon={<Pencil className="h-4 w-4" />}
                               aria-label="Edit set"
+                              disabled={set.pending}
                               onClick={() => startEdit(set)}
                             />
                             <IconButton
                               icon={<Trash2 className="h-4 w-4" />}
                               aria-label="Delete set"
                               variant="danger"
+                              disabled={set.pending}
                               onClick={() => setConfirmDeleteSetId(set.id)}
                             />
                           </>
