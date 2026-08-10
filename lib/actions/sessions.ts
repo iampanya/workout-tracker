@@ -6,6 +6,7 @@ import {
   startSessionForUser,
   addExerciseToSessionForUser,
   logSetForUser,
+  updateSetForUser,
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
@@ -37,6 +38,12 @@ export async function logSet(input: unknown) {
   const supabase = await createServerSupabaseClient();
   const userId = await currentUserId(supabase);
   return logSetForUser(supabase, userId, input);
+}
+
+export async function updateSet(setId: string, input: unknown) {
+  const supabase = await createServerSupabaseClient();
+  const userId = await currentUserId(supabase);
+  return updateSetForUser(supabase, userId, setId, input);
 }
 
 export async function deleteSet(setId: string) {
