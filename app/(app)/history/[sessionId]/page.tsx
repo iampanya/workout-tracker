@@ -23,7 +23,7 @@ export default async function SessionDetailPage({
       {exercises.map((exercise, i) => (
         <Card key={i}>
           <h2 className="font-medium">{exercise.exerciseName}</h2>
-          <ul className="mt-2 space-y-1 text-sm">
+          <ul className="mt-2 space-y-1 font-mono text-sm">
             {exercise.sets.map((set, j) => (
               <li key={j}>
                 Set {set.set_number}: {set.weight_kg}kg × {set.reps}

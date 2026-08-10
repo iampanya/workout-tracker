@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn } from "lucide-react";
+import { SignIn } from "@phosphor-icons/react/ssr";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,27 +35,27 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <h1 className="text-2xl font-semibold">Log in</h1>
-          <input
+          <Input
             type="email"
+            label="Email"
             required
-            placeholder="Email"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2"
           />
-          <input
+          <Input
             type="password"
+            label="Password"
             required
-            placeholder="Password"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2"
           />
           {error && <p className="text-sm text-danger">{error}</p>}
           <Button
             type="submit"
             variant="primary"
-            icon={<LogIn className="h-4 w-4" />}
+            icon={<SignIn className="h-4 w-4" />}
             loading={loading}
             className="w-full"
           >

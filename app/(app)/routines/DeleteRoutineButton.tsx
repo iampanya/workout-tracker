@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@phosphor-icons/react/ssr";
 import { deleteRoutine } from "@/lib/actions/routines";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -24,7 +24,7 @@ export function DeleteRoutineButton({ routineId }: { routineId: string }) {
   return (
     <div>
       <IconButton
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash className="h-4 w-4" />}
         aria-label="Delete routine"
         variant="danger"
         loading={pending}

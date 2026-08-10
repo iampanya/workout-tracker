@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@phosphor-icons/react/ssr";
 import { discardSession } from "@/lib/actions/sessions";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -24,7 +24,7 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
   return (
     <div>
       <IconButton
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash className="h-4 w-4" />}
         aria-label="Discard session"
         variant="danger"
         loading={pending}

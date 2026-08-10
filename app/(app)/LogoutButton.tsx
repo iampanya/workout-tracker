@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { SignOut } from "@phosphor-icons/react/ssr";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -15,5 +15,5 @@ export function LogoutButton() {
     router.refresh();
   }
 
-  return <IconButton icon={<LogOut className="h-5 w-5" />} aria-label="Log out" onClick={handleLogout} />;
+  return <IconButton icon={<SignOut className="h-5 w-5" />} aria-label="Log out" onClick={handleLogout} />;
 }

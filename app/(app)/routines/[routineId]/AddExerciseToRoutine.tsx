@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react/ssr";
 import { addExerciseToRoutine } from "@/lib/actions/routines";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 
 export function AddExerciseToRoutine({
   routineId,
@@ -31,18 +32,19 @@ export function AddExerciseToRoutine({
 
   return (
     <div>
-      <div className="flex gap-2">
-        <select
+      <div className="flex items-end gap-2">
+        <Select
+          label="Exercise"
           value={exerciseId}
           onChange={(e) => setExerciseId(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
+          wrapperClassName="flex-1"
         >
           {availableExercises.map((exercise) => (
             <option key={exercise.id} value={exercise.id}>
               {exercise.name}
             </option>
           ))}
-        </select>
+        </Select>
         <Button variant="secondary" icon={<Plus className="h-4 w-4" />} loading={pending} onClick={handleAdd}>
           Add
         </Button>

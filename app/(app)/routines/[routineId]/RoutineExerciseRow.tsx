@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { CaretUp, CaretDown, X } from "@phosphor-icons/react/ssr";
 import { removeRoutineExercise, moveRoutineExercise } from "@/lib/actions/routines";
 import { IconButton } from "@/components/ui/IconButton";
+import { Card } from "@/components/ui/Card";
 
 type PendingAction = "up" | "down" | "remove" | null;
 
@@ -44,19 +45,19 @@ export function RoutineExerciseRow({
   }
 
   return (
-    <li className="py-2">
+    <Card>
       <div className="flex items-center justify-between">
-        <span>{name}</span>
+        <span className="font-medium">{name}</span>
         <div className="flex items-center gap-1">
           <IconButton
-            icon={<ChevronUp className="h-4 w-4" />}
+            icon={<CaretUp className="h-4 w-4" />}
             aria-label="Move exercise up"
             loading={pending === "up"}
             disabled={pending !== null && pending !== "up"}
             onClick={() => handleMove("up")}
           />
           <IconButton
-            icon={<ChevronDown className="h-4 w-4" />}
+            icon={<CaretDown className="h-4 w-4" />}
             aria-label="Move exercise down"
             loading={pending === "down"}
             disabled={pending !== null && pending !== "down"}
@@ -72,7 +73,7 @@ export function RoutineExerciseRow({
           />
         </div>
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
-    </li>
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+    </Card>
   );
 }

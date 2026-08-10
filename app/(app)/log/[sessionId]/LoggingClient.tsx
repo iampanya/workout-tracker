@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Check, X, CheckCircle2, Trophy } from "lucide-react";
+import { Plus, Trash, PencilSimple, Check, X, CheckCircle, Trophy } from "@phosphor-icons/react/ssr";
 import {
   logSet,
   updateSet,
@@ -15,6 +15,9 @@ import {
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
+import { NumberField, applyStep } from "@/components/ui/NumberField";
 
 type SetEntry = {
   id: string;
@@ -45,6 +48,31 @@ function buildInputsFromExercises(list: ExerciseEntry[]): Record<string, SetForm
   return result;
 }
 
+const WEIGHT_STEP = 2.5;
+const REPS_STEP = 1;
+
+function WarmupToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      onClick={() => onChange(!checked)}
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition [touch-action:manipulation] ${
+        checked ? "bg-accent-secondary/15 text-accent-secondary" : "bg-surface-muted text-muted"
+      }`}
+    >
+      {checked && <Check className="h-4 w-4" />}
+      Warmup
+    </button>
+  );
+}
+
 export function LoggingClient({
   sessionId,
   sessionName,
@@ -70,6 +98,8 @@ export function LoggingClient({
   const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+  const [flashSetId, setFlashSetId] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const logSetMutation = useMutation({
     mutationFn: (vars: {
@@ -117,6 +147,8 @@ export function LoggingClient({
         const exercise = exercises.find((ex) => ex.sessionExerciseId === vars.sessionExerciseId);
         setPrBanner(`New PR on ${exercise?.exerciseName}: ${vars.weightKg}kg!`);
       }
+      setFlashSetId(result.set.id);
+      setTimeout(() => setFlashSetId((id) => (id === result.set.id ? null : id)), 900);
     },
     onError: (_err, vars) => {
       setExercises((prev) =>
@@ -160,6 +192,26 @@ export function LoggingClient({
       setEditingSetId(null);
     },
   });
+
+  function stepInput(sessionExerciseId: string, field: "weight" | "reps", delta: number, step: number) {
+    setInputs((prev) => {
+      const current = prev[sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
+      return {
+        ...prev,
+        [sessionExerciseId]: { ...current, [field]: applyStep(current[field], delta, step) },
+      };
+    });
+  }
+
+  function stepEditInput(setId: string, field: "weight" | "reps", delta: number, step: number) {
+    setEditInputs((prev) => {
+      const current = prev[setId] ?? { weight: "", reps: "", warmup: false };
+      return {
+        ...prev,
+        [setId]: { ...current, [field]: applyStep(current[field], delta, step) },
+      };
+    });
+  }
 
   function handleAddSet(sessionExerciseId: string) {
     const input = inputs[sessionExerciseId];
@@ -262,7 +314,10 @@ export function LoggingClient({
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{sessionName}</h1>
       {prBanner && (
-        <div className="rounded-xl bg-warning/15 p-3 font-medium text-warning">{prBanner}</div>
+        <div className="flex items-center gap-2 rounded-xl bg-success/15 p-3 font-medium text-success">
+          <Trophy className="h-5 w-5 shrink-0" />
+          {prBanner}
+        </div>
       )}
       {logSetMutation.isError && (
         <div className="rounded-xl bg-danger/15 p-3 text-danger">
@@ -279,69 +334,82 @@ export function LoggingClient({
             <div className="flex items-center gap-2">
               <h2 className="font-medium">{exercise.exerciseName}</h2>
               {exercise.prWeightKg !== null && (
-                <span className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-                  <Trophy className="h-3 w-3" />
+                <Badge tone="success" icon={<Trophy className="h-3 w-3" />}>
                   PR {exercise.prWeightKg}kg
-                </span>
+                </Badge>
               )}
             </div>
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-3 space-y-1.5 text-sm">
               {exercise.sets.map((set) => (
                 <li key={set.id} className={set.pending ? "opacity-50" : ""}>
                   {editingSetId === set.id ? (
-                    <div className="flex items-center gap-2 py-1">
-                      <input
-                        type="number"
-                        value={editInputs[set.id]?.weight ?? ""}
-                        onChange={(e) =>
-                          setEditInputs((prev) => ({
-                            ...prev,
-                            [set.id]: { ...prev[set.id], weight: e.target.value },
-                          }))
-                        }
-                        className="w-16 rounded-lg border border-border bg-surface px-2 py-1"
-                      />
-                      <input
-                        type="number"
-                        value={editInputs[set.id]?.reps ?? ""}
-                        onChange={(e) =>
-                          setEditInputs((prev) => ({
-                            ...prev,
-                            [set.id]: { ...prev[set.id], reps: e.target.value },
-                          }))
-                        }
-                        className="w-16 rounded-lg border border-border bg-surface px-2 py-1"
-                      />
-                      <label className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={editInputs[set.id]?.warmup ?? false}
-                          onChange={(e) =>
+                    <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <NumberField
+                          label="Weight (kg)"
+                          value={editInputs[set.id]?.weight ?? ""}
+                          onChange={(value) =>
                             setEditInputs((prev) => ({
                               ...prev,
-                              [set.id]: { ...prev[set.id], warmup: e.target.checked },
+                              [set.id]: { ...prev[set.id], weight: value },
+                            }))
+                          }
+                          onStep={(delta) => stepEditInput(set.id, "weight", delta, WEIGHT_STEP)}
+                          step={WEIGHT_STEP}
+                          inputMode="decimal"
+                        />
+                        <NumberField
+                          label="Reps"
+                          value={editInputs[set.id]?.reps ?? ""}
+                          onChange={(value) =>
+                            setEditInputs((prev) => ({
+                              ...prev,
+                              [set.id]: { ...prev[set.id], reps: value },
+                            }))
+                          }
+                          onStep={(delta) => stepEditInput(set.id, "reps", delta, REPS_STEP)}
+                          step={REPS_STEP}
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <WarmupToggle
+                          checked={editInputs[set.id]?.warmup ?? false}
+                          onChange={(value) =>
+                            setEditInputs((prev) => ({
+                              ...prev,
+                              [set.id]: { ...prev[set.id], warmup: value },
                             }))
                           }
                         />
-                        Warmup
-                      </label>
-                      <IconButton
-                        icon={<Check className="h-4 w-4" />}
-                        aria-label="Save set"
-                        loading={updateSetMutation.isPending}
-                        onClick={() => confirmEdit(exercise.sessionExerciseId, set.id)}
-                      />
-                      <IconButton
-                        icon={<X className="h-4 w-4" />}
-                        aria-label="Cancel edit"
-                        onClick={() => setEditingSetId(null)}
-                      />
+                        <div className="flex items-center gap-1">
+                          <IconButton
+                            icon={<Check className="h-4 w-4" />}
+                            aria-label="Save set"
+                            loading={updateSetMutation.isPending}
+                            onClick={() => confirmEdit(exercise.sessionExerciseId, set.id)}
+                          />
+                          <IconButton
+                            icon={<X className="h-4 w-4" />}
+                            aria-label="Cancel edit"
+                            onClick={() => setEditingSetId(null)}
+                          />
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between py-1">
-                      <span>
+                    <div
+                      className={`flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors duration-700 ${
+                        flashSetId === set.id ? "bg-success/15" : "bg-transparent"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 font-mono">
                         Set {set.set_number}: {set.weight_kg}kg × {set.reps}
-                        {set.is_warmup ? " (warmup)" : ""}
+                        {set.is_warmup && (
+                          <Badge tone="neutral" className="font-sans">
+                            Warmup
+                          </Badge>
+                        )}
                       </span>
                       <div className="flex items-center gap-1">
                         {confirmDeleteSetId === set.id ? (
@@ -361,13 +429,13 @@ export function LoggingClient({
                         ) : (
                           <>
                             <IconButton
-                              icon={<Pencil className="h-4 w-4" />}
+                              icon={<PencilSimple className="h-4 w-4" />}
                               aria-label="Edit set"
                               disabled={set.pending}
                               onClick={() => startEdit(set)}
                             />
                             <IconButton
-                              icon={<Trash2 className="h-4 w-4" />}
+                              icon={<Trash className="h-4 w-4" />}
                               aria-label="Delete set"
                               variant="danger"
                               disabled={set.pending}
@@ -381,52 +449,54 @@ export function LoggingClient({
                 </li>
               ))}
             </ul>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="number"
-                placeholder="kg"
-                value={input.weight}
-                onChange={(e) =>
-                  setInputs((prev) => ({
-                    ...prev,
-                    [exercise.sessionExerciseId]: { ...input, weight: e.target.value },
-                  }))
-                }
-                className="w-20 rounded-lg border border-border bg-surface px-2 py-1"
-              />
-              <input
-                type="number"
-                placeholder="reps"
-                value={input.reps}
-                onChange={(e) =>
-                  setInputs((prev) => ({
-                    ...prev,
-                    [exercise.sessionExerciseId]: { ...input, reps: e.target.value },
-                  }))
-                }
-                className="w-20 rounded-lg border border-border bg-surface px-2 py-1"
-              />
-              <label className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={input.warmup}
-                  onChange={(e) =>
+            <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField
+                  label="Weight (kg)"
+                  value={input.weight}
+                  onChange={(value) =>
                     setInputs((prev) => ({
                       ...prev,
-                      [exercise.sessionExerciseId]: { ...input, warmup: e.target.checked },
+                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], weight: value },
+                    }))
+                  }
+                  onStep={(delta) => stepInput(exercise.sessionExerciseId, "weight", delta, WEIGHT_STEP)}
+                  step={WEIGHT_STEP}
+                  inputMode="decimal"
+                />
+                <NumberField
+                  label="Reps"
+                  value={input.reps}
+                  onChange={(value) =>
+                    setInputs((prev) => ({
+                      ...prev,
+                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], reps: value },
+                    }))
+                  }
+                  onStep={(delta) => stepInput(exercise.sessionExerciseId, "reps", delta, REPS_STEP)}
+                  step={REPS_STEP}
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <WarmupToggle
+                  checked={input.warmup}
+                  onChange={(value) =>
+                    setInputs((prev) => ({
+                      ...prev,
+                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], warmup: value },
                     }))
                   }
                 />
-                Warmup
-              </label>
-              <Button
-                variant="secondary"
-                icon={<Plus className="h-4 w-4" />}
-                loading={hasPendingSet}
-                onClick={() => handleAddSet(exercise.sessionExerciseId)}
-              >
-                Add Set
-              </Button>
+                <Button
+                  variant="secondary"
+                  icon={<Plus className="h-4 w-4" />}
+                  loading={hasPendingSet}
+                  onClick={() => handleAddSet(exercise.sessionExerciseId)}
+                >
+                  Add Set
+                </Button>
+              </div>
             </div>
           </Card>
         );
@@ -434,18 +504,19 @@ export function LoggingClient({
       {availableExercises.length > 0 && (
         <Card>
           <h2 className="font-medium">Add Exercise</h2>
-          <div className="mt-2 flex gap-2">
-            <select
+          <div className="mt-3 flex items-end gap-2">
+            <Select
+              label="Exercise"
               value={pickerExerciseId}
               onChange={(e) => setPickerExerciseId(e.target.value)}
-              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
+              wrapperClassName="flex-1"
             >
               {availableExercises.map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>
                   {exercise.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <Button
               variant="secondary"
               icon={<Plus className="h-4 w-4" />}
@@ -458,13 +529,38 @@ export function LoggingClient({
           {addExerciseError && <p className="mt-2 text-sm text-danger">{addExerciseError}</p>}
         </Card>
       )}
-      <div className="flex gap-2">
-        <Button variant="primary" icon={<CheckCircle2 className="h-4 w-4" />} onClick={handleFinish}>
+      <div className="space-y-3">
+        <Button
+          variant="success"
+          size="lg"
+          icon={<CheckCircle className="h-5 w-5" />}
+          onClick={handleFinish}
+          className="w-full"
+        >
           Finish Workout
         </Button>
-        <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={handleDiscard}>
-          Discard
-        </Button>
+        {confirmDiscard ? (
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm text-muted">Discard this workout?</span>
+            <Button variant="danger" onClick={handleDiscard}>
+              Yes, discard
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmDiscard(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => setConfirmDiscard(true)}
+              className="flex min-h-11 items-center gap-1.5 px-2 text-sm text-danger [touch-action:manipulation] hover:underline"
+            >
+              <Trash className="h-4 w-4" />
+              Discard workout
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

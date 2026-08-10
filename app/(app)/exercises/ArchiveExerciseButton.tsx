@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive } from "lucide-react";
+import { Archive } from "@phosphor-icons/react/ssr";
 import { archiveExercise } from "@/lib/actions/exercises";
 import { IconButton } from "@/components/ui/IconButton";
 

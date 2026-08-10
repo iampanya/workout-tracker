@@ -1,7 +1,8 @@
-import { Trophy } from "lucide-react";
+import { Trophy } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getExerciseHistory, getExercisePr } from "@/lib/exercises/progress";
 import { aggregateSessionSeries } from "@/lib/progress";
+import { Card } from "@/components/ui/Card";
 import { ProgressChart } from "./ProgressChart";
 
 export default async function ExerciseProgressPage({
@@ -28,35 +29,42 @@ export default async function ExerciseProgressPage({
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{exercise?.name}</h1>
       {pr !== null && (
-        <div className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2 text-warning">
-          <Trophy className="h-4 w-4" />
+        <div className="flex items-center gap-2 rounded-xl bg-success/15 px-3 py-2 font-medium text-success">
+          <Trophy className="h-5 w-5" />
           PR: {pr}kg
         </div>
       )}
-      <ProgressChart data={series} />
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left">
-            <th>Date</th>
-            <th>Weight</th>
-            <th>Reps</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history
-            .slice()
-            .reverse()
-            .map((set) => (
-              <tr key={set.id} className={set.weight_kg === pr && !set.is_warmup ? "font-semibold" : ""}>
-                <td>{set.session_date}</td>
-                <td>
-                  {set.weight_kg}kg{set.is_warmup ? " (warmup)" : ""}
-                </td>
-                <td>{set.reps}</td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
+      <Card>
+        <ProgressChart data={series} />
+      </Card>
+      <Card padding={false} className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border text-muted">
+              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Weight</th>
+              <th className="px-4 py-3 font-medium">Reps</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border font-mono">
+            {history
+              .slice()
+              .reverse()
+              .map((set) => (
+                <tr
+                  key={set.id}
+                  className={set.weight_kg === pr && !set.is_warmup ? "font-semibold text-success" : ""}
+                >
+                  <td className="px-4 py-3">{set.session_date}</td>
+                  <td className="px-4 py-3">
+                    {set.weight_kg}kg{set.is_warmup ? " (warmup)" : ""}
+                  </td>
+                  <td className="px-4 py-3">{set.reps}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }

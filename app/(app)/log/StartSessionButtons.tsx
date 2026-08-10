@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Play, Shuffle } from "lucide-react";
+import { Play, Shuffle } from "@phosphor-icons/react/ssr";
 import { getLocalDateString } from "@/lib/date";
 import { startSession } from "@/lib/actions/sessions";
 import { Button } from "@/components/ui/Button";

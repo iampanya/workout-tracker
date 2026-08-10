@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { CaretRight } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listCompletedSessions } from "@/lib/sessions/history";
+import { Card } from "@/components/ui/Card";
 
 export default async function HistoryPage() {
   const supabase = await createServerSupabaseClient();
@@ -9,15 +11,19 @@ export default async function HistoryPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">History</h1>
-      <ul className="divide-y divide-border">
+      <div className="space-y-2">
         {sessions.map((session) => (
-          <li key={session.id} className="py-2">
-            <Link href={`/history/${session.id}`} className="underline">
-              {session.name ?? "Workout"} — {session.session_date}
+          <Card key={session.id} padding={false}>
+            <Link href={`/history/${session.id}`} className="flex items-center justify-between gap-2 p-4">
+              <span>
+                <span className="font-medium">{session.name ?? "Workout"}</span>
+                <span className="block text-sm text-muted">{session.session_date}</span>
+              </span>
+              <CaretRight className="h-4 w-4 shrink-0 text-muted" />
             </Link>
-          </li>
+          </Card>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

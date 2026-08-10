@@ -3,11 +3,13 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react/ssr";
 import { createExerciseSchema } from "@/lib/validation";
 import { createCustomExercise } from "@/lib/actions/exercises";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 type FormValues = z.infer<typeof createExerciseSchema>;
 
@@ -31,27 +33,31 @@ export function AddExerciseForm() {
 
   return (
     <Card>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex gap-2">
-        <input
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <Input
+          label="Exercise name"
           {...register("name")}
-          placeholder="Exercise name"
-          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
+          placeholder="e.g. Bicep Curl"
+          error={errors.name?.message}
+          wrapperClassName="sm:flex-1"
         />
-        <select
-          {...register("muscleGroup")}
-          className="w-40 rounded-lg border border-border bg-surface px-3 py-2"
-        >
+        <Select label="Muscle group" {...register("muscleGroup")} wrapperClassName="sm:w-40">
           {MUSCLE_GROUPS.map((group) => (
             <option key={group} value={group}>
               {group}
             </option>
           ))}
-        </select>
-        <Button type="submit" variant="primary" icon={<Plus className="h-4 w-4" />} loading={isSubmitting}>
+        </Select>
+        <Button
+          type="submit"
+          variant="primary"
+          icon={<Plus className="h-4 w-4" />}
+          loading={isSubmitting}
+          className="sm:shrink-0"
+        >
           Add
         </Button>
       </form>
-      {errors.name && <p className="mt-2 text-sm text-danger">{errors.name.message}</p>}
       {errors.muscleGroup && <p className="mt-2 text-sm text-danger">{errors.muscleGroup.message}</p>}
     </Card>
   );

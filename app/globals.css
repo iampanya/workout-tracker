@@ -1,45 +1,83 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f5;
-  --foreground: #14151a;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --surface: #ffffff;
-  --border: #e2e2df;
-  --muted: #6b6f76;
-  --accent: #7ed321;
-  --accent-foreground: #0d1a02;
-  --danger: #e5484d;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --accent: #d97706;
+  --accent-foreground: #0f172a;
+  --accent-secondary: #7c3aed;
+  --accent-secondary-foreground: #ffffff;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --danger: #dc2626;
   --danger-foreground: #ffffff;
-  --warning: #f5a623;
+  --ring: #d97706;
+
+  --muscle-chest: #e11d48;
+  --muscle-back: #2563eb;
+  --muscle-legs: #b45309;
+  --muscle-shoulders: #7c3aed;
+  --muscle-arms: #0891b2;
+  --muscle-core: #059669;
+  --chart-line: #16a34a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-secondary-foreground: var(--accent-secondary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
-  --color-warning: var(--warning);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ring: var(--ring);
+  --color-muscle-chest: var(--muscle-chest);
+  --color-muscle-back: var(--muscle-back);
+  --color-muscle-legs: var(--muscle-legs);
+  --color-muscle-shoulders: var(--muscle-shoulders);
+  --color-muscle-arms: var(--muscle-arms);
+  --color-muscle-core: var(--muscle-core);
+  --color-chart-line: var(--chart-line);
+  --font-sans: var(--font-fira-sans);
+  --font-mono: var(--font-fira-code);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b0c0f;
-    --foreground: #f2f3f5;
-    --surface: #16181d;
-    --border: #2a2d34;
-    --muted: #9296a1;
-    --accent: #9bef3f;
-    --accent-foreground: #0d1a02;
-    --danger: #ff6369;
-    --danger-foreground: #1a0505;
-    --warning: #ffb84d;
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --surface: #222735;
+    --surface-muted: #272f42;
+    --border: #334155;
+    --muted: #94a3b8;
+    --accent: #f59e0b;
+    --accent-foreground: #0f172a;
+    --accent-secondary: #8b5cf6;
+    --accent-secondary-foreground: #f8fafc;
+    --success: #22c55e;
+    --success-foreground: #0f172a;
+    --danger: #ef4444;
+    --danger-foreground: #f8fafc;
+    --ring: #f59e0b;
+
+    --muscle-chest: #fb7185;
+    --muscle-back: #60a5fa;
+    --muscle-legs: #fbbf24;
+    --muscle-shoulders: #a78bfa;
+    --muscle-arms: #22d3ee;
+    --muscle-core: #34d399;
+    --chart-line: #22c55e;
   }
 }
 

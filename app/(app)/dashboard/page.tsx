@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { Play, Trophy } from "lucide-react";
+import { Play, Trophy } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listInProgressSessions, listPrsFromLastCompletedSession } from "@/lib/dashboard/service";
+import { Card } from "@/components/ui/Card";
+import { StatCard } from "@/components/ui/StatCard";
 import { DiscardSessionButton } from "./DiscardSessionButton";
 
 export default async function DashboardPage() {
@@ -19,42 +21,44 @@ export default async function DashboardPage() {
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <Link
         href="/log"
-        className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 font-medium text-accent-foreground"
+        className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-base font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <Play className="h-4 w-4" />
+        <Play className="h-5 w-5" />
         Start a Workout
       </Link>
 
       {inProgress.length > 0 && (
-        <section>
+        <section className="space-y-2">
           <h2 className="font-medium">In Progress</h2>
-          <ul className="divide-y divide-border">
+          <div className="space-y-2">
             {inProgress.map((session) => (
-              <li key={session.id} className="flex items-center justify-between py-2">
-                <Link href={`/log/${session.id}`} className="underline">
-                  {session.name ?? "Workout"} — {session.session_date}
+              <Card key={session.id} className="flex items-center justify-between">
+                <Link href={`/log/${session.id}`} className="flex-1 py-1">
+                  <div className="font-medium">{session.name ?? "Workout"}</div>
+                  <div className="text-sm text-muted">{session.session_date}</div>
                 </Link>
                 <DiscardSessionButton sessionId={session.id} />
-              </li>
+              </Card>
             ))}
-          </ul>
+          </div>
         </section>
       )}
 
       {recentPrs.length > 0 && (
-        <section>
+        <section className="space-y-2">
           <h2 className="font-medium">Top lifts from your last workout</h2>
-          <ul className="space-y-1">
+          <div className="grid grid-cols-2 gap-3">
             {recentPrs.map((pr) => (
-              <li
+              <StatCard
                 key={pr.exerciseName}
-                className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2"
-              >
-                <Trophy className="h-4 w-4 text-warning" />
-                {pr.exerciseName}: {pr.weightKg}kg
-              </li>
+                label={pr.exerciseName}
+                value={pr.weightKg}
+                unit="kg"
+                tone="success"
+                icon={<Trophy className="h-4 w-4" />}
+              />
             ))}
-          </ul>
+          </div>
         </section>
       )}
     </div>
