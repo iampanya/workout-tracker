@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Archive } from "lucide-react";
 import { archiveExercise } from "@/lib/actions/exercises";
+import { IconButton } from "@/components/ui/IconButton";
 
 export function ArchiveExerciseButton({ exerciseId }: { exerciseId: string }) {
   const [pending, setPending] = useState(false);
@@ -21,14 +23,13 @@ export function ArchiveExerciseButton({ exerciseId }: { exerciseId: string }) {
 
   return (
     <div>
-      <button
+      <IconButton
+        icon={<Archive className="h-4 w-4" />}
+        aria-label="Archive exercise"
+        loading={pending}
         onClick={handleArchive}
-        disabled={pending}
-        className="text-sm text-gray-500 underline disabled:opacity-50"
-      >
-        {pending ? "Archiving..." : "Archive"}
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      />
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
