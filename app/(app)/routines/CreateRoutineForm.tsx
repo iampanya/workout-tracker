@@ -3,8 +3,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
+import { Plus } from "lucide-react";
 import { createRoutineSchema } from "@/lib/validation";
 import { createRoutine } from "@/lib/actions/routines";
+import { Button } from "@/components/ui/Button";
 
 type FormValues = z.infer<typeof createRoutineSchema>;
 
@@ -26,11 +28,11 @@ export function CreateRoutineForm() {
       <input
         {...register("name")}
         placeholder="Routine name (e.g. Push Day)"
-        className="flex-1 rounded border px-3 py-2"
+        className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
       />
-      <button type="submit" disabled={isSubmitting} className="rounded bg-black px-3 py-2 text-white">
+      <Button type="submit" variant="primary" icon={<Plus className="h-4 w-4" />} loading={isSubmitting}>
         Create
-      </button>
+      </Button>
     </form>
   );
 }

@@ -15,7 +15,7 @@ export default async function RoutinesPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Routines</h1>
       <CreateRoutineForm />
-      <ul className="divide-y">
+      <ul className="divide-y divide-border">
         {routines.map((routine) => (
           <li key={routine.id} className="flex items-center justify-between py-2">
             <Link href={`/routines/${routine.id}`} className="underline">
