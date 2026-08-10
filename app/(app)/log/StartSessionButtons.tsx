@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Play, Shuffle } from "lucide-react";
 import { getLocalDateString } from "@/lib/date";
 import { startSession } from "@/lib/actions/sessions";
+import { Button } from "@/components/ui/Button";
 
 export function StartSessionButtons({ routines }: { routines: { id: string; name: string }[] }) {
   const router = useRouter();
@@ -15,20 +17,24 @@ export function StartSessionButtons({ routines }: { routines: { id: string; name
   return (
     <div className="space-y-2">
       {routines.map((routine) => (
-        <button
+        <Button
           key={routine.id}
+          variant="secondary"
+          icon={<Play className="h-4 w-4" />}
           onClick={() => handleStart(routine.id)}
-          className="block w-full rounded border px-4 py-3 text-left"
+          className="w-full"
         >
           {routine.name}
-        </button>
+        </Button>
       ))}
-      <button
+      <Button
+        variant="secondary"
+        icon={<Shuffle className="h-4 w-4" />}
         onClick={() => handleStart(undefined)}
-        className="block w-full rounded border border-dashed px-4 py-3 text-left"
+        className="w-full border-dashed"
       >
         Freeform Workout
-      </button>
+      </Button>
     </div>
   );
 }

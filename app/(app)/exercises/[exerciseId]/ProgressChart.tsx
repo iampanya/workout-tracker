@@ -11,7 +11,7 @@ export function ProgressChart({ data }: { data: { date: string; maxWeight: numbe
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="maxWeight" stroke="#000000" name="Max Weight (kg)" />
+          <Line type="monotone" dataKey="maxWeight" stroke="#84cc16" name="Max Weight (kg)" />
         </LineChart>
       </ResponsiveContainer>
     </div>

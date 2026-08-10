@@ -9,7 +9,7 @@ export default async function HistoryPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">History</h1>
-      <ul className="divide-y">
+      <ul className="divide-y divide-border">
         {sessions.map((session) => (
           <li key={session.id} className="py-2">
             <Link href={`/history/${session.id}`} className="underline">

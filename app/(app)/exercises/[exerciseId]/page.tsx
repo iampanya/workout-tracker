@@ -1,3 +1,4 @@
+import { Trophy } from "lucide-react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getExerciseHistory, getExercisePr } from "@/lib/exercises/progress";
 import { aggregateSessionSeries } from "@/lib/progress";
@@ -26,7 +27,12 @@ export default async function ExerciseProgressPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{exercise?.name}</h1>
-      {pr !== null && <div className="rounded bg-yellow-100 p-3 text-yellow-800">🏆 PR: {pr}kg</div>}
+      {pr !== null && (
+        <div className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2 text-warning">
+          <Trophy className="h-4 w-4" />
+          PR: {pr}kg
+        </div>
+      )}
       <ProgressChart data={series} />
       <table className="w-full text-sm">
         <thead>
