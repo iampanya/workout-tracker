@@ -11,6 +11,7 @@ import {
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
+  getPriorMaxWeights,
 } from "./service";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -317,6 +318,39 @@ describe("sessions service", () => {
     });
 
     expect(isPr).toBe(true);
+  });
+
+  it("batches PR lookups across multiple exercises, omitting exercises with no PR yet", async () => {
+    const benchedExercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Batch PR Bench"),
+      muscleGroup: "Chest",
+    });
+    const untouchedExercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Batch PR Untouched"),
+      muscleGroup: "Legs",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-17" });
+    const sessionExercise = await addExerciseToSessionForUser(
+      client,
+      userId,
+      session.id,
+      benchedExercise.id
+    );
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 82.5,
+      reps: 5,
+      isWarmup: false,
+    });
+
+    const prs = await getPriorMaxWeights(client, userId, [benchedExercise.id, untouchedExercise.id]);
+
+    expect(prs).toEqual({ [benchedExercise.id]: 82.5 });
+  });
+
+  it("returns an empty object when given no exercise ids", async () => {
+    const prs = await getPriorMaxWeights(client, userId, []);
+    expect(prs).toEqual({});
   });
 
   it("rejects updating another user's set", async () => {

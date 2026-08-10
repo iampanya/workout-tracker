@@ -119,6 +119,28 @@ export async function getPriorMaxWeight(
   return data ? Number(data.pr_weight_kg) : null;
 }
 
+export async function getPriorMaxWeights(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  exerciseIds: string[]
+): Promise<Record<string, number>> {
+  if (exerciseIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("exercise_prs")
+    .select("exercise_id, pr_weight_kg")
+    .eq("user_id", userId)
+    .in("exercise_id", exerciseIds);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries(
+    (data ?? [])
+      .filter(
+        (row): row is { exercise_id: string; pr_weight_kg: number } =>
+          row.exercise_id !== null && row.pr_weight_kg !== null
+      )
+      .map((row) => [row.exercise_id, Number(row.pr_weight_kg)])
+  );
+}
+
 export async function logSetForUser(
   supabase: SupabaseClient<Database>,
   userId: string,
