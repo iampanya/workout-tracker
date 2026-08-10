@@ -34,6 +34,17 @@ type ExerciseEntry = {
 type SetFormInput = { weight: string; reps: string; warmup: boolean };
 type AvailableExercise = { id: string; name: string };
 
+function buildInputsFromExercises(list: ExerciseEntry[]): Record<string, SetFormInput> {
+  const result: Record<string, SetFormInput> = {};
+  for (const exercise of list) {
+    const lastSet = exercise.sets[exercise.sets.length - 1];
+    result[exercise.sessionExerciseId] = lastSet
+      ? { weight: String(lastSet.weight_kg), reps: String(lastSet.reps), warmup: false }
+      : { weight: "", reps: "", warmup: false };
+  }
+  return result;
+}
+
 export function LoggingClient({
   sessionId,
   sessionName,
@@ -48,7 +59,9 @@ export function LoggingClient({
   const router = useRouter();
   const [exercises, setExercises] = useState(initialExercises);
   const [prBanner, setPrBanner] = useState<string | null>(null);
-  const [inputs, setInputs] = useState<Record<string, SetFormInput>>({});
+  const [inputs, setInputs] = useState<Record<string, SetFormInput>>(() =>
+    buildInputsFromExercises(initialExercises)
+  );
   const [pickerExerciseId, setPickerExerciseId] = useState(availableExercises[0]?.id ?? "");
   const [addExercisePending, setAddExercisePending] = useState(false);
   const [addExerciseError, setAddExerciseError] = useState<string | null>(null);
@@ -158,7 +171,10 @@ export function LoggingClient({
       isWarmup: input.warmup ?? false,
       tempId: `temp-${Date.now()}-${Math.random()}`,
     });
-    setInputs((prev) => ({ ...prev, [sessionExerciseId]: { weight: "", reps: "", warmup: false } }));
+    setInputs((prev) => ({
+      ...prev,
+      [sessionExerciseId]: { weight: input.weight, reps: input.reps, warmup: false },
+    }));
   }
 
   function startEdit(set: SetEntry) {
