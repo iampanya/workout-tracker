@@ -7,6 +7,7 @@ import {
   startSessionForUser,
   addExerciseToSessionForUser,
   logSetForUser,
+  updateSetForUser,
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
@@ -263,5 +264,85 @@ describe("sessions service", () => {
       .select("id")
       .eq("session_exercise_id", sessionExercise.id);
     expect(data).toEqual([]);
+  });
+
+  it("updates a set's weight and reps", async () => {
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Update Weight Exercise"),
+      muscleGroup: "Chest",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-14" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const logged = await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 60,
+      reps: 8,
+      isWarmup: false,
+    });
+
+    const { set } = await updateSetForUser(client, userId, logged.set.id, {
+      weightKg: 65,
+      reps: 6,
+      isWarmup: false,
+    });
+
+    expect(Number(set.weight_kg)).toBe(65);
+    expect(set.reps).toBe(6);
+  });
+
+  it("marks an edited set as a new PR when raised above the prior best", async () => {
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Edit To PR Exercise"),
+      muscleGroup: "Back",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-15" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 100,
+      reps: 5,
+      isWarmup: false,
+    });
+    const second = await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 90,
+      reps: 5,
+      isWarmup: false,
+    });
+
+    const { isPr } = await updateSetForUser(client, userId, second.set.id, {
+      weightKg: 120,
+      reps: 5,
+      isWarmup: false,
+    });
+
+    expect(isPr).toBe(true);
+  });
+
+  it("rejects updating another user's set", async () => {
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Foreign Update Exercise"),
+      muscleGroup: "Legs",
+    });
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-16" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const logged = await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 50,
+      reps: 10,
+      isWarmup: false,
+    });
+    const attacker = await createTestUser(admin);
+
+    await expect(
+      updateSetForUser(attacker.client, attacker.userId, logged.set.id, {
+        weightKg: 999,
+        reps: 1,
+        isWarmup: false,
+      })
+    ).rejects.toThrow();
+
+    const { data } = await admin.from("sets").select("weight_kg").eq("id", logged.set.id).single();
+    expect(Number(data!.weight_kg)).toBe(50);
   });
 });

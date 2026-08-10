@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { startSessionSchema, logSetSchema } from "@/lib/validation";
+import { startSessionSchema, logSetSchema, updateSetSchema } from "@/lib/validation";
 import { isNewPr } from "@/lib/pr";
 import { getRoutineWithExercises } from "@/lib/routines/service";
 
@@ -161,6 +161,43 @@ export async function logSetForUser(
       reps: parsed.reps,
       is_warmup: parsed.isWarmup,
     })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+
+  const isPr = !parsed.isWarmup && isNewPr(parsed.weightKg, priorMax);
+  return { set, isPr };
+}
+
+export async function updateSetForUser(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  setId: string,
+  input: unknown
+): Promise<{ set: SetRow; isPr: boolean }> {
+  const parsed = updateSetSchema.parse(input);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("sets")
+    .select("exercise_id")
+    .eq("id", setId)
+    .eq("user_id", userId)
+    .single();
+  if (existingError) throw new Error(existingError.message);
+
+  const priorMax = parsed.isWarmup
+    ? null
+    : await getPriorMaxWeight(supabase, userId, existing.exercise_id);
+
+  const { data: set, error } = await supabase
+    .from("sets")
+    .update({
+      weight_kg: parsed.weightKg,
+      reps: parsed.reps,
+      is_warmup: parsed.isWarmup,
+    })
+    .eq("id", setId)
+    .eq("user_id", userId)
     .select()
     .single();
   if (error) throw new Error(error.message);

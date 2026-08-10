@@ -29,3 +29,9 @@ export const logSetSchema = z.object({
   reps: z.number().int().positive().max(999),
   isWarmup: z.boolean(),
 });
+
+export const updateSetSchema = z.object({
+  weightKg: z.number().positive().max(999.99),
+  reps: z.number().int().positive().max(999),
+  isWarmup: z.boolean(),
+});
