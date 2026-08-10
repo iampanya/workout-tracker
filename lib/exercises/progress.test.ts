@@ -20,6 +20,7 @@ describe("exercise progress", () => {
   it("returns history sorted by when it was logged, with each set's session date", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: `Progress Exercise ${Date.now()}`,
+      muscleGroup: "Chest",
     });
     const sessionA = await startSessionForUser(client, userId, { sessionDate: "2026-01-01" });
     const seA = await addExerciseToSessionForUser(client, userId, sessionA.id, exercise.id);
@@ -52,6 +53,7 @@ describe("exercise progress", () => {
   it("returns null PR for an exercise with no logged sets", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: `Untouched Exercise ${Date.now()}`,
+      muscleGroup: "Chest",
     });
     const pr = await getExercisePr(client, userId, exercise.id);
     expect(pr).toBeNull();

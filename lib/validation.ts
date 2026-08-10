@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const createExerciseSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
-  muscleGroup: z.string().trim().max(50).optional(),
+  muscleGroup: z.enum(["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"]),
 });
 
 export const createRoutineSchema = z.object({

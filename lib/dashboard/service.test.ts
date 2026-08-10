@@ -38,6 +38,7 @@ describe("dashboard service", () => {
   it("surfaces PRs set during the most recently finished session", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: `Dashboard PR Exercise ${Date.now()}`,
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-07" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);

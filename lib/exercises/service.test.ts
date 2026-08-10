@@ -34,16 +34,19 @@ describe("exercises service", () => {
   });
 
   it("archives a custom exercise so it's excluded from the default list", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, { name: "Temp Exercise" });
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: "Temp Exercise",
+      muscleGroup: "Legs",
+    });
     await archiveExerciseForUser(client, userId, exercise.id);
     const exercises = await listExercises(client);
     expect(exercises.find((e) => e.id === exercise.id)).toBeUndefined();
   });
 
   it("rejects a duplicate exercise name that differs only by case", async () => {
-    await createCustomExerciseForUser(client, userId, { name: "Incline Press" });
+    await createCustomExerciseForUser(client, userId, { name: "Incline Press", muscleGroup: "Chest" });
     await expect(
-      createCustomExerciseForUser(client, userId, { name: "incline press" })
+      createCustomExerciseForUser(client, userId, { name: "incline press", muscleGroup: "Chest" })
     ).rejects.toThrow();
   });
 

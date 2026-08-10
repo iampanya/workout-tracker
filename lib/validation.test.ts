@@ -16,6 +16,14 @@ describe("createExerciseSchema", () => {
     const result = createExerciseSchema.safeParse({ name: "" });
     expect(result.success).toBe(false);
   });
+  it("rejects a missing muscle group", () => {
+    const result = createExerciseSchema.safeParse({ name: "Cable Fly" });
+    expect(result.success).toBe(false);
+  });
+  it("rejects a muscle group outside the fixed set", () => {
+    const result = createExerciseSchema.safeParse({ name: "Cable Fly", muscleGroup: "Cardio" });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("createRoutineSchema", () => {

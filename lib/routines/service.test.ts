@@ -105,6 +105,7 @@ describe("routines service", () => {
     const routine = await createRoutineForUser(client, userId, { name: "Position Gap Test" });
     const customExercise = await createCustomExerciseForUser(client, userId, {
       name: `Position Gap Exercise ${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      muscleGroup: "Chest",
     });
 
     await addExerciseToRoutineForUser(client, userId, {

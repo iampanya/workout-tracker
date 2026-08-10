@@ -38,6 +38,7 @@ describe("session history", () => {
   it("returns full exercise/set detail for a session", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: `History Exercise ${Date.now()}`,
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-20" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);

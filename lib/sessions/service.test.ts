@@ -95,6 +95,7 @@ describe("sessions service", () => {
   it("marks the first logged set for a fresh exercise as a PR", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("First Set Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-07" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
@@ -113,6 +114,7 @@ describe("sessions service", () => {
   it("does not mark a lighter set as a PR, and increments set_number within the exercise", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Lighter Set Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-08" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
@@ -137,6 +139,7 @@ describe("sessions service", () => {
   it("never counts a warmup set as a PR, nor toward future PR comparisons", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Warmup Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-09" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
@@ -161,6 +164,7 @@ describe("sessions service", () => {
   it("recomputes PR live after a correction, with no stale cache", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Correction Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-10" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
@@ -191,6 +195,7 @@ describe("sessions service", () => {
     // constraint.
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Set Number Gap Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-13" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
@@ -240,6 +245,7 @@ describe("sessions service", () => {
   it("discarding a session cascades to remove its sets", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Discard Exercise"),
+      muscleGroup: "Chest",
     });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-12" });
     const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
