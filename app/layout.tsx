@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: "Personal weight-training log with progressive overload tracking.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
