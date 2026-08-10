@@ -90,10 +90,9 @@ This repo has no component-level (`.tsx`) test coverage today — only
 `lib/**/*.test.ts` for service/query functions. Following that pattern:
 
 - Add a unit test for the new batched PR-lookup helper in
-  `lib/sessions/service.test.ts`.
-- The `test` script in `package.json` lists test files explicitly rather
-  than globbing; the new test file's path needs to be added there for it to
-  run in CI/local `npm test`.
+  `lib/sessions/service.test.ts`. This file already runs under the `test:db`
+  script (which excludes the pure-function test files by name rather than
+  including DB-backed ones by name), so no `package.json` change is needed.
 - Prefill behavior and live badge updates are UI/state logic without an
   existing test harness for it — verify manually in the browser (add a set,
   refresh, confirm prefill; log a new PR, confirm the badge updates without
