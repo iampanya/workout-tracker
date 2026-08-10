@@ -3,7 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { logSet, finishSession, discardSession, addExerciseToSession } from "@/lib/actions/sessions";
+import { Plus, Trash2, Pencil, Check, X, CheckCircle2 } from "lucide-react";
+import {
+  logSet,
+  updateSet,
+  deleteSet,
+  finishSession,
+  discardSession,
+  addExerciseToSession,
+} from "@/lib/actions/sessions";
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
+import { Card } from "@/components/ui/Card";
 
 type SetEntry = {
   id: string;
@@ -40,6 +51,10 @@ export function LoggingClient({
   const [pickerExerciseId, setPickerExerciseId] = useState(availableExercises[0]?.id ?? "");
   const [addExercisePending, setAddExercisePending] = useState(false);
   const [addExerciseError, setAddExerciseError] = useState<string | null>(null);
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [editInputs, setEditInputs] = useState<Record<string, SetFormInput>>({});
+  const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const logSetMutation = useMutation({
     mutationFn: (vars: {
@@ -98,6 +113,30 @@ export function LoggingClient({
     },
   });
 
+  const updateSetMutation = useMutation({
+    mutationFn: (vars: {
+      setId: string;
+      sessionExerciseId: string;
+      weightKg: number;
+      reps: number;
+      isWarmup: boolean;
+    }) => updateSet(vars.setId, { weightKg: vars.weightKg, reps: vars.reps, isWarmup: vars.isWarmup }),
+    onSuccess: (result, vars) => {
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.sessionExerciseId === vars.sessionExerciseId
+            ? { ...ex, sets: ex.sets.map((s) => (s.id === vars.setId ? { ...result.set } : s)) }
+            : ex
+        )
+      );
+      if (result.isPr) {
+        const exercise = exercises.find((ex) => ex.sessionExerciseId === vars.sessionExerciseId);
+        setPrBanner(`New PR on ${exercise?.exerciseName}: ${vars.weightKg}kg!`);
+      }
+      setEditingSetId(null);
+    },
+  });
+
   function handleAddSet(sessionExerciseId: string) {
     const input = inputs[sessionExerciseId];
     if (!input?.weight || !input?.reps) return;
@@ -109,6 +148,51 @@ export function LoggingClient({
       tempId: `temp-${Date.now()}-${Math.random()}`,
     });
     setInputs((prev) => ({ ...prev, [sessionExerciseId]: { weight: "", reps: "", warmup: false } }));
+  }
+
+  function startEdit(set: SetEntry) {
+    setConfirmDeleteSetId(null);
+    setEditingSetId(set.id);
+    setEditInputs((prev) => ({
+      ...prev,
+      [set.id]: { weight: String(set.weight_kg), reps: String(set.reps), warmup: set.is_warmup },
+    }));
+  }
+
+  function confirmEdit(sessionExerciseId: string, setId: string) {
+    const input = editInputs[setId];
+    if (!input?.weight || !input?.reps) return;
+    updateSetMutation.mutate({
+      setId,
+      sessionExerciseId,
+      weightKg: Number(input.weight),
+      reps: Number(input.reps),
+      isWarmup: input.warmup,
+    });
+  }
+
+  async function handleDeleteSet(sessionExerciseId: string, set: SetEntry) {
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.sessionExerciseId === sessionExerciseId
+          ? { ...ex, sets: ex.sets.filter((s) => s.id !== set.id) }
+          : ex
+      )
+    );
+    setConfirmDeleteSetId(null);
+    setDeleteError(null);
+    try {
+      await deleteSet(set.id);
+    } catch (err) {
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.sessionExerciseId === sessionExerciseId
+            ? { ...ex, sets: [...ex.sets, set].sort((a, b) => a.set_number - b.set_number) }
+            : ex
+        )
+      );
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete set");
+    }
   }
 
   async function handleAddExercise() {
@@ -148,22 +232,111 @@ export function LoggingClient({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{sessionName}</h1>
-      {prBanner && <div className="rounded bg-yellow-100 p-3 text-yellow-800">{prBanner}</div>}
+      {prBanner && (
+        <div className="rounded-xl bg-warning/15 p-3 font-medium text-warning">{prBanner}</div>
+      )}
       {logSetMutation.isError && (
-        <div className="rounded bg-red-100 p-3 text-red-800">
+        <div className="rounded-xl bg-danger/15 p-3 text-danger">
           Failed to save that set — check your connection and try again.
         </div>
       )}
+      {deleteError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{deleteError}</div>}
       {exercises.map((exercise) => {
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
         return (
-          <div key={exercise.sessionExerciseId} className="rounded border p-4">
+          <Card key={exercise.sessionExerciseId}>
             <h2 className="font-medium">{exercise.exerciseName}</h2>
             <ul className="mt-2 space-y-1 text-sm">
               {exercise.sets.map((set) => (
                 <li key={set.id} className={set.pending ? "opacity-50" : ""}>
-                  Set {set.set_number}: {set.weight_kg}kg × {set.reps}
-                  {set.is_warmup ? " (warmup)" : ""}
+                  {editingSetId === set.id ? (
+                    <div className="flex items-center gap-2 py-1">
+                      <input
+                        type="number"
+                        value={editInputs[set.id]?.weight ?? ""}
+                        onChange={(e) =>
+                          setEditInputs((prev) => ({
+                            ...prev,
+                            [set.id]: { ...prev[set.id], weight: e.target.value },
+                          }))
+                        }
+                        className="w-16 rounded-lg border border-border bg-surface px-2 py-1"
+                      />
+                      <input
+                        type="number"
+                        value={editInputs[set.id]?.reps ?? ""}
+                        onChange={(e) =>
+                          setEditInputs((prev) => ({
+                            ...prev,
+                            [set.id]: { ...prev[set.id], reps: e.target.value },
+                          }))
+                        }
+                        className="w-16 rounded-lg border border-border bg-surface px-2 py-1"
+                      />
+                      <label className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={editInputs[set.id]?.warmup ?? false}
+                          onChange={(e) =>
+                            setEditInputs((prev) => ({
+                              ...prev,
+                              [set.id]: { ...prev[set.id], warmup: e.target.checked },
+                            }))
+                          }
+                        />
+                        Warmup
+                      </label>
+                      <IconButton
+                        icon={<Check className="h-4 w-4" />}
+                        aria-label="Save set"
+                        loading={updateSetMutation.isPending}
+                        onClick={() => confirmEdit(exercise.sessionExerciseId, set.id)}
+                      />
+                      <IconButton
+                        icon={<X className="h-4 w-4" />}
+                        aria-label="Cancel edit"
+                        onClick={() => setEditingSetId(null)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between py-1">
+                      <span>
+                        Set {set.set_number}: {set.weight_kg}kg × {set.reps}
+                        {set.is_warmup ? " (warmup)" : ""}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {confirmDeleteSetId === set.id ? (
+                          <>
+                            <IconButton
+                              icon={<Check className="h-4 w-4" />}
+                              aria-label="Confirm delete set"
+                              variant="danger"
+                              onClick={() => handleDeleteSet(exercise.sessionExerciseId, set)}
+                            />
+                            <IconButton
+                              icon={<X className="h-4 w-4" />}
+                              aria-label="Cancel delete"
+                              onClick={() => setConfirmDeleteSetId(null)}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <IconButton
+                              icon={<Pencil className="h-4 w-4" />}
+                              aria-label="Edit set"
+                              onClick={() => startEdit(set)}
+                            />
+                            <IconButton
+                              icon={<Trash2 className="h-4 w-4" />}
+                              aria-label="Delete set"
+                              variant="danger"
+                              onClick={() => setConfirmDeleteSetId(set.id)}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -178,7 +351,7 @@ export function LoggingClient({
                     [exercise.sessionExerciseId]: { ...input, weight: e.target.value },
                   }))
                 }
-                className="w-20 rounded border px-2 py-1"
+                className="w-20 rounded-lg border border-border bg-surface px-2 py-1"
               />
               <input
                 type="number"
@@ -190,7 +363,7 @@ export function LoggingClient({
                     [exercise.sessionExerciseId]: { ...input, reps: e.target.value },
                   }))
                 }
-                className="w-20 rounded border px-2 py-1"
+                className="w-20 rounded-lg border border-border bg-surface px-2 py-1"
               />
               <label className="flex items-center gap-1 text-sm">
                 <input
@@ -205,24 +378,25 @@ export function LoggingClient({
                 />
                 Warmup
               </label>
-              <button
+              <Button
+                variant="secondary"
+                icon={<Plus className="h-4 w-4" />}
                 onClick={() => handleAddSet(exercise.sessionExerciseId)}
-                className="rounded bg-black px-3 py-1 text-white"
               >
                 Add Set
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         );
       })}
       {availableExercises.length > 0 && (
-        <div className="rounded border p-4">
+        <Card>
           <h2 className="font-medium">Add Exercise</h2>
           <div className="mt-2 flex gap-2">
             <select
               value={pickerExerciseId}
               onChange={(e) => setPickerExerciseId(e.target.value)}
-              className="flex-1 rounded border px-3 py-2"
+              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2"
             >
               {availableExercises.map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>
@@ -230,24 +404,25 @@ export function LoggingClient({
                 </option>
               ))}
             </select>
-            <button
+            <Button
+              variant="secondary"
+              icon={<Plus className="h-4 w-4" />}
+              loading={addExercisePending}
               onClick={handleAddExercise}
-              disabled={addExercisePending}
-              className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
             >
-              {addExercisePending ? "Adding..." : "Add"}
-            </button>
+              Add
+            </Button>
           </div>
-          {addExerciseError && <p className="mt-2 text-sm text-red-600">{addExerciseError}</p>}
-        </div>
+          {addExerciseError && <p className="mt-2 text-sm text-danger">{addExerciseError}</p>}
+        </Card>
       )}
       <div className="flex gap-2">
-        <button onClick={handleFinish} className="rounded bg-green-600 px-4 py-2 text-white">
+        <Button variant="primary" icon={<CheckCircle2 className="h-4 w-4" />} onClick={handleFinish}>
           Finish Workout
-        </button>
-        <button onClick={handleDiscard} className="rounded bg-gray-300 px-4 py-2">
+        </Button>
+        <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={handleDiscard}>
           Discard
-        </button>
+        </Button>
       </div>
     </div>
   );
