@@ -353,6 +353,29 @@ describe("sessions service", () => {
     expect(prs).toEqual({});
   });
 
+  it("does not leak another user's PR for the same exercise", async () => {
+    const attacker = await createTestUser(admin);
+    const session = await startSessionForUser(attacker.client, attacker.userId, {
+      sessionDate: "2026-01-18",
+    });
+    const sessionExercise = await addExerciseToSessionForUser(
+      attacker.client,
+      attacker.userId,
+      session.id,
+      benchId
+    );
+    await logSetForUser(attacker.client, attacker.userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 999,
+      reps: 1,
+      isWarmup: false,
+    });
+
+    const prs = await getPriorMaxWeights(client, userId, [benchId]);
+
+    expect(prs).toEqual({});
+  });
+
   it("rejects updating another user's set", async () => {
     const exercise = await createCustomExerciseForUser(client, userId, {
       name: uniqueExerciseName("Foreign Update Exercise"),

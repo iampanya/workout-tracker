@@ -273,6 +273,7 @@ export function LoggingClient({
       {editError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{editError}</div>}
       {exercises.map((exercise) => {
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
+        const hasPendingSet = exercise.sets.some((s) => s.pending);
         return (
           <Card key={exercise.sessionExerciseId}>
             <div className="flex items-center gap-2">
@@ -421,6 +422,7 @@ export function LoggingClient({
               <Button
                 variant="secondary"
                 icon={<Plus className="h-4 w-4" />}
+                loading={hasPendingSet}
                 onClick={() => handleAddSet(exercise.sessionExerciseId)}
               >
                 Add Set
