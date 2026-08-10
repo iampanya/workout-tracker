@@ -10,6 +10,7 @@ import {
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
+  getPriorMaxWeight,
 } from "@/lib/sessions/service";
 
 async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
@@ -31,7 +32,9 @@ export async function startSession(input: unknown) {
 export async function addExerciseToSession(sessionId: string, exerciseId: string) {
   const supabase = await createServerSupabaseClient();
   const userId = await currentUserId(supabase);
-  return addExerciseToSessionForUser(supabase, userId, sessionId, exerciseId);
+  const sessionExercise = await addExerciseToSessionForUser(supabase, userId, sessionId, exerciseId);
+  const prWeightKg = await getPriorMaxWeight(supabase, userId, exerciseId);
+  return { ...sessionExercise, prWeightKg };
 }
 
 export async function logSet(input: unknown) {
