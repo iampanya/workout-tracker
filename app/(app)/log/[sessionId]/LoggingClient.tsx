@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Check, X, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, CheckCircle2, Trophy } from "lucide-react";
 import {
   logSet,
   updateSet,
@@ -29,6 +29,7 @@ type ExerciseEntry = {
   exerciseId: string;
   exerciseName: string;
   sets: SetEntry[];
+  prWeightKg: number | null;
 };
 type SetFormInput = { weight: string; reps: string; warmup: boolean };
 type AvailableExercise = { id: string; name: string };
@@ -94,6 +95,7 @@ export function LoggingClient({
             ? {
                 ...ex,
                 sets: ex.sets.map((s) => (s.id === vars.tempId ? { ...result.set, pending: false } : s)),
+                prWeightKg: result.isPr ? vars.weightKg : ex.prWeightKg,
               }
             : ex
         )
@@ -126,7 +128,11 @@ export function LoggingClient({
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
-            ? { ...ex, sets: ex.sets.map((s) => (s.id === vars.setId ? { ...result.set } : s)) }
+            ? {
+                ...ex,
+                sets: ex.sets.map((s) => (s.id === vars.setId ? { ...result.set } : s)),
+                prWeightKg: result.isPr ? vars.weightKg : ex.prWeightKg,
+              }
             : ex
         )
       );
@@ -216,6 +222,7 @@ export function LoggingClient({
           exerciseId: pickerExerciseId,
           exerciseName,
           sets: [],
+          prWeightKg: sessionExercise.prWeightKg,
         },
       ]);
     } catch (err) {
@@ -252,7 +259,15 @@ export function LoggingClient({
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
         return (
           <Card key={exercise.sessionExerciseId}>
-            <h2 className="font-medium">{exercise.exerciseName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-medium">{exercise.exerciseName}</h2>
+              {exercise.prWeightKg !== null && (
+                <span className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+                  <Trophy className="h-3 w-3" />
+                  PR {exercise.prWeightKg}kg
+                </span>
+              )}
+            </div>
             <ul className="mt-2 space-y-1 text-sm">
               {exercise.sets.map((set) => (
                 <li key={set.id} className={set.pending ? "opacity-50" : ""}>
