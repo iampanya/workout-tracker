@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CaretLeft, User } from "@phosphor-icons/react/ssr";
+import { CaretLeft, Barbell } from "@phosphor-icons/react/ssr";
 import { IconButton } from "@/components/ui/IconButton";
-import { ThemeToggleButton } from "@/components/theme/ThemeToggleButton";
-import { LogoutButton } from "./LogoutButton";
+import { AccountMenu } from "./AccountMenu";
 
 const TOP_LEVEL_ROUTES = new Set(["/dashboard", "/routines", "/exercises", "/history", "/log"]);
 
-export function TopBar({ username }: { username: string }) {
+export function TopBar({ username, email }: { username: string; email: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const isTopLevel = TOP_LEVEL_ROUTES.has(pathname);
@@ -18,11 +17,14 @@ export function TopBar({ username }: { username: string }) {
     <div className="sticky top-0 z-10 flex h-12 items-center justify-between bg-background/95 px-2 backdrop-blur">
       {isTopLevel ? (
         <Link
-          href="/settings"
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          href="/dashboard"
+          aria-label="Weight Training Tracker home"
+          className="flex items-center gap-2 rounded-lg px-1 py-1 font-semibold text-foreground transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <User className="h-4 w-4" />
-          {username}
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent">
+            <Barbell className="h-4 w-4" weight="bold" />
+          </span>
+          <span className="hidden text-sm sm:inline">Weight Training Tracker</span>
         </Link>
       ) : (
         <IconButton
@@ -31,14 +33,7 @@ export function TopBar({ username }: { username: string }) {
           onClick={() => router.back()}
         />
       )}
-      {isTopLevel ? (
-        <div className="flex items-center">
-          <ThemeToggleButton />
-          <LogoutButton />
-        </div>
-      ) : (
-        <ThemeToggleButton />
-      )}
+      <AccountMenu username={username} email={email} />
     </div>
   );
 }

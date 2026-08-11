@@ -11,6 +11,8 @@ type ConfirmDialogProps = {
   cancelLabel?: string;
   tone?: "danger" | "default";
   loading?: boolean;
+  /** Hide the cancel button, turning the dialog into a single-action alert. */
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -23,6 +25,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   tone = "default",
   loading = false,
+  hideCancel = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -53,9 +56,11 @@ export function ConfirmDialog({
         <h2 className="text-lg font-semibold">{title}</h2>
         {description && <div className="mt-2 text-sm text-muted">{description}</div>}
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onCancel} disabled={loading}>
-            {cancelLabel}
-          </Button>
+          {!hideCancel && (
+            <Button variant="ghost" onClick={onCancel} disabled={loading}>
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             autoFocus
             variant={tone === "danger" ? "danger" : "primary"}

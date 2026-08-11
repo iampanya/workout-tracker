@@ -26,7 +26,7 @@ export function ThemeModeControl() {
             type="button"
             aria-pressed={active}
             onClick={() => setMode(option.mode)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               active
                 ? "bg-accent text-accent-foreground"
                 : "text-muted hover:text-foreground"

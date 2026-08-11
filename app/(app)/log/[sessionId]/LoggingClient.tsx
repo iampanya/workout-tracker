@@ -102,6 +102,8 @@ export function LoggingClient({
   const [editError, setEditError] = useState<string | null>(null);
   const [flashSetId, setFlashSetId] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discardPending, setDiscardPending] = useState(false);
+  const [discardError, setDiscardError] = useState<string | null>(null);
   const [confirmRemoveExerciseId, setConfirmRemoveExerciseId] = useState<string | null>(null);
   const [removeExercisePending, setRemoveExercisePending] = useState(false);
   const [removeExerciseError, setRemoveExerciseError] = useState<string | null>(null);
@@ -369,8 +371,15 @@ export function LoggingClient({
   }
 
   async function handleDiscard() {
-    await discardSession(sessionId);
-    router.push("/dashboard");
+    setDiscardPending(true);
+    setDiscardError(null);
+    try {
+      await discardSession(sessionId);
+      router.push("/dashboard");
+    } catch (err) {
+      setDiscardError(err instanceof Error ? err.message : "Failed to discard workout");
+      setDiscardPending(false);
+    }
   }
 
   const removeTarget =
@@ -395,7 +404,6 @@ export function LoggingClient({
       {removeExerciseError && (
         <div className="rounded-xl bg-danger/15 p-3 text-danger">{removeExerciseError}</div>
       )}
-      {finishError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{finishError}</div>}
       {exercises.map((exercise) => {
         const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
         const hasPendingSet = exercise.sets.some((s) => s.pending);
@@ -627,29 +635,45 @@ export function LoggingClient({
         >
           Finish Workout
         </Button>
-        {confirmDiscard ? (
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-sm text-muted">Discard this workout?</span>
-            <Button variant="danger" onClick={handleDiscard}>
-              Yes, discard
-            </Button>
-            <Button variant="ghost" onClick={() => setConfirmDiscard(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => setConfirmDiscard(true)}
-              className="flex min-h-11 items-center gap-1.5 px-2 text-sm text-danger [touch-action:manipulation] hover:underline"
-            >
-              <Trash className="h-4 w-4" />
-              Discard workout
-            </button>
-          </div>
-        )}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setDiscardError(null);
+              setConfirmDiscard(true);
+            }}
+            className="flex min-h-11 items-center gap-1.5 px-2 text-sm text-danger [touch-action:manipulation] hover:underline"
+          >
+            <Trash className="h-4 w-4" />
+            Discard workout
+          </button>
+        </div>
       </div>
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard this workout?"
+        description={
+          discardError ? (
+            <span className="text-danger">{discardError}</span>
+          ) : (
+            "This workout and any sets logged in it will be permanently deleted."
+          )
+        }
+        confirmLabel="Discard"
+        tone="danger"
+        loading={discardPending}
+        onConfirm={handleDiscard}
+        onCancel={() => setConfirmDiscard(false)}
+      />
+      <ConfirmDialog
+        open={finishError !== null}
+        title="Can't finish yet"
+        description={finishError}
+        confirmLabel="Got it"
+        hideCancel
+        onConfirm={() => setFinishError(null)}
+        onCancel={() => setFinishError(null)}
+      />
       <ConfirmDialog
         open={removeTarget !== null}
         title="Remove this exercise?"
