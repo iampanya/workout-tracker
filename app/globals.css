@@ -53,8 +53,43 @@
   --font-mono: var(--font-fira-code);
 }
 
+/*
+ * Dark palette. Applied in two ways:
+ *   1. `:root[data-theme="dark"]` — an explicit user choice (or "system" resolved to
+ *      dark by the pre-hydration script in app/layout.tsx). This is the primary path.
+ *   2. `@media (prefers-color-scheme: dark)` gated to `:root:not([data-theme])` — a
+ *      no-JS / pre-script fallback that must NOT override an explicit choice, so a user
+ *      who picked Light while their OS is Dark still gets Light.
+ * Keep both value blocks in sync.
+ */
+:root[data-theme="dark"] {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --surface: #222735;
+  --surface-muted: #272f42;
+  --border: #334155;
+  --muted: #94a3b8;
+  --accent: #f59e0b;
+  --accent-foreground: #0f172a;
+  --accent-secondary: #8b5cf6;
+  --accent-secondary-foreground: #f8fafc;
+  --success: #22c55e;
+  --success-foreground: #0f172a;
+  --danger: #ef4444;
+  --danger-foreground: #f8fafc;
+  --ring: #f59e0b;
+
+  --muscle-chest: #fb7185;
+  --muscle-back: #60a5fa;
+  --muscle-legs: #fbbf24;
+  --muscle-shoulders: #a78bfa;
+  --muscle-arms: #22d3ee;
+  --muscle-core: #34d399;
+  --chart-line: #22c55e;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --background: #0f172a;
     --foreground: #f8fafc;
     --surface: #222735;
