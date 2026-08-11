@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Barbell } from "@phosphor-icons/react/ssr";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { ThemeToggleButton } from "@/components/theme/ThemeToggleButton";
 
 export function LandingNav() {
   return (
@@ -13,7 +13,7 @@ export function LandingNav() {
           <span className="hidden sm:inline">Weight Training Tracker</span>
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
+          <ThemeToggleButton />
           <Link
             href="/login"
             className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

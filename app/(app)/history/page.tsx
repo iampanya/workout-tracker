@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react/ssr";
+import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { DeleteHistorySessionButton } from "./DeleteHistorySessionButton";
 
 export default async function HistoryPage() {
@@ -12,8 +13,24 @@ export default async function HistoryPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">History</h1>
-      <div className="space-y-2">
-        {sessions.map((session) => (
+      {sessions.length === 0 ? (
+        <EmptyState
+          icon={<ClockCounterClockwise className="h-6 w-6" />}
+          title="No workouts logged yet"
+          description="Finished sessions show up here so you can look back on your progress."
+          action={
+            <Link
+              href="/log"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <Play className="h-4 w-4" weight="fill" />
+              Start a workout
+            </Link>
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {sessions.map((session) => (
           <Card key={session.id} padding={false} className="flex items-center justify-between gap-2">
             <Link href={`/history/${session.id}`} className="flex flex-1 items-center justify-between gap-2 p-4">
               <span>
@@ -29,8 +46,9 @@ export default async function HistoryPage() {
               />
             </div>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
