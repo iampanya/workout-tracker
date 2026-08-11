@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { SignIn } from "@phosphor-icons/react/ssr";
+import { Barbell, SignIn } from "@phosphor-icons/react/ssr";
 import { loginWithUsername } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -31,7 +31,16 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
+      <Link
+        href="/"
+        className="flex items-center gap-2 font-semibold text-foreground hover:opacity-90"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+          <Barbell className="h-5 w-5" weight="bold" />
+        </span>
+        Weight Training Tracker
+      </Link>
       <Card className="w-full max-w-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <h1 className="text-2xl font-semibold">Log in</h1>

@@ -79,6 +79,7 @@ Log in with your username from both a phone and a desktop browser: start a worko
 
 ## Notes
 
+- `/` is a public landing page for logged-out visitors (hero + feature overview + Log in / Sign up). Logged-in users are redirected straight to `/dashboard`. Everything else stays auth-gated.
 - All weights are stored and displayed in kilograms.
 - The hosted Supabase free-tier project auto-pauses after ~7 days with no API activity. If the app stops responding, resume it from the Supabase dashboard.
 - Full implementation history and design rationale: `docs/superpowers/specs/2026-08-09-workout-tracker-design.md` and `docs/superpowers/plans/2026-08-09-workout-tracker-implementation.md`.

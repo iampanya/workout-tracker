@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
-const PUBLIC_ROUTES = new Set(["/login", "/signup"]);
+// "/" is the public landing page (it self-redirects logged-in users to
+// /dashboard); auth surfaces are public too. Everything else is protected.
+const PUBLIC_ROUTES = new Set(["/", "/login", "/signup"]);
 
 export function isProtectedRoute(pathname: string): boolean {
   return !PUBLIC_ROUTES.has(pathname);

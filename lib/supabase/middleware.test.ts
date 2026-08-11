@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { isProtectedRoute } from "./middleware";
 
 describe("isProtectedRoute", () => {
+  it("does not protect the landing page", () => {
+    expect(isProtectedRoute("/")).toBe(false);
+  });
   it("does not protect the login page", () => {
     expect(isProtectedRoute("/login")).toBe(false);
   });
