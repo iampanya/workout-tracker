@@ -341,6 +341,11 @@ export function LoggingClient({
   }
 
   async function handleFinish() {
+    if (exercises.length === 0) {
+      setFinishBlocked(true);
+      setFinishError("Add an exercise and log at least one set before finishing.");
+      return;
+    }
     const emptyExercises = exercises.filter((e) => e.sets.length === 0);
     if (emptyExercises.length > 0) {
       setFinishBlocked(true);
@@ -583,6 +588,11 @@ export function LoggingClient({
           </Card>
         );
       })}
+      {exercises.length === 0 && (
+        <p className="text-center text-sm text-muted">
+          No exercises yet — add one below to start logging sets.
+        </p>
+      )}
       {availableExercises.length > 0 && (
         <Card>
           <h2 className="font-medium">Add Exercise</h2>

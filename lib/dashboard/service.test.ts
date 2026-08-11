@@ -20,12 +20,32 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type SetSeed = { weightKg: number; reps: number; isWarmup: boolean };
 
+// A finished session now requires at least one logged set, so seed a single working
+// set on a preset exercise. Callers that only care about completion dates (streak /
+// weekly counts) are unaffected by the set's weight.
 async function seedCompletedSession(
   client: SupabaseClient<Database>,
   userId: string,
   date: string
 ) {
   const session = await startSessionForUser(client, userId, { sessionDate: date });
+  const { data: presets } = await client
+    .from("exercises")
+    .select("id")
+    .is("user_id", null)
+    .limit(1);
+  const sessionExercise = await addExerciseToSessionForUser(
+    client,
+    userId,
+    session.id,
+    presets![0].id
+  );
+  await logSetForUser(client, userId, {
+    sessionExerciseId: sessionExercise.id,
+    weightKg: 50,
+    reps: 5,
+    isWarmup: false,
+  });
   await finishSessionForUser(client, userId, session.id);
   return session;
 }
@@ -64,8 +84,7 @@ describe("dashboard service", () => {
   });
 
   it("excludes finished sessions from the in-progress list", async () => {
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-06" });
-    await finishSessionForUser(client, userId, session.id);
+    const session = await seedCompletedSession(client, userId, "2026-01-06");
     const inProgress = await listInProgressSessions(client);
     expect(inProgress.some((s) => s.id === session.id)).toBe(false);
   });

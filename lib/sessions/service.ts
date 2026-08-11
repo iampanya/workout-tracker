@@ -263,9 +263,10 @@ export async function finishSessionForUser(
   userId: string,
   sessionId: string
 ): Promise<void> {
-  // Reject finishing while any exercise has zero sets — the user must remove empty
-  // exercises first (defense in depth; the client blocks this too). Fetch each
-  // session_exercise with its sets (inner-less left join) and check the count.
+  // A session can only be finished once it has at least one logged set (defense in
+  // depth; the client blocks this too). Two ways to fall short: no exercises at all,
+  // or an exercise carrying zero sets. Fetch each session_exercise with its sets
+  // (inner-less left join) and check both.
   const { data: sessionExercises, error: seError } = await supabase
     .from("session_exercises")
     .select("id, sets(id)")
@@ -273,10 +274,12 @@ export async function finishSessionForUser(
     .eq("user_id", userId);
   if (seError) throw new Error(seError.message);
 
-  const hasEmptyExercise = (
-    sessionExercises as unknown as { id: string; sets: { id: string }[] }[] | null
-  )?.some((se) => (se.sets ?? []).length === 0);
-  if (hasEmptyExercise) {
+  const list =
+    (sessionExercises as unknown as { id: string; sets: { id: string }[] }[] | null) ?? [];
+  if (list.length === 0) {
+    throw new Error("Add at least one exercise with a logged set before finishing");
+  }
+  if (list.some((se) => (se.sets ?? []).length === 0)) {
     throw new Error("Remove exercises with no sets before finishing");
   }
 

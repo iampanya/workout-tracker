@@ -11,6 +11,35 @@ import {
 import { listCompletedSessions, getSessionDetail } from "./history";
 import type { Database } from "@/lib/supabase/database.types";
 
+// A finished session needs at least one logged set; seed one on a preset exercise for
+// tests that only care about which sessions are completed.
+async function seedCompletedSession(
+  client: SupabaseClient<Database>,
+  userId: string,
+  date: string
+) {
+  const session = await startSessionForUser(client, userId, { sessionDate: date });
+  const { data: presets } = await client
+    .from("exercises")
+    .select("id")
+    .is("user_id", null)
+    .limit(1);
+  const sessionExercise = await addExerciseToSessionForUser(
+    client,
+    userId,
+    session.id,
+    presets![0].id
+  );
+  await logSetForUser(client, userId, {
+    sessionExerciseId: sessionExercise.id,
+    weightKg: 50,
+    reps: 5,
+    isWarmup: false,
+  });
+  await finishSessionForUser(client, userId, session.id);
+  return session;
+}
+
 describe("session history", () => {
   const admin = createAdminClient();
   let userId: string;
@@ -23,10 +52,8 @@ describe("session history", () => {
   });
 
   it("lists only completed sessions, most recent session_date first", async () => {
-    const older = await startSessionForUser(client, userId, { sessionDate: "2026-01-01" });
-    await finishSessionForUser(client, userId, older.id);
-    const newer = await startSessionForUser(client, userId, { sessionDate: "2026-01-10" });
-    await finishSessionForUser(client, userId, newer.id);
+    const older = await seedCompletedSession(client, userId, "2026-01-01");
+    const newer = await seedCompletedSession(client, userId, "2026-01-10");
     const unfinished = await startSessionForUser(client, userId, { sessionDate: "2026-01-15" });
 
     const sessions = await listCompletedSessions(client);

@@ -235,7 +235,18 @@ describe("sessions service", () => {
   });
 
   it("finishes a session by setting completed_at", async () => {
+    const exercise = await createCustomExerciseForUser(client, userId, {
+      name: uniqueExerciseName("Finish Complete"),
+      muscleGroup: "Chest",
+    });
     const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-11" });
+    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    await logSetForUser(client, userId, {
+      sessionExerciseId: sessionExercise.id,
+      weightKg: 80,
+      reps: 5,
+      isWarmup: false,
+    });
     await finishSessionForUser(client, userId, session.id);
     const { data } = await client
       .from("sessions")
@@ -243,6 +254,19 @@ describe("sessions service", () => {
       .eq("id", session.id)
       .single();
     expect(data!.completed_at).not.toBeNull();
+  });
+
+  it("refuses to finish a session with no exercises at all", async () => {
+    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-21" });
+    await expect(finishSessionForUser(client, userId, session.id)).rejects.toThrow(
+      /at least one exercise/i
+    );
+    const { data } = await admin
+      .from("sessions")
+      .select("completed_at")
+      .eq("id", session.id)
+      .single();
+    expect(data!.completed_at).toBeNull();
   });
 
   it("removes an exercise from a session, cascading its sets", async () => {
