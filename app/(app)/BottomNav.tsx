@@ -2,21 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, ClipboardText, Barbell, ClockCounterClockwise, Plus } from "@phosphor-icons/react/ssr";
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: House },
-  { href: "/routines", label: "Routines", icon: ClipboardText },
-  { href: "/exercises", label: "Exercises", icon: Barbell },
-  { href: "/history", label: "History", icon: ClockCounterClockwise },
-] as const;
+import { Plus } from "@phosphor-icons/react/ssr";
+import { NAV_ITEMS } from "./nav-items";
 
 export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null }) {
   const pathname = usePathname();
   const fabHref = resumeSessionId ? `/log/${resumeSessionId}` : "/log";
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="relative grid grid-cols-4">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);

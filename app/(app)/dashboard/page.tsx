@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       {recentPrs.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-medium">Top lifts from your last workout</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {recentPrs.map((pr) => (
               <StatCard
                 key={pr.exerciseName}
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
       {topPrs.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-medium">Personal records</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {topPrs.map((pr) => (
               <StatCard
                 key={pr.exerciseName}

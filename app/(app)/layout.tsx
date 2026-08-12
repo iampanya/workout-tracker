@@ -21,9 +21,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="min-h-screen pb-24">
-      <TopBar username={profile.username} email={user.email ?? ""} />
-      <main className="p-4">{children}</main>
+    <div className="min-h-screen pb-24 lg:pb-8">
+      <TopBar
+        username={profile.username}
+        email={user.email ?? ""}
+        resumeSessionId={inProgress[0]?.id ?? null}
+      />
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 lg:px-6">{children}</main>
       <BottomNav resumeSessionId={inProgress[0]?.id ?? null} />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./Button";
 
 type ConfirmDialogProps = {
@@ -35,12 +36,20 @@ export function ConfirmDialog({
       if (e.key === "Escape" && !loading) onCancel();
     }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    // Prevent the page behind the modal from scrolling while it's open.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, loading, onCancel]);
 
-  if (!open) return null;
+  // `open` is client-controlled and always false during SSR, so the portal
+  // only runs on the client; guard on `document` for safety regardless.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -71,6 +80,7 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
