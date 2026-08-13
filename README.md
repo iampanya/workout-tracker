@@ -15,7 +15,8 @@ code** — there is no open public signup.
 5. Run the app: `npm run dev`
 6. Run unit tests (no DB required): `npm test`
 7. Run the full suite including DB-backed integration tests (requires `supabase start` to be running, and `DOTENV_CONFIG_PATH=.env.local` set): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
-8. Create a local account. `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`) — the signup flow uses it server-side. Then either:
+8. Run the end-to-end browser tests (Playwright, drives the real UI against a production build): `npm run test:e2e`. Requires `supabase start` running and `.env.local` populated; the first run needs the browser binary once: `npx playwright install chromium`. A fresh test user (username `e2e_tester`) is reset and seeded automatically before each run by `e2e/global-setup.ts`. To iterate faster against `next dev` instead of a prod build, prefix with `E2E_DEV=1`.
+9. Create a local account. `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`) — the signup flow uses it server-side. Then either:
    - **Via the app (recommended):** issue an invite code, then register at `/signup`. Insert a code in Supabase Studio's SQL Editor (`supabase status` prints its URL, typically `http://127.0.0.1:54323`):
      ```sql
      insert into public.invite_codes (code) values ('dev-invite');
