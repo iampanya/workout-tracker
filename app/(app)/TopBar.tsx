@@ -36,8 +36,8 @@ export function TopBar({
             />
           )}
           <Link
-            href="/dashboard"
-            aria-label="Weight Training Tracker home"
+            href="/"
+            aria-label="Weight Training Tracker landing page"
             className={`items-center gap-2 rounded-lg px-1 py-1 font-semibold text-foreground transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               isTopLevel ? "flex" : "hidden lg:flex"
             }`}

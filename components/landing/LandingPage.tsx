@@ -41,10 +41,14 @@ const STEPS = [
   { n: "3", title: "Watch progress", body: "PRs and volume update the moment you finish." },
 ];
 
-export function LandingPage() {
+export function LandingPage({ authed = false }: { authed?: boolean }) {
+  const primaryCta = authed
+    ? { href: "/dashboard", label: "Go to dashboard" }
+    : { href: "/login", label: "Log in" };
+
   return (
     <div className="min-h-screen">
-      <LandingNav />
+      <LandingNav authed={authed} />
 
       <main className="mx-auto max-w-5xl px-4">
         {/* Hero */}
@@ -70,20 +74,22 @@ export function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/login"
+                href={primaryCta.href}
                 className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
               >
                 <Play className="h-5 w-5" weight="fill" />
-                Log in
+                {primaryCta.label}
               </Link>
-              <Link
-                href="/signup"
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 text-base font-medium text-foreground transition [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
-              >
-                Sign up
-              </Link>
+              {!authed && (
+                <Link
+                  href="/signup"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 text-base font-medium text-foreground transition [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
+                >
+                  Sign up
+                </Link>
+              )}
             </div>
-            <p className="mt-3 text-sm text-muted">Sign-up is invite-only.</p>
+            {!authed && <p className="mt-3 text-sm text-muted">Sign-up is invite-only.</p>}
           </div>
 
           {/* Product preview built from real primitives */}
@@ -146,11 +152,11 @@ export function LandingPage() {
               Pick up where you left off and keep the streak going.
             </p>
             <Link
-              href="/login"
+              href={primaryCta.href}
               className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <Play className="h-5 w-5" weight="fill" />
-              Log in
+              {primaryCta.label}
             </Link>
           </div>
         </section>
