@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { listExercises } from "@/lib/exercises/service";
 import { getPriorMaxWeights } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
@@ -13,9 +14,7 @@ export default async function LogSessionPage({
 }) {
   const { sessionId } = await params;
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const { data: sessionRow } = await supabase
     .from("sessions")

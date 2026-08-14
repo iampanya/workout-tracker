@@ -32,11 +32,13 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the session JWT locally (asymmetric ECC keys) instead of
+  // getUser()'s network round trip. It still calls getSession() under the hood, which
+  // refreshes an expired-but-refreshable token and writes rotated cookies through the
+  // setAll adapter above — so middleware keeps its refresh-and-propagate duty.
+  const { data } = await supabase.auth.getClaims();
 
-  if (!user && isProtectedRoute(request.nextUrl.pathname)) {
+  if (!data && isProtectedRoute(request.nextUrl.pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);

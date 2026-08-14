@@ -1,14 +1,11 @@
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { Card } from "@/components/ui/Card";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { LogoutButton } from "../LogoutButton";
 
 export default async function SettingsPage() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");

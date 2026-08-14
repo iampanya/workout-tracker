@@ -1,12 +1,11 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { listRoutines } from "@/lib/routines/service";
 import { StartSessionButtons } from "./StartSessionButtons";
 
 export default async function LogPage() {
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   const routines = await listRoutines(supabase, user!.id);
 
   return (

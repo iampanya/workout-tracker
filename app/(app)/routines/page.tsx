@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CaretRight, ListChecks } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { listRoutines } from "@/lib/routines/service";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,9 +10,7 @@ import { DeleteRoutineButton } from "./DeleteRoutineButton";
 
 export default async function RoutinesPage() {
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   const routines = await listRoutines(supabase, user!.id);
 
   return (

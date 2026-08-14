@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import {
   listInProgressSessions,
   listPrsFromLastCompletedSession,
@@ -16,9 +17,7 @@ import { WeeklyVolumeChart } from "./WeeklyVolumeChart";
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   const [inProgress, recentPrs, overview, weeklyVolume, topPrs, recentSessions] = await Promise.all([
     listInProgressSessions(supabase),
     listPrsFromLastCompletedSession(supabase, user!.id),

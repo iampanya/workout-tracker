@@ -1,5 +1,6 @@
 import { Trophy } from "@phosphor-icons/react/ssr";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { getExerciseHistory, getExercisePr } from "@/lib/exercises/progress";
 import { aggregateSessionSeries } from "@/lib/progress";
 import { Card } from "@/components/ui/Card";
@@ -12,9 +13,7 @@ export default async function ExerciseProgressPage({
 }) {
   const { exerciseId } = await params;
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const { data: exercise } = await supabase
     .from("exercises")

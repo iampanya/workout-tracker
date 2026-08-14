@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { getProfile } from "@/lib/profiles/service";
 import { Card } from "@/components/ui/Card";
 
@@ -13,9 +14,7 @@ function formatMemberSince(iso: string): string {
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");
