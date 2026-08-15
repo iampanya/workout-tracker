@@ -15,13 +15,13 @@ export default async function ExerciseProgressPage({
   const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
 
-  const { data: exercise } = await supabase
-    .from("exercises")
-    .select("name")
-    .eq("id", exerciseId)
-    .single();
-  const history = await getExerciseHistory(supabase, exerciseId);
-  const pr = await getExercisePr(supabase, user!.id, exerciseId);
+  // These three reads are independent; run them in parallel so the page pays one
+  // Supabase round-trip instead of three in series (Next docs: Parallel data fetching).
+  const [{ data: exercise }, history, pr] = await Promise.all([
+    supabase.from("exercises").select("name").eq("id", exerciseId).single(),
+    getExerciseHistory(supabase, exerciseId),
+    getExercisePr(supabase, user!.id, exerciseId),
+  ]);
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
 
   return (

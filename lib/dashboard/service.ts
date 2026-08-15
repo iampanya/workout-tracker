@@ -1,5 +1,7 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getLocalDateString, getWeekStart, getWeekEnd } from "@/lib/date";
 import { computeStreakDays } from "./streak";
 
@@ -22,6 +24,17 @@ export async function listInProgressSessions(
     return { ...session, routineName: routine?.name ?? null };
   });
 }
+
+// Request-scoped, deduplicated accessor for the in-progress list. The app layout
+// (resume link) and the dashboard page both need this on a dashboard load; wrapping
+// it in React.cache with a self-created client (no varying args) makes both callers
+// share one query per render instead of issuing two identical round-trips. Mirrors
+// getAuthUser in lib/supabase/auth.ts. Callers that pass their own client (e.g. tests)
+// keep using listInProgressSessions directly. (Next docs: Reusing data with React.cache.)
+export const getInProgressSessions = cache(async (): Promise<InProgressSession[]> => {
+  const supabase = await createServerSupabaseClient();
+  return listInProgressSessions(supabase);
+});
 
 export type OverviewStats = {
   streakDays: number;
@@ -111,39 +124,28 @@ export async function getWeeklyVolume(
   }
   const windowStart = buckets[0].weekStart;
 
-  const { data: sessions, error: sessionsError } = await supabase
-    .from("sessions")
-    .select("id, session_date")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .gte("session_date", windowStart)
-    .lte("session_date", getLocalDateString(now));
-  if (sessionsError) throw new Error(sessionsError.message);
-  if (!sessions || sessions.length === 0) return buckets;
-
-  const weekBySessionId = new Map<string, string>();
-  for (const session of sessions) {
-    weekBySessionId.set(session.id, getWeekStart(new Date(`${session.session_date}T00:00:00`)));
-  }
-
+  // Single round-trip: pull each non-warmup set together with its session's date via a
+  // two-level inner join, filtering to completed sessions inside the window. The old
+  // two-query form (fetch session ids, then sets in those ids) cost an extra serial
+  // round-trip to build a session→week map that we can now derive per set inline.
   const { data: sets, error: setsError } = await supabase
     .from("sets")
-    .select("weight_kg, reps, session_exercises!inner(session_id)")
-    .in(
-      "session_exercises.session_id",
-      sessions.map((s) => s.id)
-    )
+    .select("weight_kg, reps, session_exercises!inner(sessions!inner(session_date, completed_at))")
     .eq("user_id", userId)
-    .eq("is_warmup", false);
+    .eq("is_warmup", false)
+    .not("session_exercises.sessions.completed_at", "is", null)
+    .gte("session_exercises.sessions.session_date", windowStart)
+    .lte("session_exercises.sessions.session_date", getLocalDateString(now));
   if (setsError) throw new Error(setsError.message);
 
   for (const set of (sets ?? []) as unknown as {
     weight_kg: number;
     reps: number;
-    session_exercises: { session_id: string };
+    session_exercises: { sessions: { session_date: string } };
   }[]) {
-    const weekStart = weekBySessionId.get(set.session_exercises.session_id);
-    if (weekStart === undefined) continue;
+    const weekStart = getWeekStart(
+      new Date(`${set.session_exercises.sessions.session_date}T00:00:00`)
+    );
     const idx = bucketIndex.get(weekStart);
     if (idx === undefined) continue; // outside the window (shouldn't happen given the filter)
     buckets[idx].volumeKg += Number(set.weight_kg) * set.reps;
@@ -209,17 +211,20 @@ export async function listPrsFromLastCompletedSession(
   if (sessionError) throw new Error(sessionError.message);
   if (!lastSession) return [];
 
-  const { data: sets, error: setsError } = await supabase
-    .from("sets")
-    .select("weight_kg, exercise_id, exercises(name), session_exercises!inner(session_id)")
-    .eq("session_exercises.session_id", lastSession.id)
-    .eq("is_warmup", false);
+  // The last session's sets and the all-time PR view are independent (sets keys off
+  // lastSession.id, prs off userId), so fetch them in parallel — one round-trip pair
+  // instead of two in series. This is the dashboard's longest fetch chain.
+  const [setsResult, prsResult] = await Promise.all([
+    supabase
+      .from("sets")
+      .select("weight_kg, exercise_id, exercises(name), session_exercises!inner(session_id)")
+      .eq("session_exercises.session_id", lastSession.id)
+      .eq("is_warmup", false),
+    supabase.from("exercise_prs").select("exercise_id, pr_weight_kg").eq("user_id", userId),
+  ]);
+  const { data: sets, error: setsError } = setsResult;
   if (setsError) throw new Error(setsError.message);
-
-  const { data: prs, error: prsError } = await supabase
-    .from("exercise_prs")
-    .select("exercise_id, pr_weight_kg")
-    .eq("user_id", userId);
+  const { data: prs, error: prsError } = prsResult;
   if (prsError) throw new Error(prsError.message);
 
   const prByExercise = new Map((prs ?? []).map((p) => [p.exercise_id, Number(p.pr_weight_kg)]));

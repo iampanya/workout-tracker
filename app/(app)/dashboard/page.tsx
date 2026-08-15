@@ -3,7 +3,7 @@ import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phospho
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import {
-  listInProgressSessions,
+  getInProgressSessions,
   listPrsFromLastCompletedSession,
   getOverviewStats,
   getWeeklyVolume,
@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
   const [inProgress, recentPrs, overview, weeklyVolume, topPrs, recentSessions] = await Promise.all([
-    listInProgressSessions(supabase),
+    getInProgressSessions(),
     listPrsFromLastCompletedSession(supabase, user!.id),
     getOverviewStats(supabase, user!.id),
     getWeeklyVolume(supabase, user!.id),

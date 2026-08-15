@@ -16,19 +16,11 @@ export default async function LogSessionPage({
   const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
 
-  const { data: sessionRow } = await supabase
-    .from("sessions")
-    .select("*, routine:routines(name)")
-    .eq("id", sessionId)
-    .single();
-  if (!sessionRow) {
-    notFound();
-  }
-  const { routine, ...session } = sessionRow as typeof sessionRow & {
-    routine: { name: string } | null;
-  };
-  const displayName = sessionDisplayName({ name: session.name, routineName: routine?.name ?? null });
-  const [{ data: sessionExercises }, availableExercises] = await Promise.all([
+  // The session header, its exercises, and the exercise catalog are all independent,
+  // so fetch them together — one round-trip instead of the header serially blocking the
+  // other two. getPriorMaxWeights stays after because it depends on the exercise ids.
+  const [{ data: sessionRow }, { data: sessionExercises }, availableExercises] = await Promise.all([
+    supabase.from("sessions").select("*, routine:routines(name)").eq("id", sessionId).single(),
     supabase
       .from("session_exercises")
       .select("*, exercise:exercises(id, name), sets(*)")
@@ -36,6 +28,13 @@ export default async function LogSessionPage({
       .order("position"),
     listExercises(supabase),
   ]);
+  if (!sessionRow) {
+    notFound();
+  }
+  const { routine, ...session } = sessionRow as typeof sessionRow & {
+    routine: { name: string } | null;
+  };
+  const displayName = sessionDisplayName({ name: session.name, routineName: routine?.name ?? null });
 
   const exerciseIds = [...new Set((sessionExercises ?? []).map((se) => se.exercise_id))];
   const prMap = await getPriorMaxWeights(supabase, user!.id, exerciseIds);

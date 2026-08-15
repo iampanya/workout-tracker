@@ -9,6 +9,13 @@ export type ExerciseHistorySet = {
   is_warmup: boolean;
 };
 
+// Cap on how many of an exercise's most-recent sets we load for the progress
+// chart/table. Without a bound this query grows unboundedly with training history;
+// the newest few hundred sets are more than enough for the chart and are what a user
+// scrolls. We fetch newest-first (so the cap keeps recent data) then reverse back to
+// chronological order, which is the contract consumers rely on.
+const HISTORY_LIMIT = 500;
+
 export async function getExerciseHistory(
   supabase: SupabaseClient<Database>,
   exerciseId: string
@@ -19,7 +26,8 @@ export async function getExerciseHistory(
       "id, weight_kg, reps, is_warmup, created_at, session_exercises!inner(sessions!inner(session_date))"
     )
     .eq("exercise_id", exerciseId)
-    .order("created_at");
+    .order("created_at", { ascending: false })
+    .limit(HISTORY_LIMIT);
   if (error) throw new Error(error.message);
 
   return (
@@ -30,13 +38,15 @@ export async function getExerciseHistory(
       is_warmup: boolean;
       session_exercises: { sessions: { session_date: string } };
     }[]
-  ).map((row) => ({
-    id: row.id,
-    weight_kg: Number(row.weight_kg),
-    reps: row.reps,
-    is_warmup: row.is_warmup,
-    session_date: row.session_exercises.sessions.session_date,
-  }));
+  )
+    .map((row) => ({
+      id: row.id,
+      weight_kg: Number(row.weight_kg),
+      reps: row.reps,
+      is_warmup: row.is_warmup,
+      session_date: row.session_exercises.sessions.session_date,
+    }))
+    .reverse();
 }
 
 export async function getExercisePr(
