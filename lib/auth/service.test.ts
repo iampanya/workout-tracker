@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/test-helpers";
 import type { Database } from "@/lib/supabase/database.types";
-import { getEmailForUsername, createUserWithInvite } from "./service";
+import { generateReferralCode } from "@/lib/referrals/service";
+import { getEmailForUsername, createUserWithReferral } from "./service";
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
@@ -12,56 +13,92 @@ describe("auth service", () => {
   const admin: SupabaseClient<Database> = createAdminClient();
   const createdUserIds: string[] = [];
 
-  async function seedInvite(code: string, expiresAt?: string) {
-    const { error } = await admin.from("invite_codes").insert({ code, expires_at: expiresAt ?? null });
-    if (error) throw new Error(error.message);
-  }
-
   function trackCleanup(userId: string) {
     createdUserIds.push(userId);
   }
 
-  beforeAll(() => {
-    // no-op; each test seeds its own invite/user
-  });
+  // Seed an existing user to act as the inviter (its referral_code gates new signups). Returns the
+  // inviter's id + referral code. This is how the very first account exists in a real deployment
+  // (backfilled at migration), so tests bootstrap the same way.
+  async function seedInviter(): Promise<{ userId: string; referralCode: string }> {
+    const suffix = uniqueSuffix();
+    const { data, error } = await admin.auth.admin.createUser({
+      email: `inviter_${suffix}@example.com`,
+      password: "password123",
+      email_confirm: true,
+    });
+    if (error || !data.user) throw error ?? new Error("failed to seed inviter");
+    trackCleanup(data.user.id);
+    const referralCode = generateReferralCode();
+    const { error: profileError } = await admin
+      .from("profiles")
+      .insert({ id: data.user.id, username: `inviter_${suffix}`, referral_code: referralCode });
+    if (profileError) throw new Error(profileError.message);
+    return { userId: data.user.id, referralCode };
+  }
 
-  it("creates a user with a valid invite, resolves username→email, and claims the code", async () => {
-    const code = `inv_${uniqueSuffix()}`;
-    await seedInvite(code);
+  it("creates a user via a referral code, sets referred_by, and gives them their own code", async () => {
+    const inviter = await seedInviter();
     const username = `user_${uniqueSuffix()}`;
     const email = `${username}@example.com`;
 
-    const { userId } = await createUserWithInvite(admin, {
+    const { userId } = await createUserWithReferral(admin, {
       username,
       email,
       password: "password123",
-      inviteCode: code,
+      inviteCode: inviter.referralCode,
     });
     trackCleanup(userId);
 
     expect(userId).toBeTruthy();
     expect(await getEmailForUsername(admin, username)).toBe(email);
 
-    const { data: invite } = await admin
-      .from("invite_codes")
-      .select("used_by, used_at")
-      .eq("code", code)
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("referred_by, referral_code")
+      .eq("id", userId)
       .single();
-    expect(invite!.used_by).toBe(userId);
-    expect(invite!.used_at).not.toBeNull();
+    expect(profile!.referred_by).toBe(inviter.userId);
+    // The new user gets their own distinct, non-empty referral code.
+    expect(profile!.referral_code).toHaveLength(8);
+    expect(profile!.referral_code).not.toBe(inviter.referralCode);
+  });
+
+  it("lets the same referral code be used by multiple people (multi-use)", async () => {
+    const inviter = await seedInviter();
+
+    const firstName = `user_${uniqueSuffix()}`;
+    const r1 = await createUserWithReferral(admin, {
+      username: firstName,
+      email: `${firstName}@example.com`,
+      password: "password123",
+      inviteCode: inviter.referralCode,
+    });
+    trackCleanup(r1.userId);
+
+    const secondName = `user_${uniqueSuffix()}`;
+    const r2 = await createUserWithReferral(admin, {
+      username: secondName,
+      email: `${secondName}@example.com`,
+      password: "password123",
+      inviteCode: inviter.referralCode,
+    });
+    trackCleanup(r2.userId);
+
+    expect(await getEmailForUsername(admin, firstName)).toBeTruthy();
+    expect(await getEmailForUsername(admin, secondName)).toBeTruthy();
   });
 
   it("normalizes mixed-case usernames to lowercase and looks them up case-insensitively", async () => {
-    const code = `inv_${uniqueSuffix()}`;
-    await seedInvite(code);
+    const inviter = await seedInviter();
     const suffix = uniqueSuffix();
     const email = `mixed_${suffix}@example.com`;
 
-    const { userId } = await createUserWithInvite(admin, {
+    const { userId } = await createUserWithReferral(admin, {
       username: `Mixed_${suffix}`,
       email,
       password: "password123",
-      inviteCode: code,
+      inviteCode: inviter.referralCode,
     });
     trackCleanup(userId);
 
@@ -73,111 +110,59 @@ describe("auth service", () => {
     expect(await getEmailForUsername(admin, `nobody_${uniqueSuffix()}`)).toBeNull();
   });
 
-  it("rejects an unknown invite code, creating no user", async () => {
+  it("rejects an unknown referral code, creating no user", async () => {
     const username = `user_${uniqueSuffix()}`;
     await expect(
-      createUserWithInvite(admin, {
+      createUserWithReferral(admin, {
         username,
         email: `${username}@example.com`,
         password: "password123",
-        inviteCode: `missing_${uniqueSuffix()}`,
+        inviteCode: `MISSING${uniqueSuffix().slice(0, 2)}`,
       })
     ).rejects.toThrow(/invite/i);
     expect(await getEmailForUsername(admin, username)).toBeNull();
   });
 
-  it("rejects an expired invite code", async () => {
-    const code = `inv_${uniqueSuffix()}`;
-    await seedInvite(code, "2000-01-01T00:00:00Z");
-    const username = `user_${uniqueSuffix()}`;
-    await expect(
-      createUserWithInvite(admin, {
-        username,
-        email: `${username}@example.com`,
-        password: "password123",
-        inviteCode: code,
-      })
-    ).rejects.toThrow(/invite/i);
-  });
-
-  it("rejects reusing an already-claimed invite code", async () => {
-    const code = `inv_${uniqueSuffix()}`;
-    await seedInvite(code);
-    const first = `user_${uniqueSuffix()}`;
-    const r1 = await createUserWithInvite(admin, {
-      username: first,
-      email: `${first}@example.com`,
-      password: "password123",
-      inviteCode: code,
-    });
-    trackCleanup(r1.userId);
-
-    const second = `user_${uniqueSuffix()}`;
-    await expect(
-      createUserWithInvite(admin, {
-        username: second,
-        email: `${second}@example.com`,
-        password: "password123",
-        inviteCode: code,
-      })
-    ).rejects.toThrow(/invite/i);
-    // The rejected signup must not have created an account.
-    expect(await getEmailForUsername(admin, second)).toBeNull();
-  });
-
   it("rejects a duplicate username, leaving the original intact", async () => {
-    const code1 = `inv_${uniqueSuffix()}`;
-    const code2 = `inv_${uniqueSuffix()}`;
-    await seedInvite(code1);
-    await seedInvite(code2);
+    const inviter = await seedInviter();
     const username = `dup_${uniqueSuffix()}`;
 
-    const r1 = await createUserWithInvite(admin, {
+    const r1 = await createUserWithReferral(admin, {
       username,
       email: `${username}_a@example.com`,
       password: "password123",
-      inviteCode: code1,
+      inviteCode: inviter.referralCode,
     });
     trackCleanup(r1.userId);
 
     await expect(
-      createUserWithInvite(admin, {
+      createUserWithReferral(admin, {
         username,
         email: `${username}_b@example.com`,
         password: "password123",
-        inviteCode: code2,
+        inviteCode: inviter.referralCode,
       })
     ).rejects.toThrow(/taken/i);
-    // The second invite must remain unused since its signup failed.
-    const { data: invite } = await admin
-      .from("invite_codes")
-      .select("used_by")
-      .eq("code", code2)
-      .single();
-    expect(invite!.used_by).toBeNull();
   });
 
   it("rejects a duplicate email", async () => {
-    const code1 = `inv_${uniqueSuffix()}`;
-    const code2 = `inv_${uniqueSuffix()}`;
-    await seedInvite(code1);
-    await seedInvite(code2);
+    const inviter = await seedInviter();
     const email = `dupemail_${uniqueSuffix()}@example.com`;
 
-    const r1 = await createUserWithInvite(admin, {
+    const r1 = await createUserWithReferral(admin, {
       username: `user_${uniqueSuffix()}`,
       email,
       password: "password123",
-      inviteCode: code1,
+      inviteCode: inviter.referralCode,
     });
     trackCleanup(r1.userId);
 
     await expect(
-      createUserWithInvite(admin, {
+      createUserWithReferral(admin, {
         username: `user_${uniqueSuffix()}`,
         email,
         password: "password123",
-        inviteCode: code2,
+        inviteCode: inviter.referralCode,
       })
     ).rejects.toThrow(/email/i);
   });

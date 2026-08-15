@@ -64,44 +64,26 @@ export type Database = {
         }
         Relationships: []
       }
-      invite_codes: {
-        Row: {
-          code: string
-          created_at: string
-          expires_at: string | null
-          used_at: string | null
-          used_by: string | null
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          expires_at?: string | null
-          used_at?: string | null
-          used_by?: string | null
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          expires_at?: string | null
-          used_at?: string | null
-          used_by?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string
           id: string
+          referral_code: string
+          referred_by: string | null
           username: string
         }
         Insert: {
           created_at?: string
           id: string
+          referral_code: string
+          referred_by?: string | null
           username: string
         }
         Update: {
           created_at?: string
           id?: string
+          referral_code?: string
+          referred_by?: string | null
           username?: string
         }
         Relationships: []
@@ -329,7 +311,8 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      gen_referral_code: { Args: never; Returns: string }
+      referral_count: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never

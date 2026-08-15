@@ -58,6 +58,6 @@ export default async function globalSetup() {
 
   const { error: profileError } = await admin
     .from("profiles")
-    .insert({ id: data.user.id, username: TEST_USER.username });
+    .insert({ id: data.user.id, username: TEST_USER.username, referral_code: "E2ETESTR" });
   if (profileError) throw profileError;
 }

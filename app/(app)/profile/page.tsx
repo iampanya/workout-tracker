@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { getProfile } from "@/lib/profiles/service";
+import { getReferralInfo } from "@/lib/referrals/service";
 import { Card } from "@/components/ui/Card";
+import { ReferralCard } from "./ReferralCard";
 
 function formatMemberSince(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -21,6 +24,14 @@ export default async function ProfilePage() {
   }
 
   const profile = await getProfile(supabase, user.id);
+  const referral = await getReferralInfo(supabase, user.id);
+
+  // Build the shareable link's origin server-side (no window on the server, and this avoids a
+  // client effect + hydration flash). Falls back to a relative path if headers are unavailable.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "";
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
@@ -44,6 +55,8 @@ export default async function ProfilePage() {
           <span className="text-sm text-foreground">{formatMemberSince(profile.createdAt)}</span>
         </div>
       </Card>
+
+      <ReferralCard code={referral.code} invitedCount={referral.invitedCount} origin={origin} />
     </div>
   );
 }

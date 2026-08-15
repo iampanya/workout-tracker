@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getEmailForUsername, createUserWithInvite } from "@/lib/auth/service";
+import { getEmailForUsername, createUserWithReferral } from "@/lib/auth/service";
 import { loginSchema, signupSchema } from "@/lib/validation";
 
 export type AuthActionResult = { error: string | null };
@@ -44,7 +44,7 @@ export async function signup(input: {
 
   const admin = createAdminSupabaseClient();
   try {
-    await createUserWithInvite(admin, parsed.data);
+    await createUserWithReferral(admin, parsed.data);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not create account" };
   }

@@ -54,17 +54,21 @@ supabase db push
 > **ถ้าลืมข้อนี้:** ตาราง `exercises` จะว่าง → เปิดแอปแล้ว log workout ไม่ได้เพราะไม่มีท่าให้เลือกใน `ExerciseCombobox`
 > (`seed.sql` มี `on conflict do nothing` — เผลอรันซ้ำก็ปลอดภัย)
 
-### A5. หยอด invite code แรก (ตัด loop ไก่-ไข่)
+### A5. สร้างบัญชีแรก (ตัด loop ไก่-ไข่)
 
-ใน **SQL Editor** เดิม:
+signup ต้องใช้ referral code ของ user ที่มีอยู่ → บัญชีแรกยังไม่มีใคร invite ได้ ต้อง bootstrap เองตรงๆ
+
+1. **Authentication → Users → Add user** สร้าง auth user (ใส่ email + password)
+2. ใน **SQL Editor** insert `profiles` row ที่ผูกกัน (username login + referral code ต้องใช้ทั้งคู่):
 
 ```sql
-insert into public.invite_codes (code) values ('<a-long-random-string>');
+insert into public.profiles (id, username, referral_code)
+values ('<the-new-user-id>', 'yourname', '<an-8-char-code>');
 ```
 
-> **ทำไม:** หน้า `/signup` ต้องใช้ invite code ที่ใช้ได้ แต่ในแอปไม่มี UI ให้สร้าง code เลย → ต้องหยอด code แรกเองที่นี่
-> แต่ละ code ใช้ได้ครั้งเดียว จะ invite คนเพิ่มก็ insert เพิ่มแบบนี้ (อยากจำกัดเวลาก็ใส่คอลัมน์ `expires_at`)
-> ตั้งค่า `<a-long-random-string>` ให้เดายาก เช่นผลจาก `openssl rand -hex 16`
+> **ทำไม:** ไม่มี UI สร้างบัญชีแรกได้เอง → หยอด profile row แรกที่นี่
+> หลังจากนี้ทุกคน invite คนอื่นได้เองด้วย **invite link ในหน้า Profile** (ไม่ต้อง SQL อีก) — กด Regenerate เพื่อยกเลิก link ที่หลุดได้
+> `<an-8-char-code>` ใช้ตัวอักษร A–Z/2–9 (เลี่ยง 0/O/1/I/L) เช่น `DEV12345`
 
 ---
 
@@ -128,7 +132,7 @@ login ด้วย username → **Log workout** → เลือกท่า + l
   ป้องกัน: (ก) อัป **Pro plan** ($25/เดือน ไม่มี pause — วิธีที่ถูกต้องถ้ามีคนใช้จริง),
   หรือ (ข) ตั้ง **Vercel Cron** ยิง endpoint เบาๆ (เช่น `select count(*) from exercises`) ทุกไม่กี่วันเพื่อ keep-alive
 - **เพิ่ม/แก้ schema ทีหลัง:** เขียน migration ไฟล์ใหม่ใน `supabase/migrations/` → `supabase db push` (อย่าแก้ไฟล์ migration เดิมที่ push ไปแล้ว)
-- **Invite คนเพิ่ม:** insert `invite_codes` row ใหม่ (ข้อ A5) ส่ง code ให้เขาไปสมัครที่ `/signup`
+- **Invite คนเพิ่ม:** เปิดหน้า **Profile** → copy invite link ส่งให้เขาไปสมัครที่ `/signup` (code เติมให้อัตโนมัติ) — ไม่ต้อง SQL แล้ว
 
 ---
 

@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { signupSchema } from "@/lib/validation";
+import { generateReferralCode } from "@/lib/referrals/service";
+
+const MAX_CODE_ATTEMPTS = 5;
 
 export type SignupResult = { userId: string; email: string };
 
@@ -25,27 +28,24 @@ export async function getEmailForUsername(
   return data.user?.email ?? null;
 }
 
-// Create a new account behind a single-use invite code. Ordered so that any failure
-// leaves no partial state: pre-checks first, then create user → insert profile → claim
-// the invite atomically, cleaning up the created user/profile if a later step loses a race.
-export async function createUserWithInvite(
+// Create a new account behind a user's referral code. The `inviteCode` is the referral code of
+// the inviter; it's multi-use and never expires. Ordered so that any failure leaves no partial
+// state: pre-checks first, then create user → insert profile (with the new user's own referral
+// code + `referred_by`), cleaning up the created user if the profile insert loses a race.
+export async function createUserWithReferral(
   admin: SupabaseClient<Database>,
   input: unknown
 ): Promise<SignupResult> {
   const { username, email, password, inviteCode } = signupSchema.parse(input);
 
-  // 1. Invite must exist, be unused, and unexpired.
-  const { data: invite, error: inviteError } = await admin
-    .from("invite_codes")
-    .select("code, used_by, expires_at")
-    .eq("code", inviteCode)
+  // 1. The referral code must belong to an existing user (its owner becomes `referred_by`).
+  const { data: inviter, error: inviterError } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("referral_code", inviteCode)
     .maybeSingle();
-  if (inviteError) throw new Error(inviteError.message);
-  const inviteUnusable =
-    !invite ||
-    invite.used_by !== null ||
-    (invite.expires_at !== null && new Date(invite.expires_at) < new Date());
-  if (inviteUnusable) throw new Error("Invalid or already-used invite code");
+  if (inviterError) throw new Error(inviterError.message);
+  if (!inviter) throw new Error("Invalid invite code");
 
   // 2. Username must be free (the unique constraint is the final backstop).
   const { data: existing, error: existingError } = await admin
@@ -68,27 +68,28 @@ export async function createUserWithInvite(
   }
   const userId = created.user.id;
 
-  // 4. Insert the profile; on failure (e.g. a username race) delete the orphaned user.
-  const { error: profileError } = await admin.from("profiles").insert({ id: userId, username });
-  if (profileError) {
+  // 4. Insert the profile with the new user's own referral code + who referred them. Retry the
+  // insert on a referral_code collision; on any other failure delete the orphaned auth user.
+  let lastError: string | null = null;
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+    const { error: profileError } = await admin.from("profiles").insert({
+      id: userId,
+      username,
+      referral_code: generateReferralCode(),
+      referred_by: inviter.id,
+    });
+    if (!profileError) return { userId, email };
+
+    // A username collision is terminal; a referral_code collision is retryable.
+    if (/referral_code/i.test(profileError.message)) {
+      lastError = profileError.message;
+      continue;
+    }
     await admin.auth.admin.deleteUser(userId);
     const isDuplicate = /duplicate|unique/i.test(profileError.message);
     throw new Error(isDuplicate ? "That username is taken" : profileError.message);
   }
 
-  // 5. Atomically claim the invite (guarded by `used_by IS NULL`). If someone claimed it
-  // first, roll back the profile and user so the account isn't created without a code.
-  const { data: claimed, error: claimError } = await admin
-    .from("invite_codes")
-    .update({ used_by: userId, used_at: new Date().toISOString() })
-    .eq("code", inviteCode)
-    .is("used_by", null)
-    .select("code");
-  if (claimError || !claimed || claimed.length === 0) {
-    await admin.from("profiles").delete().eq("id", userId);
-    await admin.auth.admin.deleteUser(userId);
-    throw new Error("Invalid or already-used invite code");
-  }
-
-  return { userId, email };
+  await admin.auth.admin.deleteUser(userId);
+  throw new Error(lastError ?? "Could not create account");
 }

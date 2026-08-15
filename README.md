@@ -3,8 +3,10 @@
 A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, Supabase (Postgres + Auth), Tailwind CSS, and Recharts.
 
 **Multi-user, invite-gated.** Login is by **username**; each user has an isolated profile (enforced by
-row-level security). New accounts self-register on `/signup` but require a valid single-use **invite
-code** — there is no open public signup.
+row-level security). There is no open public signup: new accounts self-register on `/signup` but require
+a valid **referral code**. Every user owns one permanent, personal referral code (shown as a shareable
+invite link on their **Profile** page) that anyone can use to sign up; a user can **regenerate** it to
+invalidate a leaked link. The very first account is bootstrapped directly in the database (below).
 
 ## Local Development
 
@@ -16,19 +18,19 @@ code** — there is no open public signup.
 6. Run unit tests (no DB required): `npm test`
 7. Run the full suite including DB-backed integration tests (requires `supabase start` to be running, and `DOTENV_CONFIG_PATH=.env.local` set): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
 8. Run the end-to-end browser tests (Playwright, drives the real UI against a production build): `npm run test:e2e`. Requires `supabase start` running and `.env.local` populated; the first run needs the browser binary once: `npx playwright install chromium`. A fresh test user (username `e2e_tester`) is reset and seeded automatically before each run by `e2e/global-setup.ts`. To iterate faster against `next dev` instead of a prod build, prefix with `E2E_DEV=1`.
-9. Create a local account. `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`) — the signup flow uses it server-side. Then either:
-   - **Via the app (recommended):** issue an invite code, then register at `/signup`. Insert a code in Supabase Studio's SQL Editor (`supabase status` prints its URL, typically `http://127.0.0.1:54323`):
-     ```sql
-     insert into public.invite_codes (code) values ('dev-invite');
-     ```
-     Open `/signup`, fill in a username, email, password, and `dev-invite`.
-   - **Via Studio directly:** Authentication → Users → Add user creates the auth user, but you must also insert a matching `public.profiles` row (`id` = the new user's id, a lowercase `username`) or username login won't find it.
+9. Create the first local account. Signup needs an existing user's referral code, so the first account is bootstrapped directly (there's no one to invite you yet). `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`). In Supabase Studio (`supabase status` prints its URL, typically `http://127.0.0.1:54323`): **Authentication → Users → Add user** to create the auth user, then in the **SQL Editor** insert a matching `public.profiles` row — username login and referral codes both require it:
+   ```sql
+   insert into public.profiles (id, username, referral_code)
+   values ('<the-new-user-id>', 'yourname', 'DEV12345');
+   ```
+   Log in at `/login` with `yourname` and the password you set. To add more accounts, open your **Profile** page, copy your invite link, and register through it at `/signup` (the code is prefilled) — or share it with anyone else.
 
 ## Deployment
 
-Accounts are invite-gated: users self-register at `/signup` with a single-use invite code. Supabase's
-own public signup stays **disabled** — the app mints users server-side via the service-role admin API,
-which is what enforces the invite gate.
+Accounts are invite-gated: users self-register at `/signup` with a referral code from an existing user's
+invite link. Supabase's own public signup stays **disabled** — the app mints users server-side via the
+service-role admin API, which is what enforces the invite gate. The first account is bootstrapped
+directly in the database (step 3), after which everyone invites others via their Profile page's link.
 
 ### 1. Create the hosted Supabase project
 
@@ -45,15 +47,19 @@ supabase db push
 
 Then, in the hosted project's **SQL Editor**, run the contents of `supabase/seed.sql` once to seed the preset exercises (the CLI does not auto-run `seed.sql` against a linked remote project).
 
-### 3. Seed the first invite code
+### 3. Bootstrap the first account
 
-In the hosted project's **SQL Editor**, insert an invite code so you (and anyone you invite) can register:
+There's no one to invite you into a brand-new project, so create the first account directly. In the
+hosted project's dashboard: **Authentication → Users → Add user** (set an email + password), then in the
+**SQL Editor** insert a matching profile with a referral code:
 
 ```sql
-insert into public.invite_codes (code) values ('<a-long-random-string>');
+insert into public.profiles (id, username, referral_code)
+values ('<the-new-user-id>', 'yourname', '<an-8-char-code>');
 ```
 
-Each code is single-use. Issue more the same way as you invite people; add `expires_at` to time-limit one.
+After that, everyone invites others by sharing the personal invite link on their **Profile** page — no
+more manual SQL. A user can regenerate their code from that page to invalidate a leaked link.
 
 ### 4. Deploy to Vercel
 
@@ -71,8 +77,8 @@ invite-gated signup); it is server-only and must never be exposed as a `NEXT_PUB
 
 ### 5. Create your account
 
-Visit `<deployed-url>/signup` and register with a username, your email, a strong password, and the invite
-code from step 3.
+You bootstrapped it in step 3 — log in at `<deployed-url>/login` with that username and password. To
+invite others, share the invite link from your **Profile** page.
 
 ### 6. Verify
 
