@@ -5,7 +5,7 @@ Runbook แบบละเอียด สำหรับ deploy แอป worko
 
 > **หลักคิดที่ต้องจำ 2 ข้อ (จะทำให้ทุกขั้นตอน make sense):**
 > 1. **โครงสร้าง (migrations) เดินทางข้ามสภาพแวดล้อมเองได้** — `supabase db push` ดันขึ้นให้
->    แต่ **ข้อมูล (seed exercises, invite code) ต้องหยอดเองใน SQL Editor** ทุกครั้ง
+>    แต่ **ข้อมูล (seed exercises, บัญชีแรก) ต้องหยอดเองใน SQL Editor** ทุกครั้ง
 > 2. **key ใน `.env.local` = ของ Docker บนเครื่องคุณ ใช้กับ production ไม่ได้** — ค่าจริงมาจาก dashboard คลาวด์เท่านั้น
 
 สิ่งที่ต้องมีก่อนเริ่ม: บัญชี [supabase.com](https://supabase.com), บัญชี [vercel.com](https://vercel.com), Supabase CLI (`brew install supabase/tap/supabase`), และโค้ดที่ push ขึ้น Git repo แล้ว
@@ -42,9 +42,10 @@ supabase db push
 ```
 
 - `link` จะถาม database password (จากข้อ A1)
-- `db push` จะรัน migrations ทั้ง 3 ไฟล์ (`0001_init` → `0003`) เรียงตามลำดับ สร้างตาราง/RLS/view ให้
+- `db push` จะรัน migrations ทั้ง 4 ไฟล์ (`0001_init` → `0004_referral_codes`) เรียงตามลำดับ สร้างตาราง/RLS/view/ฟังก์ชันให้
 
 > **ทำไมใช้ CLI:** migrations เป็น "โครงสร้าง" ที่ track ได้ว่าไฟล์ไหนรันไปแล้ว (ใน `supabase_migrations.schema_migrations`) จึง push ข้ามสภาพแวดล้อมได้ปลอดภัย
+> **บน deploy ครั้งแรก (ยังไม่มี user):** `0004` แค่สร้างคอลัมน์ `referral_code`/`referred_by` + ฟังก์ชัน แล้ว drop ตาราง `invite_codes` เดิม — ไม่มีอะไรให้ backfill
 
 ### A4. หยอด seed exercises (ข้อมูล — CLI ไม่ทำให้)
 
@@ -114,14 +115,44 @@ npx vercel --prod
 
 ## ส่วน C — หลัง deploy
 
-### C1. สร้างบัญชีแรก
+### C1. เข้าใช้บัญชีแรก
 
-เปิด `<deployed-url>/signup` → กรอก username, email, password (ตั้งให้แข็งแรง), และ **invite code จากข้อ A5** → สมัคร
+เปิด `<deployed-url>/login` → login ด้วย username + password ของบัญชีที่ bootstrap ไว้ในข้อ A5
+จากนั้นเปิดหน้า **Profile** → copy invite link ไปชวนคนอื่นสมัครที่ `/signup` ได้เลย
 
 ### C2. Verify (ให้ครบ loop)
 
 login ด้วย username → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี **"New PR" banner** โผล่ตอนทำน้ำหนักเกินสถิติเดิม → **Finish** → เช็คว่า **dashboard** ขึ้น session นั้น
 ลองทั้งบนมือถือและ desktop browser
+
+---
+
+## ส่วน D — อัปเดต production ที่ deploy ไปแล้ว (มี migration ใหม่)
+
+เมื่อมี migration ไฟล์ใหม่ (เช่น `0004_referral_codes.sql`) และจะ deploy โค้ดที่ใช้ schema นั้น
+**ต้อง migrate DB ก่อน แล้วค่อย deploy Vercel เสมอ** — เพราะโค้ดใหม่ query คอลัมน์/ฟังก์ชันที่ยังไม่มีใน DB จะพัง
+
+```bash
+# 1. Migrate DB ก่อน (link ไว้แล้วรันแค่บรรทัดนี้) — push เฉพาะ migration ที่ยังไม่เคยรัน
+supabase db push
+
+# 2. แล้วค่อย deploy โค้ด
+npx vercel --prod    # หรือ push ขึ้น branch ให้ Vercel auto-deploy
+```
+
+> **ทำไมลำดับนี้ห้ามสลับ:** ถ้า deploy Vercel ก่อน โค้ดใหม่จะเรียกคอลัมน์ `referral_code`/RPC `referral_count()` ที่ DB ยังไม่มี → หน้า Profile + signup error
+> **ช่วงรอยต่อสั้นๆ:** ระหว่าง `db push` เสร็จ ถึง Vercel deploy เสร็จ โค้ด**เก่า**ที่ยังรันอยู่จะ signup ไม่ได้ชั่วคราว (เพราะ `0004` drop ตาราง `invite_codes` ไปแล้ว) — deploy Vercel ตามให้ไวจบ
+
+**เฉพาะ `0004`:** ถ้า production มี user อยู่แล้ว migration จะ **backfill `referral_code` ให้ทุกคนอัตโนมัติ** (ทุกคนได้ invite link ทันที) และเพิ่ม `referred_by`, สร้าง `referral_count()`, drop `invite_codes`
+
+ตรวจหลัง push (SQL Editor):
+
+```sql
+select id, username, referral_code, referred_by from public.profiles;  -- ทุกแถวต้องมี referral_code
+select to_regclass('public.invite_codes');                             -- ต้องได้ null (ถูก drop แล้ว)
+```
+
+> ตัว env vars ของ Vercel **ไม่ต้องเพิ่มอะไรใหม่** สำหรับ `0004` — ใช้ URL/anon/service_role key ชุดเดิม
 
 ---
 
@@ -141,11 +172,11 @@ login ด้วย username → **Log workout** → เลือกท่า + l
 ```
 Supabase                          Vercel                        หลัง deploy
 ────────────────────────         ──────────────────────       ──────────────────
-A1 สร้างโปรเจกต์ + จด keys    →  B1 vercel link            →  C1 signup + invite code
+A1 สร้างโปรเจกต์ + จด keys    →  B1 vercel link            →  C1 login บัญชีแรก
 A2 ปิด public signup            B2 add env (จากคลาวด์!)       C2 verify loop
 A3 db push (schema)             B3 vercel --prod
 A4 seed.sql (SQL Editor)
-A5 invite code (SQL Editor)
+A5 bootstrap บัญชีแรก (SQL Editor)
 ```
 
 เหตุที่ Supabase ต้องมาก่อน: B2 ต้องกรอกค่าที่เกิดใน A1 — ทำ Vercel ก่อนจะไม่มีอะไรไปใส่
