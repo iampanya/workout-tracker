@@ -42,7 +42,7 @@ supabase db push
 ```
 
 - `link` จะถาม database password (จากข้อ A1)
-- `db push` จะรัน migrations ทั้ง 4 ไฟล์ (`0001_init` → `0004_referral_codes`) เรียงตามลำดับ สร้างตาราง/RLS/view/ฟังก์ชันให้
+- `db push` จะรัน migrations ทั้ง 5 ไฟล์ (`0001_init` → `0005_backup_import`) เรียงตามลำดับ สร้างตาราง/RLS/view/ฟังก์ชันให้
 
 > **ทำไมใช้ CLI:** migrations เป็น "โครงสร้าง" ที่ track ได้ว่าไฟล์ไหนรันไปแล้ว (ใน `supabase_migrations.schema_migrations`) จึง push ข้ามสภาพแวดล้อมได้ปลอดภัย
 > **บน deploy ครั้งแรก (ยังไม่มี user):** `0004` แค่สร้างคอลัมน์ `referral_code`/`referred_by` + ฟังก์ชัน แล้ว drop ตาราง `invite_codes` เดิม — ไม่มีอะไรให้ backfill
@@ -153,6 +153,17 @@ select to_regclass('public.invite_codes');                             -- ต้
 ```
 
 > ตัว env vars ของ Vercel **ไม่ต้องเพิ่มอะไรใหม่** สำหรับ `0004` — ใช้ URL/anon/service_role key ชุดเดิม
+
+**เฉพาะ `0005` (Backup/Restore):** migration แค่ **เพิ่มฟังก์ชัน `import_backup(jsonb, text)`** อย่างเดียว — ไม่แก้/ลบตารางเดิม, ไม่มี backfill, ไม่มีช่วงรอยต่อที่โค้ดเก่าพัง (โค้ดเก่าไม่รู้จักฟังก์ชันนี้อยู่แล้ว) จึง `db push` ก่อนหรือหลัง deploy Vercel ก็ได้ในทางปฏิบัติ — แต่ยึดลำดับเดิม (DB ก่อน) ไว้เป็นนิสัยจะปลอดภัยสุด
+
+- ฟังก์ชันเป็น `SECURITY DEFINER` (เหมือน `referral_count()`) แต่ stamp `user_id = auth.uid()` ทุก row และคืนแค่ตัวเลขสรุป — ไม่รั่วข้อมูลข้ามผู้ใช้
+- **env vars ไม่ต้องเพิ่มอะไรใหม่** — ใช้ชุดเดิม (ไม่พึ่ง service-role บน path นี้)
+
+ตรวจหลัง push (SQL Editor):
+
+```sql
+select to_regprocedure('public.import_backup(jsonb, text)');  -- ต้องไม่ได้ null (ฟังก์ชันถูกสร้างแล้ว)
+```
 
 ---
 

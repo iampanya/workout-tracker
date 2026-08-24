@@ -3,6 +3,7 @@ import { getAuthUser } from "@/lib/supabase/auth";
 import { Card } from "@/components/ui/Card";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { LogoutButton } from "../LogoutButton";
+import { BackupCard } from "./BackupCard";
 
 export default async function SettingsPage() {
   const user = await getAuthUser();
@@ -20,6 +21,13 @@ export default async function SettingsPage() {
           Appearance
         </span>
         <ThemeModeControl />
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">
+          Backup &amp; Restore
+        </span>
+        <BackupCard />
       </Card>
 
       <Card className="flex flex-col gap-3">

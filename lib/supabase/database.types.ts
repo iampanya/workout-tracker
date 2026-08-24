@@ -313,6 +313,7 @@ export type Database = {
     Functions: {
       gen_referral_code: { Args: never; Returns: string }
       referral_count: { Args: never; Returns: number }
+      import_backup: { Args: { payload: Json; mode: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
