@@ -2,12 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
-// "/" is the public landing page (it self-redirects logged-in users to
-// /dashboard); auth surfaces are public too. Everything else is protected.
+// "/" is the public landing page (viewable while logged in — it just adapts its
+// CTAs; it does NOT redirect). "/login" and "/signup" are guest-only: an already
+// logged-in visitor is bounced off them to /dashboard. Everything else is protected.
 const PUBLIC_ROUTES = new Set(["/", "/login", "/signup"]);
+const GUEST_ONLY_ROUTES = new Set(["/login", "/signup"]);
 
 export function isProtectedRoute(pathname: string): boolean {
   return !PUBLIC_ROUTES.has(pathname);
+}
+
+export function isGuestOnlyRoute(pathname: string): boolean {
+  return GUEST_ONLY_ROUTES.has(pathname);
 }
 
 export async function updateSession(request: NextRequest) {
@@ -37,6 +43,20 @@ export async function updateSession(request: NextRequest) {
   // refreshes an expired-but-refreshable token and writes rotated cookies through the
   // setAll adapter above — so middleware keeps its refresh-and-propagate duty.
   const { data } = await supabase.auth.getClaims();
+
+  // Logged-in visitor on a guest-only page (/login, /signup) → send to /dashboard.
+  // This runs before render, so bookmarking /login and returning while still signed
+  // in lands on the dashboard with no flash of the login form.
+  if (data && isGuestOnlyRoute(request.nextUrl.pathname)) {
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
+    const redirectResponse = NextResponse.redirect(dashboardUrl);
+    // Carry over any cookies getClaims just rotated (an expired-but-refreshable
+    // token gets refreshed above). Dropping them would leave the client holding a
+    // spent, single-use refresh token and could bounce the user back out.
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    return redirectResponse;
+  }
 
   if (!data && isProtectedRoute(request.nextUrl.pathname)) {
     const loginUrl = request.nextUrl.clone();
