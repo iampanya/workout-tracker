@@ -1,7 +1,9 @@
+import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import type { Database } from "@/lib/supabase/database.types";
 import { BACKUP_FORMAT, BACKUP_VERSION, type BackupFile } from "@/lib/validation";
 import { exportUserData, importUserData } from "./service";
@@ -69,7 +71,7 @@ describe("backup service", () => {
     userA = a.userId;
     clientA = a.client;
     seeded = await seedWorkout(clientA, userA);
-    backup = await exportUserData(clientA, userA);
+    backup = await exportUserData(prisma, userA);
   });
 
   it("exports all of the user's data in the backup file shape", () => {
@@ -87,7 +89,7 @@ describe("backup service", () => {
 
   it("merge-imports another user's backup, reproducing every row", async () => {
     const b = await createTestUser(admin);
-    const summary = await importUserData(b.client, backup, "merge");
+    const summary = await importUserData(prisma, b.userId, backup, "merge");
     expect(summary).toMatchObject({
       exercises: 1,
       routines: 1,
@@ -98,7 +100,7 @@ describe("backup service", () => {
     });
 
     // The restored data is owned by user B and reads back identically.
-    const roundTrip = await exportUserData(b.client, b.userId);
+    const roundTrip = await exportUserData(prisma, b.userId);
     expect(roundTrip.data.sets.map((s) => s.weight_kg).sort()).toEqual([20, 22.5]);
     expect(roundTrip.data.exercises[0].name).toBe(seeded.exerciseName);
   });
@@ -107,7 +109,7 @@ describe("backup service", () => {
     // userA already holds exactly this backup's rows (ids owned by A → skipped;
     // exercises dedupe by name). This is the real backup/restore case: pulling
     // your own backup back in must never duplicate.
-    const summary = await importUserData(clientA, backup, "merge");
+    const summary = await importUserData(prisma, userA, backup, "merge");
     expect(summary).toMatchObject({
       exercises: 0,
       routines: 0,
@@ -122,11 +124,11 @@ describe("backup service", () => {
     const b = await createTestUser(admin);
     // Give B some unrelated data of their own first.
     await seedWorkout(b.client, b.userId);
-    const before = await exportUserData(b.client, b.userId);
+    const before = await exportUserData(prisma, b.userId);
     expect(before.data.sessions).toHaveLength(1);
 
-    await importUserData(b.client, backup, "replace");
-    const after = await exportUserData(b.client, b.userId);
+    await importUserData(prisma, b.userId, backup, "replace");
+    const after = await exportUserData(prisma, b.userId);
     // B's own session is gone; only the file's single session remains.
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.exercises).toHaveLength(1);
@@ -166,7 +168,7 @@ describe("backup service", () => {
       },
     };
 
-    const summary = await importUserData(b.client, file, "merge");
+    const summary = await importUserData(prisma, b.userId, file, "merge");
     expect(summary.exercises).toBe(0); // matched the preset, nothing inserted
 
     // No custom exercise was created for B, and the child points at the preset.
@@ -210,10 +212,10 @@ describe("backup service", () => {
       },
     };
 
-    await expect(importUserData(b.client, corrupt, "replace")).rejects.toThrow();
+    await expect(importUserData(prisma, b.userId, corrupt, "replace")).rejects.toThrow();
 
     // The replace's deletes were rolled back — B's original workout survives.
-    const after = await exportUserData(b.client, b.userId);
+    const after = await exportUserData(prisma, b.userId);
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.sets).toHaveLength(2);
   });

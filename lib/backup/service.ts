@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json } from "@/lib/supabase/database.types";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import {
   backupFileSchema,
   BACKUP_FORMAT,
@@ -19,83 +18,99 @@ export type ImportSummary = {
   sets: number;
 };
 
-// Gathers everything a user owns into the backup file shape. Only the columns
-// import_backup reads are selected — `user_id` is deliberately omitted (import
-// always stamps the caller's id). Presets (user_id IS NULL) are excluded by the
-// `.eq("user_id", ...)` filter, which RLS narrows to the caller anyway.
-export async function exportUserData(
-  supabase: SupabaseClient<Database>,
-  userId: string
-): Promise<BackupFile> {
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// Gathers everything a user owns into the backup file shape. user_id is omitted (import always
+// stamps the caller's id). Presets (user_id IS NULL) are excluded by the user_id filter.
+// Timestamps are serialized to strings and weight_kg to a number to match backupFileSchema.
+export async function exportUserData(db: PrismaClient, userId: string): Promise<BackupFile> {
   const [exercises, routines, routineExercises, sessions, sessionExercises, sets] =
     await Promise.all([
-      supabase
-        .from("exercises")
-        .select("id, name, muscle_group, is_archived, created_at")
-        .eq("user_id", userId)
-        .order("created_at"),
-      supabase
-        .from("routines")
-        .select("id, name, notes, created_at, updated_at")
-        .eq("user_id", userId)
-        .order("created_at"),
-      supabase
-        .from("routine_exercises")
-        .select("id, routine_id, exercise_id, position, target_sets")
-        .eq("user_id", userId)
-        .order("routine_id")
-        .order("position"),
-      supabase
-        .from("sessions")
-        .select("id, routine_id, name, session_date, started_at, completed_at, notes")
-        .eq("user_id", userId)
-        .order("started_at"),
-      supabase
-        .from("session_exercises")
-        .select("id, session_id, exercise_id, position, notes")
-        .eq("user_id", userId)
-        .order("session_id")
-        .order("position"),
-      supabase
-        .from("sets")
-        .select(
-          "id, session_exercise_id, exercise_id, set_number, weight_kg, reps, is_warmup, created_at"
-        )
-        .eq("user_id", userId)
-        .order("session_exercise_id")
-        .order("set_number"),
+      db.exercises.findMany({
+        where: { user_id: userId },
+        orderBy: { created_at: "asc" },
+        select: { id: true, name: true, muscle_group: true, is_archived: true, created_at: true },
+      }),
+      db.routines.findMany({
+        where: { user_id: userId },
+        orderBy: { created_at: "asc" },
+        select: { id: true, name: true, notes: true, created_at: true, updated_at: true },
+      }),
+      db.routine_exercises.findMany({
+        where: { user_id: userId },
+        orderBy: [{ routine_id: "asc" }, { position: "asc" }],
+        select: { id: true, routine_id: true, exercise_id: true, position: true, target_sets: true },
+      }),
+      db.sessions.findMany({
+        where: { user_id: userId },
+        orderBy: { started_at: "asc" },
+        select: {
+          id: true,
+          routine_id: true,
+          name: true,
+          session_date: true,
+          started_at: true,
+          completed_at: true,
+          notes: true,
+        },
+      }),
+      db.session_exercises.findMany({
+        where: { user_id: userId },
+        orderBy: [{ session_id: "asc" }, { position: "asc" }],
+        select: { id: true, session_id: true, exercise_id: true, position: true, notes: true },
+      }),
+      db.sets.findMany({
+        where: { user_id: userId },
+        orderBy: [{ session_exercise_id: "asc" }, { set_number: "asc" }],
+        select: {
+          id: true,
+          session_exercise_id: true,
+          exercise_id: true,
+          set_number: true,
+          weight_kg: true,
+          reps: true,
+          is_warmup: true,
+          created_at: true,
+        },
+      }),
     ]);
-
-  for (const result of [
-    exercises,
-    routines,
-    routineExercises,
-    sessions,
-    sessionExercises,
-    sets,
-  ]) {
-    if (result.error) throw new Error(result.error.message);
-  }
 
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exported_at: new Date().toISOString(),
     data: {
-      exercises: exercises.data ?? [],
-      routines: routines.data ?? [],
-      routine_exercises: routineExercises.data ?? [],
-      sessions: sessions.data ?? [],
-      session_exercises: sessionExercises.data ?? [],
-      sets: sets.data ?? [],
+      exercises: exercises.map((e) => ({ ...e, created_at: e.created_at.toISOString() })),
+      routines: routines.map((r) => ({
+        ...r,
+        created_at: r.created_at.toISOString(),
+        updated_at: r.updated_at.toISOString(),
+      })),
+      routine_exercises: routineExercises,
+      sessions: sessions.map((s) => ({
+        ...s,
+        session_date: toDateStr(s.session_date),
+        started_at: s.started_at.toISOString(),
+        completed_at: s.completed_at ? s.completed_at.toISOString() : null,
+      })),
+      session_exercises: sessionExercises,
+      sets: sets.map((s) => ({
+        ...s,
+        weight_kg: Number(s.weight_kg),
+        created_at: s.created_at.toISOString(),
+      })),
     },
   };
 }
 
-// Validates the raw file, then hands the whole payload to the atomic
-// import_backup RPC (a single transaction — see 0005_backup_import.sql).
+// Validates the raw file, then hands the whole payload to the atomic import_backup function
+// (one transaction — see 0009_import_backup_userid_param.sql). The user id is passed explicitly
+// since the direct connection has no auth.uid().
 export async function importUserData(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
+  userId: string,
   rawFile: unknown,
   mode: ImportMode
 ): Promise<ImportSummary> {
@@ -104,10 +119,7 @@ export async function importUserData(
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid backup file");
   }
 
-  const { data, error } = await supabase.rpc("import_backup", {
-    payload: parsed.data as unknown as Json,
-    mode,
-  });
-  if (error) throw new Error(error.message);
-  return data as unknown as ImportSummary;
+  const rows = await db.$queryRaw<{ import_backup: ImportSummary }[]>(Prisma.sql`
+    select public.import_backup(${JSON.stringify(parsed.data)}::jsonb, ${mode}, ${userId}::uuid) as import_backup`);
+  return rows[0].import_backup;
 }

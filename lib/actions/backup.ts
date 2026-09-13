@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db";
 import { exportUserData, importUserData, type ImportMode, type ImportSummary } from "@/lib/backup/service";
 import type { BackupFile } from "@/lib/validation";
 
-async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
+// Identity still from the Supabase (GoTrue) session; data via prisma.
+async function currentUserId() {
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -14,20 +17,18 @@ async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSup
 }
 
 export async function exportBackup(): Promise<BackupFile> {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  return exportUserData(supabase, userId);
+  const userId = await currentUserId();
+  return exportUserData(prisma, userId);
 }
 
 export type ImportResult = { error: string | null; summary: ImportSummary | null };
 
 export async function importBackup(rawFile: unknown, mode: ImportMode): Promise<ImportResult> {
-  const supabase = await createServerSupabaseClient();
-  await currentUserId(supabase);
+  const userId = await currentUserId();
 
   let summary: ImportSummary;
   try {
-    summary = await importUserData(supabase, rawFile, mode);
+    summary = await importUserData(prisma, userId, rawFile, mode);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not import backup", summary: null };
   }

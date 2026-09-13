@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CalendarBlank, Clock, Trophy } from "@phosphor-icons/react/ssr";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { getSessionDetail, sessionDisplayName } from "@/lib/sessions/history";
 import {
   computeSessionSummary,
@@ -27,8 +28,8 @@ export default async function SessionDetailPage({
   params: Promise<{ sessionId: string }>;
 }) {
   const { sessionId } = await params;
-  const supabase = await createServerSupabaseClient();
-  const detail = await getSessionDetail(supabase, sessionId);
+  const user = await getAuthUser();
+  const detail = await getSessionDetail(prisma, user!.id, sessionId);
   if (!detail) {
     notFound();
   }

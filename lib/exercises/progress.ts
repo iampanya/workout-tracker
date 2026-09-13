@@ -1,5 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
 export type ExerciseHistorySet = {
   id: string;
@@ -9,57 +8,47 @@ export type ExerciseHistorySet = {
   is_warmup: boolean;
 };
 
-// Cap on how many of an exercise's most-recent sets we load for the progress
-// chart/table. Without a bound this query grows unboundedly with training history;
-// the newest few hundred sets are more than enough for the chart and are what a user
-// scrolls. We fetch newest-first (so the cap keeps recent data) then reverse back to
-// chronological order, which is the contract consumers rely on.
+// Cap on how many recent sets we load for the progress chart. Fetch newest-first (so the cap
+// keeps recent data) then reverse to chronological order, which consumers rely on.
 const HISTORY_LIMIT = 500;
 
 export async function getExerciseHistory(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
+  userId: string,
   exerciseId: string
 ): Promise<ExerciseHistorySet[]> {
-  const { data, error } = await supabase
-    .from("sets")
-    .select(
-      "id, weight_kg, reps, is_warmup, created_at, session_exercises!inner(sessions!inner(session_date))"
-    )
-    .eq("exercise_id", exerciseId)
-    .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT);
-  if (error) throw new Error(error.message);
+  const rows = await db.sets.findMany({
+    where: { user_id: userId, exercise_id: exerciseId },
+    orderBy: { created_at: "desc" },
+    take: HISTORY_LIMIT,
+    select: {
+      id: true,
+      weight_kg: true,
+      reps: true,
+      is_warmup: true,
+      session_exercises: { select: { sessions: { select: { session_date: true } } } },
+    },
+  });
 
-  return (
-    data as unknown as {
-      id: string;
-      weight_kg: number;
-      reps: number;
-      is_warmup: boolean;
-      session_exercises: { sessions: { session_date: string } };
-    }[]
-  )
+  return rows
     .map((row) => ({
       id: row.id,
       weight_kg: Number(row.weight_kg),
       reps: row.reps,
       is_warmup: row.is_warmup,
-      session_date: row.session_exercises.sessions.session_date,
+      session_date: row.session_exercises.sessions.session_date.toISOString().slice(0, 10),
     }))
     .reverse();
 }
 
 export async function getExercisePr(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   exerciseId: string
 ): Promise<number | null> {
-  const { data, error } = await supabase
-    .from("exercise_prs")
-    .select("pr_weight_kg")
-    .eq("user_id", userId)
-    .eq("exercise_id", exerciseId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? Number(data.pr_weight_kg) : null;
+  const rows = await db.$queryRaw<{ pr_weight_kg: string | number }[]>(Prisma.sql`
+    select pr_weight_kg from exercise_prs
+    where user_id::text = ${userId} and exercise_id::text = ${exerciseId}
+    limit 1`);
+  return rows.length > 0 ? Number(rows[0].pr_weight_kg) : null;
 }

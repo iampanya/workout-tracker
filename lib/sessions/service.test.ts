@@ -1,11 +1,8 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
 import { prisma } from "@/lib/db";
 import { createRoutineForUser, addExerciseToRoutineForUser } from "@/lib/routines/service";
-// exercises/service is already on Prisma, so seed exercises via `prisma`; the sessions
-// service under test is still supabase-backed and keeps using `client` until its own conversion.
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   startSessionForUser,
@@ -18,7 +15,6 @@ import {
   discardSessionForUser,
   getPriorMaxWeights,
 } from "./service";
-import type { Database } from "@/lib/supabase/database.types";
 
 function uniqueExerciseName(label: string) {
   return `${label} ${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -27,14 +23,11 @@ function uniqueExerciseName(label: string) {
 describe("sessions service", () => {
   const admin = createAdminClient();
   let userId: string;
-  let client: SupabaseClient<Database>;
   let benchId: string;
   let squatId: string;
 
   beforeAll(async () => {
-    const testUser = await createTestUser(admin);
-    userId = testUser.userId;
-    client = testUser.client;
+    userId = (await createTestUser(admin)).userId;
 
     const { data: presets } = await admin.from("exercises").select("id, name").eq("is_preset", true);
     benchId = presets!.find((e) => e.name === "Bench Press")!.id;
@@ -42,16 +35,16 @@ describe("sessions service", () => {
   });
 
   it("snapshots a routine's exercises into the new session, preserving order", async () => {
-    const routine = await createRoutineForUser(client, userId, { name: "Snapshot Test" });
-    await addExerciseToRoutineForUser(client, userId, { routineId: routine.id, exerciseId: benchId });
-    await addExerciseToRoutineForUser(client, userId, { routineId: routine.id, exerciseId: squatId });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Snapshot Test" });
+    await addExerciseToRoutineForUser(prisma, userId, { routineId: routine.id, exerciseId: benchId });
+    await addExerciseToRoutineForUser(prisma, userId, { routineId: routine.id, exerciseId: squatId });
 
-    const session = await startSessionForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, {
       routineId: routine.id,
       sessionDate: "2026-01-05",
     });
 
-    const { data: sessionExercises } = await client
+    const { data: sessionExercises } = await admin
       .from("session_exercises")
       .select("exercise_id, position")
       .eq("session_id", session.id)
@@ -64,17 +57,17 @@ describe("sessions service", () => {
   });
 
   it("starts a freeform session with no exercises, and allows adding one ad hoc", async () => {
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-06" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, benchId);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-06" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, benchId);
     expect(sessionExercise.position).toBe(0);
   });
 
   it("rejects adding an exercise to another user's session", async () => {
-    const victimSession = await startSessionForUser(client, userId, { sessionDate: "2026-01-06" });
+    const victimSession = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-06" });
     const attacker = await createTestUser(admin);
 
     await expect(
-      addExerciseToSessionForUser(attacker.client, attacker.userId, victimSession.id, benchId)
+      addExerciseToSessionForUser(prisma, attacker.userId, victimSession.id, benchId)
     ).rejects.toThrow();
 
     const { data: sessionExercises } = await admin
@@ -86,10 +79,10 @@ describe("sessions service", () => {
 
   it("rejects starting a session with another user's routineId, leaving no orphaned session row", async () => {
     const owner = await createTestUser(admin);
-    const routine = await createRoutineForUser(owner.client, owner.userId, { name: "Not Yours" });
+    const routine = await createRoutineForUser(prisma, owner.userId, { name: "Not Yours" });
 
     await expect(
-      startSessionForUser(client, userId, { routineId: routine.id, sessionDate: "2026-01-06" })
+      startSessionForUser(prisma, userId, { routineId: routine.id, sessionDate: "2026-01-06" })
     ).rejects.toThrow();
 
     const { data: sessions } = await admin
@@ -104,10 +97,10 @@ describe("sessions service", () => {
       name: uniqueExerciseName("First Set Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-07" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-07" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
 
-    const { isPr, set } = await logSetForUser(client, userId, {
+    const { isPr, set } = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 100,
       reps: 5,
@@ -123,16 +116,16 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Lighter Set Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-08" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-08" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
 
-    await logSetForUser(client, userId, {
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 110,
       reps: 5,
       isWarmup: false,
     });
-    const { isPr, set } = await logSetForUser(client, userId, {
+    const { isPr, set } = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 90,
       reps: 5,
@@ -148,10 +141,10 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Warmup Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-09" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-09" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
 
-    const warmup = await logSetForUser(client, userId, {
+    const warmup = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 500,
       reps: 5,
@@ -159,7 +152,7 @@ describe("sessions service", () => {
     });
     expect(warmup.isPr).toBe(false);
 
-    const working = await logSetForUser(client, userId, {
+    const working = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 150,
       reps: 5,
@@ -173,10 +166,10 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Correction Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-10" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-10" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
 
-    const first = await logSetForUser(client, userId, {
+    const first = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 120,
       reps: 5,
@@ -184,9 +177,9 @@ describe("sessions service", () => {
     });
     expect(first.isPr).toBe(true);
 
-    await deleteSetForUser(client, userId, first.set.id);
+    await deleteSetForUser(prisma, userId, first.set.id);
 
-    const after = await logSetForUser(client, userId, {
+    const after = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 95,
       reps: 5,
@@ -204,32 +197,32 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Set Number Gap Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-13" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-13" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
 
-    await logSetForUser(client, userId, {
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 60,
       reps: 5,
       isWarmup: false,
     });
-    const second = await logSetForUser(client, userId, {
+    const second = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 70,
       reps: 5,
       isWarmup: false,
     });
-    await logSetForUser(client, userId, {
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 80,
       reps: 5,
       isWarmup: false,
     });
 
-    await deleteSetForUser(client, userId, second.set.id);
+    await deleteSetForUser(prisma, userId, second.set.id);
 
     await expect(
-      logSetForUser(client, userId, {
+      logSetForUser(prisma, userId, {
         sessionExerciseId: sessionExercise.id,
         weightKg: 90,
         reps: 5,
@@ -243,16 +236,16 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Finish Complete"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-11" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-11" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 80,
       reps: 5,
       isWarmup: false,
     });
-    await finishSessionForUser(client, userId, session.id);
-    const { data } = await client
+    await finishSessionForUser(prisma, userId, session.id);
+    const { data } = await admin
       .from("sessions")
       .select("completed_at")
       .eq("id", session.id)
@@ -261,8 +254,8 @@ describe("sessions service", () => {
   });
 
   it("refuses to finish a session with no exercises at all", async () => {
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-21" });
-    await expect(finishSessionForUser(client, userId, session.id)).rejects.toThrow(
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-21" });
+    await expect(finishSessionForUser(prisma, userId, session.id)).rejects.toThrow(
       /at least one exercise/i
     );
     const { data } = await admin
@@ -278,16 +271,16 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Remove Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-19" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-19" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 70,
       reps: 8,
       isWarmup: false,
     });
 
-    await removeExerciseFromSessionForUser(client, userId, sessionExercise.id);
+    await removeExerciseFromSessionForUser(prisma, userId, sessionExercise.id);
 
     const { data: remaining } = await admin
       .from("session_exercises")
@@ -302,12 +295,12 @@ describe("sessions service", () => {
   });
 
   it("rejects removing another user's session exercise", async () => {
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-19" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, benchId);
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-19" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, benchId);
     const attacker = await createTestUser(admin);
 
     await expect(
-      removeExerciseFromSessionForUser(attacker.client, attacker.userId, sessionExercise.id)
+      removeExerciseFromSessionForUser(prisma, attacker.userId, sessionExercise.id)
     ).rejects.toThrow();
 
     const { data } = await admin
@@ -322,22 +315,22 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Finish Guard With Sets"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-20" });
-    const withSetsSe = await addExerciseToSessionForUser(client, userId, session.id, withSets.id);
-    await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-20" });
+    const withSetsSe = await addExerciseToSessionForUser(prisma, userId, session.id, withSets.id);
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: withSetsSe.id,
       weightKg: 60,
       reps: 5,
       isWarmup: false,
     });
-    const emptySe = await addExerciseToSessionForUser(client, userId, session.id, benchId);
+    const emptySe = await addExerciseToSessionForUser(prisma, userId, session.id, benchId);
 
-    await expect(finishSessionForUser(client, userId, session.id)).rejects.toThrow(
+    await expect(finishSessionForUser(prisma, userId, session.id)).rejects.toThrow(
       /no sets/i
     );
 
-    await removeExerciseFromSessionForUser(client, userId, emptySe.id);
-    await expect(finishSessionForUser(client, userId, session.id)).resolves.not.toThrow();
+    await removeExerciseFromSessionForUser(prisma, userId, emptySe.id);
+    await expect(finishSessionForUser(prisma, userId, session.id)).resolves.not.toThrow();
   });
 
   it("discarding a session cascades to remove its sets", async () => {
@@ -345,16 +338,16 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Discard Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-12" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-12" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 80,
       reps: 5,
       isWarmup: false,
     });
 
-    await discardSessionForUser(client, userId, session.id);
+    await discardSessionForUser(prisma, userId, session.id);
 
     const { data } = await admin
       .from("sets")
@@ -368,16 +361,16 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Update Weight Exercise"),
       muscleGroup: "Chest",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-14" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    const logged = await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-14" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    const logged = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 60,
       reps: 8,
       isWarmup: false,
     });
 
-    const { set } = await updateSetForUser(client, userId, logged.set.id, {
+    const { set } = await updateSetForUser(prisma, userId, logged.set.id, {
       weightKg: 65,
       reps: 6,
       isWarmup: false,
@@ -392,22 +385,22 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Edit To PR Exercise"),
       muscleGroup: "Back",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-15" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-15" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 100,
       reps: 5,
       isWarmup: false,
     });
-    const second = await logSetForUser(client, userId, {
+    const second = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 90,
       reps: 5,
       isWarmup: false,
     });
 
-    const { isPr } = await updateSetForUser(client, userId, second.set.id, {
+    const { isPr } = await updateSetForUser(prisma, userId, second.set.id, {
       weightKg: 120,
       reps: 5,
       isWarmup: false,
@@ -425,49 +418,49 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Batch PR Untouched"),
       muscleGroup: "Legs",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-17" });
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-17" });
     const sessionExercise = await addExerciseToSessionForUser(
-      client,
+      prisma,
       userId,
       session.id,
       benchedExercise.id
     );
-    await logSetForUser(client, userId, {
+    await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 82.5,
       reps: 5,
       isWarmup: false,
     });
 
-    const prs = await getPriorMaxWeights(client, userId, [benchedExercise.id, untouchedExercise.id]);
+    const prs = await getPriorMaxWeights(prisma, userId, [benchedExercise.id, untouchedExercise.id]);
 
     expect(prs).toEqual({ [benchedExercise.id]: 82.5 });
   });
 
   it("returns an empty object when given no exercise ids", async () => {
-    const prs = await getPriorMaxWeights(client, userId, []);
+    const prs = await getPriorMaxWeights(prisma, userId, []);
     expect(prs).toEqual({});
   });
 
   it("does not leak another user's PR for the same exercise", async () => {
     const attacker = await createTestUser(admin);
-    const session = await startSessionForUser(attacker.client, attacker.userId, {
+    const session = await startSessionForUser(prisma, attacker.userId, {
       sessionDate: "2026-01-18",
     });
     const sessionExercise = await addExerciseToSessionForUser(
-      attacker.client,
+      prisma,
       attacker.userId,
       session.id,
       benchId
     );
-    await logSetForUser(attacker.client, attacker.userId, {
+    await logSetForUser(prisma, attacker.userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 999,
       reps: 1,
       isWarmup: false,
     });
 
-    const prs = await getPriorMaxWeights(client, userId, [benchId]);
+    const prs = await getPriorMaxWeights(prisma, userId, [benchId]);
 
     expect(prs).toEqual({});
   });
@@ -477,9 +470,9 @@ describe("sessions service", () => {
       name: uniqueExerciseName("Foreign Update Exercise"),
       muscleGroup: "Legs",
     });
-    const session = await startSessionForUser(client, userId, { sessionDate: "2026-01-16" });
-    const sessionExercise = await addExerciseToSessionForUser(client, userId, session.id, exercise.id);
-    const logged = await logSetForUser(client, userId, {
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-16" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    const logged = await logSetForUser(prisma, userId, {
       sessionExerciseId: sessionExercise.id,
       weightKg: 50,
       reps: 10,
@@ -488,7 +481,7 @@ describe("sessions service", () => {
     const attacker = await createTestUser(admin);
 
     await expect(
-      updateSetForUser(attacker.client, attacker.userId, logged.set.id, {
+      updateSetForUser(prisma, attacker.userId, logged.set.id, {
         weightKg: 999,
         reps: 1,
         isWarmup: false,

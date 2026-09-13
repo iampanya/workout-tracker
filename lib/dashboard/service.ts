@@ -1,39 +1,59 @@
 import { cache } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { getLocalDateString, getWeekStart, getWeekEnd } from "@/lib/date";
 import { computeStreakDays } from "./streak";
 
-export type InProgressSession = Database["public"]["Tables"]["sessions"]["Row"] & {
+export type InProgressSession = {
+  id: string;
+  user_id: string;
+  routine_id: string | null;
+  name: string | null;
+  session_date: string;
+  started_at: string;
+  completed_at: string | null;
+  notes: string | null;
   routineName: string | null;
 };
 export type SessionPr = { exerciseName: string; weightKg: number };
 
-export async function listInProgressSessions(
-  supabase: SupabaseClient<Database>
-): Promise<InProgressSession[]> {
-  const { data, error } = await supabase
-    .from("sessions")
-    .select("*, routine:routines(name)")
-    .is("completed_at", null)
-    .order("started_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => {
-    const { routine, ...session } = row as typeof row & { routine: { name: string } | null };
-    return { ...session, routineName: routine?.name ?? null };
-  });
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
-// Request-scoped, deduplicated accessor for the in-progress list. The app layout
-// (resume link) and the dashboard page both need this on a dashboard load; wrapping
-// it in React.cache with a self-created client (no varying args) makes both callers
-// share one query per render instead of issuing two identical round-trips. Mirrors
-// getAuthUser in lib/supabase/auth.ts. Callers that pass their own client (e.g. tests)
-// keep using listInProgressSessions directly. (Next docs: Reusing data with React.cache.)
+function serializeSession(s: sessions, routineName: string | null): InProgressSession {
+  return {
+    id: s.id,
+    user_id: s.user_id,
+    routine_id: s.routine_id,
+    name: s.name,
+    session_date: toDateStr(s.session_date),
+    started_at: s.started_at.toISOString(),
+    completed_at: s.completed_at ? s.completed_at.toISOString() : null,
+    notes: s.notes,
+    routineName,
+  };
+}
+
+export async function listInProgressSessions(
+  db: PrismaClient,
+  userId: string
+): Promise<InProgressSession[]> {
+  const rows = await db.sessions.findMany({
+    where: { user_id: userId, completed_at: null },
+    orderBy: { started_at: "desc" },
+    include: { routines: { select: { name: true } } },
+  });
+  return rows.map(({ routines, ...session }) => serializeSession(session, routines?.name ?? null));
+}
+
+// Request-scoped, deduplicated accessor for the in-progress list (layout resume link +
+// dashboard page share one query per render). Resolves identity itself, like getAuthUser.
 export const getInProgressSessions = cache(async (): Promise<InProgressSession[]> => {
-  const supabase = await createServerSupabaseClient();
-  return listInProgressSessions(supabase);
+  const user = await getAuthUser();
+  if (!user) return [];
+  return listInProgressSessions(prisma, user.id);
 });
 
 export type OverviewStats = {
@@ -44,13 +64,9 @@ export type OverviewStats = {
 
 const STREAK_LOOKBACK_DAYS = 90;
 
-// `now` is injectable (default wall-clock) so tests can pin "today". This runs
-// server-side; `session_date` is written client-side using the browser's local
-// calendar day (getLocalDateString in app/(app)/log/StartSessionButtons.tsx). If
-// server and user are in different timezones, "today"/"this week" can be off by a
-// day — a pre-existing property of how session_date works, not new here.
+// `now` is injectable (default wall-clock) so tests can pin "today".
 export async function getOverviewStats(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   now: Date = new Date()
 ): Promise<OverviewStats> {
@@ -61,40 +77,38 @@ export async function getOverviewStats(
   const weekStart = getWeekStart(now);
   const weekEnd = getWeekEnd(now);
 
-  const { data: recentSessions, error: recentError } = await supabase
-    .from("sessions")
-    .select("id, session_date")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .gte("session_date", lookbackStart)
-    .lte("session_date", todayStr)
-    .order("session_date", { ascending: false });
-  if (recentError) throw new Error(recentError.message);
+  const recentRows = await db.sessions.findMany({
+    where: {
+      user_id: userId,
+      completed_at: { not: null },
+      session_date: { gte: new Date(lookbackStart), lte: new Date(todayStr) },
+    },
+    orderBy: { session_date: "desc" },
+    select: { id: true, session_date: true },
+  });
+  const recentSessions = recentRows.map((s) => ({ id: s.id, session_date: toDateStr(s.session_date) }));
 
   const streakDays = computeStreakDays(
-    (recentSessions ?? []).map((s) => s.session_date),
+    recentSessions.map((s) => s.session_date),
     todayStr
   );
 
-  const weekSessions = (recentSessions ?? []).filter(
+  const weekSessions = recentSessions.filter(
     (s) => s.session_date >= weekStart && s.session_date <= weekEnd
   );
   const sessionsThisWeek = weekSessions.length;
 
   let volumeThisWeekKg = 0;
   if (weekSessions.length > 0) {
-    const weekSessionIds = weekSessions.map((s) => s.id);
-    const { data: weekSets, error: setsError } = await supabase
-      .from("sets")
-      .select("weight_kg, reps, session_exercises!inner(session_id)")
-      .in("session_exercises.session_id", weekSessionIds)
-      .eq("user_id", userId)
-      .eq("is_warmup", false);
-    if (setsError) throw new Error(setsError.message);
-    volumeThisWeekKg = (weekSets ?? []).reduce(
-      (sum, s) => sum + Number(s.weight_kg) * s.reps,
-      0
-    );
+    const weekSets = await db.sets.findMany({
+      where: {
+        user_id: userId,
+        is_warmup: false,
+        session_exercises: { session_id: { in: weekSessions.map((s) => s.id) } },
+      },
+      select: { weight_kg: true, reps: true },
+    });
+    volumeThisWeekKg = weekSets.reduce((sum, s) => sum + Number(s.weight_kg) * s.reps, 0);
   }
 
   return { streakDays, sessionsThisWeek, volumeThisWeekKg };
@@ -102,16 +116,14 @@ export async function getOverviewStats(
 
 export type WeeklyVolumePoint = { weekStart: string; volumeKg: number };
 
-// Training volume (sum of weight_kg × reps over non-warmup sets) bucketed by the
-// Monday-start week of each session's session_date, oldest→newest, zero-filled so
-// the chart always shows a continuous `weeks`-wide window.
+// Training volume (Σ weight_kg × reps over non-warmup sets) bucketed by Monday-start week of
+// each session's session_date, oldest→newest, zero-filled across the window.
 export async function getWeeklyVolume(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   weeks = 8,
   now: Date = new Date()
 ): Promise<WeeklyVolumePoint[]> {
-  // Build the ordered list of week-start labels (oldest → current).
   const buckets: WeeklyVolumePoint[] = [];
   const bucketIndex = new Map<string, number>();
   for (let i = weeks - 1; i >= 0; i--) {
@@ -124,30 +136,29 @@ export async function getWeeklyVolume(
   }
   const windowStart = buckets[0].weekStart;
 
-  // Single round-trip: pull each non-warmup set together with its session's date via a
-  // two-level inner join, filtering to completed sessions inside the window. The old
-  // two-query form (fetch session ids, then sets in those ids) cost an extra serial
-  // round-trip to build a session→week map that we can now derive per set inline.
-  const { data: sets, error: setsError } = await supabase
-    .from("sets")
-    .select("weight_kg, reps, session_exercises!inner(sessions!inner(session_date, completed_at))")
-    .eq("user_id", userId)
-    .eq("is_warmup", false)
-    .not("session_exercises.sessions.completed_at", "is", null)
-    .gte("session_exercises.sessions.session_date", windowStart)
-    .lte("session_exercises.sessions.session_date", getLocalDateString(now));
-  if (setsError) throw new Error(setsError.message);
+  const sets = await db.sets.findMany({
+    where: {
+      user_id: userId,
+      is_warmup: false,
+      session_exercises: {
+        sessions: {
+          completed_at: { not: null },
+          session_date: { gte: new Date(windowStart), lte: new Date(getLocalDateString(now)) },
+        },
+      },
+    },
+    select: {
+      weight_kg: true,
+      reps: true,
+      session_exercises: { select: { sessions: { select: { session_date: true } } } },
+    },
+  });
 
-  for (const set of (sets ?? []) as unknown as {
-    weight_kg: number;
-    reps: number;
-    session_exercises: { sessions: { session_date: string } };
-  }[]) {
-    const weekStart = getWeekStart(
-      new Date(`${set.session_exercises.sessions.session_date}T00:00:00`)
-    );
+  for (const set of sets) {
+    const dateStr = toDateStr(set.session_exercises.sessions.session_date);
+    const weekStart = getWeekStart(new Date(`${dateStr}T00:00:00`));
     const idx = bucketIndex.get(weekStart);
-    if (idx === undefined) continue; // outside the window (shouldn't happen given the filter)
+    if (idx === undefined) continue;
     buckets[idx].volumeKg += Number(set.weight_kg) * set.reps;
   }
 
@@ -156,86 +167,61 @@ export async function getWeeklyVolume(
 
 export type TopPr = { exerciseName: string; weightKg: number };
 
-// All-time top lifts (max non-warmup weight per exercise), from the live exercise_prs view.
-// Exercise names are fetched in a second query rather than a PostgREST embed: exercise_prs
-// is a view without FK metadata, so `exercises(name)` embedding isn't reliably resolvable.
+// All-time top lifts from the live exercise_prs view (read via raw SQL — it's a view, not a
+// Prisma model). Names are fetched in a second query.
 export async function listTopPrs(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   limit = 6
 ): Promise<TopPr[]> {
-  const { data: prs, error: prsError } = await supabase
-    .from("exercise_prs")
-    .select("exercise_id, pr_weight_kg")
-    .eq("user_id", userId)
-    .order("pr_weight_kg", { ascending: false })
-    .limit(limit);
-  if (prsError) throw new Error(prsError.message);
+  const prs = await db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
+    select exercise_id, pr_weight_kg from exercise_prs
+    where user_id::text = ${userId}
+    order by pr_weight_kg desc
+    limit ${limit}`);
 
-  const rows = (prs ?? []).filter(
-    (row): row is { exercise_id: string; pr_weight_kg: number } =>
-      row.exercise_id !== null && row.pr_weight_kg !== null
-  );
+  const rows = prs.filter((row) => row.exercise_id !== null && row.pr_weight_kg !== null);
   if (rows.length === 0) return [];
 
-  const { data: exercises, error: exercisesError } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .in(
-      "id",
-      rows.map((r) => r.exercise_id)
-    );
-  if (exercisesError) throw new Error(exercisesError.message);
-
-  const nameById = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+  const exercises = await db.exercises.findMany({
+    where: { id: { in: rows.map((r) => r.exercise_id) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(exercises.map((e) => [e.id, e.name]));
   return rows
     .filter((row) => nameById.has(row.exercise_id))
-    .map((row) => ({
-      exerciseName: nameById.get(row.exercise_id)!,
-      weightKg: Number(row.pr_weight_kg),
-    }));
+    .map((row) => ({ exerciseName: nameById.get(row.exercise_id)!, weightKg: Number(row.pr_weight_kg) }));
 }
 
 export async function listPrsFromLastCompletedSession(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string
 ): Promise<SessionPr[]> {
-  const { data: lastSession, error: sessionError } = await supabase
-    .from("sessions")
-    .select("id")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .order("completed_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (sessionError) throw new Error(sessionError.message);
+  const lastSession = await db.sessions.findFirst({
+    where: { user_id: userId, completed_at: { not: null } },
+    orderBy: { completed_at: "desc" },
+    select: { id: true },
+  });
   if (!lastSession) return [];
 
-  // The last session's sets and the all-time PR view are independent (sets keys off
-  // lastSession.id, prs off userId), so fetch them in parallel — one round-trip pair
-  // instead of two in series. This is the dashboard's longest fetch chain.
-  const [setsResult, prsResult] = await Promise.all([
-    supabase
-      .from("sets")
-      .select("weight_kg, exercise_id, exercises(name), session_exercises!inner(session_id)")
-      .eq("session_exercises.session_id", lastSession.id)
-      .eq("is_warmup", false),
-    supabase.from("exercise_prs").select("exercise_id, pr_weight_kg").eq("user_id", userId),
+  const [sets, prs] = await Promise.all([
+    db.sets.findMany({
+      where: {
+        user_id: userId,
+        is_warmup: false,
+        session_exercises: { session_id: lastSession.id },
+      },
+      select: { weight_kg: true, exercise_id: true, exercises: { select: { name: true } } },
+    }),
+    db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
+      select exercise_id, pr_weight_kg from exercise_prs where user_id::text = ${userId}`),
   ]);
-  const { data: sets, error: setsError } = setsResult;
-  if (setsError) throw new Error(setsError.message);
-  const { data: prs, error: prsError } = prsResult;
-  if (prsError) throw new Error(prsError.message);
 
-  const prByExercise = new Map((prs ?? []).map((p) => [p.exercise_id, Number(p.pr_weight_kg)]));
+  const prByExercise = new Map(prs.map((p) => [p.exercise_id, Number(p.pr_weight_kg)]));
   const seen = new Set<string>();
   const results: SessionPr[] = [];
 
-  for (const set of (sets ?? []) as unknown as {
-    weight_kg: number;
-    exercise_id: string;
-    exercises: { name: string };
-  }[]) {
+  for (const set of sets) {
     const prWeight = prByExercise.get(set.exercise_id);
     if (prWeight !== undefined && Number(set.weight_kg) === prWeight && !seen.has(set.exercise_id)) {
       seen.add(set.exercise_id);

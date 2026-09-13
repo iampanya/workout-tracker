@@ -1,6 +1,6 @@
 import { Trophy } from "@phosphor-icons/react/ssr";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { getExerciseHistory, getExercisePr } from "@/lib/exercises/progress";
 import { aggregateSessionSeries } from "@/lib/progress";
 import { Card } from "@/components/ui/Card";
@@ -12,15 +12,17 @@ export default async function ExerciseProgressPage({
   params: Promise<{ exerciseId: string }>;
 }) {
   const { exerciseId } = await params;
-  const supabase = await createServerSupabaseClient();
-  const user = await getAuthUser();
+  const userId = (await getAuthUser())!.id;
 
-  // These three reads are independent; run them in parallel so the page pays one
-  // Supabase round-trip instead of three in series (Next docs: Parallel data fetching).
-  const [{ data: exercise }, history, pr] = await Promise.all([
-    supabase.from("exercises").select("name").eq("id", exerciseId).single(),
-    getExerciseHistory(supabase, exerciseId),
-    getExercisePr(supabase, user!.id, exerciseId),
+  // Independent reads, run in parallel. The exercise lookup is scoped to presets + the user's
+  // own (replaces RLS), so another user's custom exercise resolves to null.
+  const [exercise, history, pr] = await Promise.all([
+    prisma.exercises.findFirst({
+      where: { id: exerciseId, OR: [{ user_id: null }, { user_id: userId }] },
+      select: { name: true },
+    }),
+    getExerciseHistory(prisma, userId, exerciseId),
+    getExercisePr(prisma, userId, exerciseId),
   ]);
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
 

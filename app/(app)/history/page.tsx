@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeleteHistorySessionButton } from "./DeleteHistorySessionButton";
 
 export default async function HistoryPage() {
-  const supabase = await createServerSupabaseClient();
-  const sessions = await listCompletedSessions(supabase);
+  const user = await getAuthUser();
+  const sessions = await listCompletedSessions(prisma, user!.id);
 
   return (
     <div className="space-y-6">

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db";
 import {
   startSessionForUser,
   addExerciseToSessionForUser,
@@ -14,7 +15,9 @@ import {
   getPriorMaxWeight,
 } from "@/lib/sessions/service";
 
-async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
+// Identity still from the Supabase (GoTrue) session; data via prisma.
+async function currentUserId() {
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -23,66 +26,56 @@ async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSup
 }
 
 export async function startSession(input: unknown) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  const session = await startSessionForUser(supabase, userId, input);
+  const userId = await currentUserId();
+  const session = await startSessionForUser(prisma, userId, input);
   revalidatePath("/dashboard");
   return session;
 }
 
 export async function addExerciseToSession(sessionId: string, exerciseId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  const sessionExercise = await addExerciseToSessionForUser(supabase, userId, sessionId, exerciseId);
-  const prWeightKg = await getPriorMaxWeight(supabase, userId, exerciseId);
+  const userId = await currentUserId();
+  const sessionExercise = await addExerciseToSessionForUser(prisma, userId, sessionId, exerciseId);
+  const prWeightKg = await getPriorMaxWeight(prisma, userId, exerciseId);
   return { ...sessionExercise, prWeightKg };
 }
 
 export async function removeExerciseFromSession(sessionExerciseId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await removeExerciseFromSessionForUser(supabase, userId, sessionExerciseId);
+  const userId = await currentUserId();
+  await removeExerciseFromSessionForUser(prisma, userId, sessionExerciseId);
 }
 
 export async function logSet(input: unknown) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  return logSetForUser(supabase, userId, input);
+  const userId = await currentUserId();
+  return logSetForUser(prisma, userId, input);
 }
 
 export async function updateSet(setId: string, input: unknown) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  return updateSetForUser(supabase, userId, setId, input);
+  const userId = await currentUserId();
+  return updateSetForUser(prisma, userId, setId, input);
 }
 
 export async function deleteSet(setId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await deleteSetForUser(supabase, userId, setId);
+  const userId = await currentUserId();
+  await deleteSetForUser(prisma, userId, setId);
 }
 
 export async function finishSession(sessionId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await finishSessionForUser(supabase, userId, sessionId);
+  const userId = await currentUserId();
+  await finishSessionForUser(prisma, userId, sessionId);
   revalidatePath("/dashboard");
   revalidatePath("/history");
 }
 
 export async function discardSession(sessionId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await discardSessionForUser(supabase, userId, sessionId);
+  const userId = await currentUserId();
+  await discardSessionForUser(prisma, userId, sessionId);
   revalidatePath("/dashboard");
 }
 
-// Deletes a completed workout from History. Same cascade as discardSession
-// (session_exercises → sets), but revalidates the History list too.
+// Deletes a completed workout from History (same cascade as discard).
 export async function deleteCompletedSession(sessionId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await discardSessionForUser(supabase, userId, sessionId);
+  const userId = await currentUserId();
+  await discardSessionForUser(prisma, userId, sessionId);
   revalidatePath("/history");
   revalidatePath("/dashboard");
 }

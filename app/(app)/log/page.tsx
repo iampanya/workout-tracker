@@ -1,12 +1,11 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
 import { StartSessionButtons } from "./StartSessionButtons";
 
 export default async function LogPage() {
-  const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
-  const routines = await listRoutines(supabase, user!.id);
+  const routines = await listRoutines(prisma, user!.id);
 
   return (
     <div className="space-y-6">

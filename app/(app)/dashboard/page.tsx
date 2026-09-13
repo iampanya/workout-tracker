@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import {
   getInProgressSessions,
   listPrsFromLastCompletedSession,
@@ -16,15 +16,14 @@ import { DiscardSessionButton } from "./DiscardSessionButton";
 import { WeeklyVolumeChart } from "./WeeklyVolumeChart";
 
 export default async function DashboardPage() {
-  const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
   const [inProgress, recentPrs, overview, weeklyVolume, topPrs, recentSessions] = await Promise.all([
     getInProgressSessions(),
-    listPrsFromLastCompletedSession(supabase, user!.id),
-    getOverviewStats(supabase, user!.id),
-    getWeeklyVolume(supabase, user!.id),
-    listTopPrs(supabase, user!.id),
-    listCompletedSessions(supabase),
+    listPrsFromLastCompletedSession(prisma, user!.id),
+    getOverviewStats(prisma, user!.id),
+    getWeeklyVolume(prisma, user!.id),
+    listTopPrs(prisma, user!.id),
+    listCompletedSessions(prisma, user!.id),
   ]);
   const recentWorkouts = recentSessions.slice(0, 5);
   const hasWeeklyVolume = weeklyVolume.some((w) => w.volumeKg > 0);

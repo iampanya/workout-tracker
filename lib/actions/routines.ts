@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db";
 import {
   createRoutineForUser,
   deleteRoutineForUser,
@@ -10,7 +11,9 @@ import {
   moveRoutineExerciseForUser,
 } from "@/lib/routines/service";
 
-async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
+// Identity still from the Supabase (GoTrue) session; data via prisma.
+async function currentUserId() {
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -19,33 +22,29 @@ async function currentUserId(supabase: Awaited<ReturnType<typeof createServerSup
 }
 
 export async function createRoutine(input: unknown) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  const routine = await createRoutineForUser(supabase, userId, input);
+  const userId = await currentUserId();
+  const routine = await createRoutineForUser(prisma, userId, input);
   revalidatePath("/routines");
   return routine;
 }
 
 export async function deleteRoutine(routineId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await deleteRoutineForUser(supabase, userId, routineId);
+  const userId = await currentUserId();
+  await deleteRoutineForUser(prisma, userId, routineId);
   revalidatePath("/routines");
 }
 
 export async function addExerciseToRoutine(input: unknown) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
+  const userId = await currentUserId();
   const parsed = input as { routineId: string };
-  const result = await addExerciseToRoutineForUser(supabase, userId, input);
+  const result = await addExerciseToRoutineForUser(prisma, userId, input);
   revalidatePath(`/routines/${parsed.routineId}`);
   return result;
 }
 
 export async function removeRoutineExercise(routineExerciseId: string, routineId: string) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await removeRoutineExerciseForUser(supabase, userId, routineExerciseId);
+  const userId = await currentUserId();
+  await removeRoutineExerciseForUser(prisma, userId, routineExerciseId);
   revalidatePath(`/routines/${routineId}`);
 }
 
@@ -54,8 +53,7 @@ export async function moveRoutineExercise(
   routineId: string,
   direction: "up" | "down"
 ) {
-  const supabase = await createServerSupabaseClient();
-  const userId = await currentUserId(supabase);
-  await moveRoutineExerciseForUser(supabase, userId, routineExerciseId, direction);
+  const userId = await currentUserId();
+  await moveRoutineExerciseForUser(prisma, userId, routineExerciseId, direction);
   revalidatePath(`/routines/${routineId}`);
 }

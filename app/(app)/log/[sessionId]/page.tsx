@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
@@ -14,39 +13,41 @@ export default async function LogSessionPage({
   params: Promise<{ sessionId: string }>;
 }) {
   const { sessionId } = await params;
-  const supabase = await createServerSupabaseClient();
-  const user = await getAuthUser();
+  const userId = (await getAuthUser())!.id;
 
-  // The session header, its exercises, and the exercise catalog are all independent,
-  // so fetch them together — one round-trip instead of the header serially blocking the
-  // other two. getPriorMaxWeights stays after because it depends on the exercise ids.
-  const [{ data: sessionRow }, { data: sessionExercises }, availableExercises] = await Promise.all([
-    supabase.from("sessions").select("*, routine:routines(name)").eq("id", sessionId).single(),
-    supabase
-      .from("session_exercises")
-      .select("*, exercise:exercises(id, name), sets(*)")
-      .eq("session_id", sessionId)
-      .order("position"),
-    listExercises(prisma, user!.id),
+  // The session header, its exercises, and the exercise catalog are all independent, so fetch
+  // them together. The session/exercises queries are scoped by user_id (replacing RLS), so a
+  // session that isn't the caller's returns null → notFound.
+  const [session, sessionExercises, availableExercises] = await Promise.all([
+    prisma.sessions.findFirst({
+      where: { id: sessionId, user_id: userId },
+      include: { routines: { select: { name: true } } },
+    }),
+    prisma.session_exercises.findMany({
+      where: { session_id: sessionId, user_id: userId },
+      orderBy: { position: "asc" },
+      include: { exercises: { select: { id: true, name: true } }, sets: true },
+    }),
+    listExercises(prisma, userId),
   ]);
-  if (!sessionRow) {
+  if (!session) {
     notFound();
   }
-  const { routine, ...session } = sessionRow as typeof sessionRow & {
-    routine: { name: string } | null;
-  };
-  const displayName = sessionDisplayName({ name: session.name, routineName: routine?.name ?? null });
+  const displayName = sessionDisplayName({
+    name: session.name,
+    routineName: session.routines?.name ?? null,
+  });
 
-  const exerciseIds = [...new Set((sessionExercises ?? []).map((se) => se.exercise_id))];
-  const prMap = await getPriorMaxWeights(supabase, user!.id, exerciseIds);
+  const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
+  const prMap = await getPriorMaxWeights(prisma, userId, exerciseIds);
 
-  const exercises = (sessionExercises ?? []).map((se) => ({
+  const exercises = sessionExercises.map((se) => ({
     sessionExerciseId: se.id,
     exerciseId: se.exercise_id,
-    exerciseName: (se as unknown as { exercise: { name: string } }).exercise.name,
-    sets: ((se as unknown as { sets: { set_number: number }[] }).sets ?? []).sort(
-      (a, b) => a.set_number - b.set_number
-    ),
+    exerciseName: se.exercises.name,
+    sets: [...se.sets]
+      .sort((a, b) => a.set_number - b.set_number)
+      .map((s) => ({ ...s, weight_kg: Number(s.weight_kg) })),
     prWeightKg: prMap[se.exercise_id] ?? null,
   }));
 

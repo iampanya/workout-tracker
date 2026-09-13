@@ -1,201 +1,156 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import { Prisma, type PrismaClient, type sessions, type session_exercises, type sets } from "@prisma/client";
 import { startSessionSchema, logSetSchema, updateSetSchema } from "@/lib/validation";
 import { isNewPr } from "@/lib/pr";
 import { getRoutineWithExercises } from "@/lib/routines/service";
 
-export type Session = Database["public"]["Tables"]["sessions"]["Row"];
-export type SessionExercise = Database["public"]["Tables"]["session_exercises"]["Row"];
-export type SetRow = Database["public"]["Tables"]["sets"]["Row"];
+export type Session = sessions;
+export type SessionExercise = session_exercises;
+// weight_kg is a Postgres numeric → Prisma Decimal. Consumers (the logging UI) expect a plain
+// number, so the service coerces it and the exported type reflects that.
+export type SetRow = Omit<sets, "weight_kg"> & { weight_kg: number };
+
+function toSetRow(s: sets): SetRow {
+  return { ...s, weight_kg: Number(s.weight_kg) };
+}
 
 export async function startSessionForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   input: unknown
 ): Promise<Session> {
   const parsed = startSessionSchema.parse(input);
 
-  // Verify routine ownership BEFORE inserting the session row: getRoutineWithExercises
-  // throws if the routine doesn't exist or isn't owned by userId. Doing this first (rather
-  // than after the sessions insert) prevents an orphaned sessions row from being created
-  // that permanently references another user's routine_id — the FK only checks existence,
-  // not ownership, so a check performed after the insert is too late to prevent that row.
+  // Verify routine ownership BEFORE inserting the session (getRoutineWithExercises throws if the
+  // routine isn't the caller's), so no orphaned session row can reference another user's routine.
   const exercises = parsed.routineId
-    ? (await getRoutineWithExercises(supabase, userId, parsed.routineId)).exercises
+    ? (await getRoutineWithExercises(db, userId, parsed.routineId)).exercises
     : [];
 
-  const { data: session, error: sessionError } = await supabase
-    .from("sessions")
-    .insert({
+  const session = await db.sessions.create({
+    data: {
       user_id: userId,
       routine_id: parsed.routineId ?? null,
       name: parsed.name ?? null,
-      session_date: parsed.sessionDate,
-    })
-    .select()
-    .single();
-  if (sessionError) throw new Error(sessionError.message);
+      session_date: new Date(parsed.sessionDate),
+    },
+  });
 
   if (exercises.length > 0) {
-    const { error: insertError } = await supabase.from("session_exercises").insert(
-      exercises.map((entry) => ({
+    await db.session_exercises.createMany({
+      data: exercises.map((entry) => ({
         session_id: session.id,
         user_id: userId,
         exercise_id: entry.exercise_id,
         position: entry.position,
-      }))
-    );
-    if (insertError) throw new Error(insertError.message);
+      })),
+    });
   }
 
   return session;
 }
 
 export async function addExerciseToSessionForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   sessionId: string,
   exerciseId: string
 ): Promise<SessionExercise> {
-  // Ownership check: the RLS policy on session_exercises only checks the
-  // inserted row's own user_id, not that session_id belongs to that user —
-  // without this, a malicious authenticated user could add rows to another
-  // user's session (same class of gap fixed in Task 6's addExerciseToRoutineForUser).
-  const { data: session, error: sessionError } = await supabase
-    .from("sessions")
-    .select("id")
-    .eq("id", sessionId)
-    .eq("user_id", userId)
-    .single();
-  if (sessionError || !session) throw new Error("Session not found or not owned by user");
+  // Ownership check: session_exercises RLS only checked the inserted row's user_id, not that the
+  // session belongs to the caller — so verify session ownership explicitly.
+  const session = await db.sessions.findFirst({
+    where: { id: sessionId, user_id: userId },
+    select: { id: true },
+  });
+  if (!session) throw new Error("Session not found or not owned by user");
 
-  // Verify the exercise exists and is visible to this user (RLS scopes visibility to
-  // presets plus the caller's own custom exercises). Without this check, a caller could
-  // insert a reference to a nonexistent or archived exercise, which later crashes
-  // getSessionDetail's consumers when they read entry.exercise.name off a null join.
-  const { data: exercise, error: exerciseError } = await supabase
-    .from("exercises")
-    .select("id")
-    .eq("id", exerciseId)
-    .single();
-  if (exerciseError || !exercise) {
-    throw new Error("Exercise not found or not visible to user");
-  }
+  const exercise = await db.exercises.findFirst({
+    where: { id: exerciseId, OR: [{ user_id: null }, { user_id: userId }] },
+    select: { id: true },
+  });
+  if (!exercise) throw new Error("Exercise not found or not visible to user");
 
-  // Use max(position) + 1, not count(*): removing an exercise from the middle of a
-  // session leaves a gap in the position sequence, so count(*) would recompute a
-  // position that collides with the unique(session_id, position) constraint.
-  const { data: maxRow, error: maxError } = await supabase
-    .from("session_exercises")
-    .select("position")
-    .eq("session_id", sessionId)
-    .order("position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (maxError) throw new Error(maxError.message);
+  // max(position) + 1, not count(*): a middle removal leaves a gap, so count(*) could collide
+  // with unique(session_id, position).
+  const maxRow = await db.session_exercises.findFirst({
+    where: { session_id: sessionId },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
   const nextPosition = maxRow ? maxRow.position + 1 : 0;
 
-  const { data, error } = await supabase
-    .from("session_exercises")
-    .insert({ session_id: sessionId, user_id: userId, exercise_id: exerciseId, position: nextPosition })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
+  return db.session_exercises.create({
+    data: { session_id: sessionId, user_id: userId, exercise_id: exerciseId, position: nextPosition },
+  });
 }
 
 export async function removeExerciseFromSessionForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   sessionExerciseId: string
 ): Promise<void> {
-  // Scope the delete by user_id (mirror removeRoutineExerciseForUser): the RLS policy
-  // already restricts to the caller's rows, but the explicit filter makes ownership
-  // enforcement obvious and guards against a mis-scoped delete. `sets` cascade on delete;
-  // the gap this leaves in the position sequence is fine (inserts use max(position)+1).
-  const { data, error } = await supabase
-    .from("session_exercises")
-    .delete()
-    .eq("id", sessionExerciseId)
-    .eq("user_id", userId)
-    .select();
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) {
-    throw new Error("Exercise not found or not owned by user");
-  }
+  const result = await db.session_exercises.deleteMany({
+    where: { id: sessionExerciseId, user_id: userId },
+  });
+  if (result.count === 0) throw new Error("Exercise not found or not owned by user");
 }
 
+// exercise_prs is a view (not a Prisma model), so read it with raw SQL. Columns are compared as
+// text to avoid uuid-vs-text parameter casting quirks.
 export async function getPriorMaxWeight(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   exerciseId: string
 ): Promise<number | null> {
-  const { data, error } = await supabase
-    .from("exercise_prs")
-    .select("pr_weight_kg")
-    .eq("user_id", userId)
-    .eq("exercise_id", exerciseId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? Number(data.pr_weight_kg) : null;
+  const rows = await db.$queryRaw<{ pr_weight_kg: string | number }[]>`
+    select pr_weight_kg from exercise_prs
+    where user_id::text = ${userId} and exercise_id::text = ${exerciseId}
+    limit 1`;
+  return rows.length > 0 ? Number(rows[0].pr_weight_kg) : null;
 }
 
 export async function getPriorMaxWeights(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   exerciseIds: string[]
 ): Promise<Record<string, number>> {
   if (exerciseIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from("exercise_prs")
-    .select("exercise_id, pr_weight_kg")
-    .eq("user_id", userId)
-    .in("exercise_id", exerciseIds);
-  if (error) throw new Error(error.message);
+  const rows = await db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
+    select exercise_id, pr_weight_kg from exercise_prs
+    where user_id::text = ${userId} and exercise_id::text IN (${Prisma.join(exerciseIds)})`);
   return Object.fromEntries(
-    (data ?? [])
-      .filter(
-        (row): row is { exercise_id: string; pr_weight_kg: number } =>
-          row.exercise_id !== null && row.pr_weight_kg !== null
-      )
+    rows
+      .filter((row) => row.exercise_id !== null && row.pr_weight_kg !== null)
       .map((row) => [row.exercise_id, Number(row.pr_weight_kg)])
   );
 }
 
 export async function logSetForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   input: unknown
 ): Promise<{ set: SetRow; isPr: boolean }> {
   const parsed = logSetSchema.parse(input);
 
-  const { data: sessionExercise, error: seError } = await supabase
-    .from("session_exercises")
-    .select("exercise_id")
-    .eq("id", parsed.sessionExerciseId)
-    .eq("user_id", userId)
-    .single();
-  if (seError) throw new Error(seError.message);
+  const sessionExercise = await db.session_exercises.findFirst({
+    where: { id: parsed.sessionExerciseId, user_id: userId },
+    select: { exercise_id: true },
+  });
+  if (!sessionExercise) throw new Error("Session exercise not found or not owned by user");
   const exerciseId = sessionExercise.exercise_id;
 
-  const priorMax = parsed.isWarmup ? null : await getPriorMaxWeight(supabase, userId, exerciseId);
+  const priorMax = parsed.isWarmup ? null : await getPriorMaxWeight(db, userId, exerciseId);
 
-  // Use max(set_number) + 1, not count(*) + 1: deleting a set from the middle leaves
-  // a gap in the set_number sequence, so count(*) would recompute a set_number that
-  // collides with the unique(session_exercise_id, set_number) constraint.
-  const { data: maxRow, error: maxError } = await supabase
-    .from("sets")
-    .select("set_number")
-    .eq("session_exercise_id", parsed.sessionExerciseId)
-    .order("set_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (maxError) throw new Error(maxError.message);
+  // max(set_number) + 1, not count(*) + 1: a middle delete leaves a gap, so count(*) could collide
+  // with unique(session_exercise_id, set_number).
+  const maxRow = await db.sets.findFirst({
+    where: { session_exercise_id: parsed.sessionExerciseId },
+    orderBy: { set_number: "desc" },
+    select: { set_number: true },
+  });
   const nextSetNumber = maxRow ? maxRow.set_number + 1 : 1;
 
-  const { data: set, error } = await supabase
-    .from("sets")
-    .insert({
+  const set = await db.sets.create({
+    data: {
       session_exercise_id: parsed.sessionExerciseId,
       user_id: userId,
       exercise_id: exerciseId,
@@ -203,99 +158,75 @@ export async function logSetForUser(
       weight_kg: parsed.weightKg,
       reps: parsed.reps,
       is_warmup: parsed.isWarmup,
-    })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
+    },
+  });
 
   const isPr = !parsed.isWarmup && isNewPr(parsed.weightKg, priorMax);
-  return { set, isPr };
+  return { set: toSetRow(set), isPr };
 }
 
 export async function updateSetForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   setId: string,
   input: unknown
 ): Promise<{ set: SetRow; isPr: boolean }> {
   const parsed = updateSetSchema.parse(input);
 
-  const { data: existing, error: existingError } = await supabase
-    .from("sets")
-    .select("exercise_id")
-    .eq("id", setId)
-    .eq("user_id", userId)
-    .single();
-  if (existingError) throw new Error(existingError.message);
+  const existing = await db.sets.findFirst({
+    where: { id: setId, user_id: userId },
+    select: { exercise_id: true },
+  });
+  if (!existing) throw new Error("Set not found or not owned by user");
 
   const priorMax = parsed.isWarmup
     ? null
-    : await getPriorMaxWeight(supabase, userId, existing.exercise_id);
+    : await getPriorMaxWeight(db, userId, existing.exercise_id);
 
-  const { data: set, error } = await supabase
-    .from("sets")
-    .update({
-      weight_kg: parsed.weightKg,
-      reps: parsed.reps,
-      is_warmup: parsed.isWarmup,
-    })
-    .eq("id", setId)
-    .eq("user_id", userId)
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
+  const set = await db.sets.update({
+    where: { id: setId },
+    data: { weight_kg: parsed.weightKg, reps: parsed.reps, is_warmup: parsed.isWarmup },
+  });
 
   const isPr = !parsed.isWarmup && isNewPr(parsed.weightKg, priorMax);
-  return { set, isPr };
+  return { set: toSetRow(set), isPr };
 }
 
 export async function deleteSetForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   setId: string
 ): Promise<void> {
-  const { error } = await supabase.from("sets").delete().eq("id", setId).eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  await db.sets.deleteMany({ where: { id: setId, user_id: userId } });
 }
 
 export async function finishSessionForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   sessionId: string
 ): Promise<void> {
-  // A session can only be finished once it has at least one logged set (defense in
-  // depth; the client blocks this too). Two ways to fall short: no exercises at all,
-  // or an exercise carrying zero sets. Fetch each session_exercise with its sets
-  // (inner-less left join) and check both.
-  const { data: sessionExercises, error: seError } = await supabase
-    .from("session_exercises")
-    .select("id, sets(id)")
-    .eq("session_id", sessionId)
-    .eq("user_id", userId);
-  if (seError) throw new Error(seError.message);
-
-  const list =
-    (sessionExercises as unknown as { id: string; sets: { id: string }[] }[] | null) ?? [];
+  // A session needs at least one exercise, each with at least one set, before it can finish.
+  const list = await db.session_exercises.findMany({
+    where: { session_id: sessionId, user_id: userId },
+    select: { id: true, sets: { select: { id: true } } },
+  });
   if (list.length === 0) {
     throw new Error("Add at least one exercise with a logged set before finishing");
   }
-  if (list.some((se) => (se.sets ?? []).length === 0)) {
+  if (list.some((se) => se.sets.length === 0)) {
     throw new Error("Remove exercises with no sets before finishing");
   }
 
-  const { error } = await supabase
-    .from("sessions")
-    .update({ completed_at: new Date().toISOString() })
-    .eq("id", sessionId)
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  await db.sessions.updateMany({
+    where: { id: sessionId, user_id: userId },
+    data: { completed_at: new Date() },
+  });
 }
 
 export async function discardSessionForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   sessionId: string
 ): Promise<void> {
-  const { error } = await supabase.from("sessions").delete().eq("id", sessionId).eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  await db.sessions.deleteMany({ where: { id: sessionId, user_id: userId } });
 }
