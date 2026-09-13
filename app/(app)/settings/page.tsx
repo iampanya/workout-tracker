@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { Card } from "@/components/ui/Card";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { LogoutButton } from "../LogoutButton";

@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
 import { StartSessionButtons } from "./StartSessionButtons";

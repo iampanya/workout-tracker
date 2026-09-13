@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getRoutineWithExercises } from "@/lib/routines/service";
 import { listExercises } from "@/lib/exercises/service";

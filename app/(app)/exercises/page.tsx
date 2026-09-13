@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/ssr";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
 import { Card } from "@/components/ui/Card";

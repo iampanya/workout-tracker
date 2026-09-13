@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { LandingPage } from "@/components/landing/LandingPage";
 
 // Public landing. Logged-in users can still view it (e.g. via the in-app logo);

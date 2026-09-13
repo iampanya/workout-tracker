@@ -1,18 +1,17 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { listExercises, createCustomExerciseForUser, archiveExerciseForUser } from "./service";
 
 describe("exercises service", () => {
-  const admin = createAdminClient();
   let userId: string;
   let otherUserId: string;
 
   beforeAll(async () => {
     // Users are still minted via GoTrue in phase 1; data access is Prisma.
-    userId = (await createTestUser(admin)).userId;
-    otherUserId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
+    otherUserId = (await createTestUser()).userId;
   });
 
   it("lists preset exercises for a fresh user", async () => {

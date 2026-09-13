@@ -1,30 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 import { exportUserData, importUserData, type ImportMode, type ImportSummary } from "@/lib/backup/service";
 import type { BackupFile } from "@/lib/validation";
 
-// Identity still from the Supabase (GoTrue) session; data via prisma.
-async function currentUserId() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  return user.id;
-}
-
 export async function exportBackup(): Promise<BackupFile> {
-  const userId = await currentUserId();
+  const userId = await requireUserId();
   return exportUserData(prisma, userId);
 }
 
 export type ImportResult = { error: string | null; summary: ImportSummary | null };
 
 export async function importBackup(rawFile: unknown, mode: ImportMode): Promise<ImportResult> {
-  const userId = await currentUserId();
+  const userId = await requireUserId();
 
   let summary: ImportSummary;
   try {

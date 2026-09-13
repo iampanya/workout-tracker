@@ -1,5 +1,5 @@
 import { Trophy } from "@phosphor-icons/react/ssr";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getExerciseHistory, getExercisePr } from "@/lib/exercises/progress";
 import { aggregateSessionSeries } from "@/lib/progress";

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
 import { Card } from "@/components/ui/Card";

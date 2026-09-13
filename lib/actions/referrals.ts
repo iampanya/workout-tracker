@@ -1,19 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { getAuthUser } from "@/lib/session";
 import { regenerateReferralCode } from "@/lib/referrals/service";
 
 export type RegenerateResult = { code: string | null; error: string | null };
 
-// Assigns the current user a fresh referral code (invalidating the old one). Uses getUser() to
-// stay revocation-tight on the mutation path, matching the other lib/actions/* wrappers.
+// Assigns the current user a fresh referral code (invalidating the old one).
 export async function regenerateReferralCodeAction(): Promise<RegenerateResult> {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return { code: null, error: "Not authenticated" };
 
   try {

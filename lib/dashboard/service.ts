@@ -1,7 +1,4 @@
-import { cache } from "react";
 import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase/auth";
 import { getLocalDateString, getWeekStart, getWeekEnd } from "@/lib/date";
 import { computeStreakDays } from "./streak";
 
@@ -47,14 +44,6 @@ export async function listInProgressSessions(
   });
   return rows.map(({ routines, ...session }) => serializeSession(session, routines?.name ?? null));
 }
-
-// Request-scoped, deduplicated accessor for the in-progress list (layout resume link +
-// dashboard page share one query per render). Resolves identity itself, like getAuthUser.
-export const getInProgressSessions = cache(async (): Promise<InProgressSession[]> => {
-  const user = await getAuthUser();
-  if (!user) return [];
-  return listInProgressSessions(prisma, user.id);
-});
 
 export type OverviewStats = {
   streakDays: number;

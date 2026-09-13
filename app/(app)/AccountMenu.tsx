@@ -2,17 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { User, CaretDown, Gear, SignOut } from "@phosphor-icons/react/ssr";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { signOut } from "next-auth/react";
 
 const ITEM_CLASS =
   "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 export function AccountMenu({ username, email }: { username: string; email: string }) {
-  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -38,10 +36,7 @@ export function AccountMenu({ username, email }: { username: string; email: stri
 
   async function handleLogout() {
     setLoggingOut(true);
-    const supabase = createBrowserSupabaseClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    await signOut({ callbackUrl: "/login" });
   }
 
   return (
@@ -118,7 +113,7 @@ export function AccountMenu({ username, email }: { username: string; email: stri
       <ConfirmDialog
         open={confirmLogout}
         title="Log out?"
-        description="You'll need to sign in with your username again to get back in."
+        description="You'll need to sign in with Google again to get back in."
         confirmLabel="Log out"
         tone="danger"
         loading={loggingOut}

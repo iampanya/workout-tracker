@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
@@ -31,11 +31,10 @@ async function seedCompletedSession(userId: string, date: string) {
 }
 
 describe("session history", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("lists only completed sessions, most recent session_date first", async () => {

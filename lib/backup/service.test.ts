@@ -1,76 +1,43 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
 import { randomUUID } from "node:crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
-import type { Database } from "@/lib/supabase/database.types";
 import { BACKUP_FORMAT, BACKUP_VERSION, type BackupFile } from "@/lib/validation";
 import { exportUserData, importUserData } from "./service";
 
-type Client = SupabaseClient<Database>;
-
-// Seeds one custom exercise, a routine referencing it, and a completed session
-// with two logged sets. Returns the counts so tests can assert round-trips.
-async function seedWorkout(client: Client, userId: string) {
-  const { data: exercise, error: exErr } = await client
-    .from("exercises")
-    .insert({ user_id: userId, name: `Cable Fly ${randomUUID().slice(0, 8)}`, muscle_group: "Chest", is_preset: false })
-    .select()
-    .single();
-  if (exErr || !exercise) throw exErr ?? new Error("seed exercise failed");
-
-  const { data: routine, error: rErr } = await client
-    .from("routines")
-    .insert({ user_id: userId, name: "Push Day" })
-    .select()
-    .single();
-  if (rErr || !routine) throw rErr ?? new Error("seed routine failed");
-
-  const { error: reErr } = await client.from("routine_exercises").insert({
-    user_id: userId,
-    routine_id: routine.id,
-    exercise_id: exercise.id,
-    position: 0,
-    target_sets: 3,
+// Seeds one custom exercise, a routine referencing it, and a completed session with two sets.
+async function seedWorkout(userId: string) {
+  const exercise = await prisma.exercises.create({
+    data: { user_id: userId, name: `Cable Fly ${randomUUID().slice(0, 8)}`, muscle_group: "Chest", is_preset: false },
   });
-  if (reErr) throw reErr;
-
-  const { data: session, error: sErr } = await client
-    .from("sessions")
-    .insert({ user_id: userId, name: "Push Day", session_date: "2026-08-01", completed_at: new Date().toISOString() })
-    .select()
-    .single();
-  if (sErr || !session) throw sErr ?? new Error("seed session failed");
-
-  const { data: sessionExercise, error: seErr } = await client
-    .from("session_exercises")
-    .insert({ user_id: userId, session_id: session.id, exercise_id: exercise.id, position: 0 })
-    .select()
-    .single();
-  if (seErr || !sessionExercise) throw seErr ?? new Error("seed session_exercise failed");
-
-  const { error: setErr } = await client.from("sets").insert([
-    { user_id: userId, session_exercise_id: sessionExercise.id, exercise_id: exercise.id, set_number: 1, weight_kg: 20, reps: 12, is_warmup: false },
-    { user_id: userId, session_exercise_id: sessionExercise.id, exercise_id: exercise.id, set_number: 2, weight_kg: 22.5, reps: 10, is_warmup: false },
-  ]);
-  if (setErr) throw setErr;
-
+  const routine = await prisma.routines.create({ data: { user_id: userId, name: "Push Day" } });
+  await prisma.routine_exercises.create({
+    data: { user_id: userId, routine_id: routine.id, exercise_id: exercise.id, position: 0, target_sets: 3 },
+  });
+  const session = await prisma.sessions.create({
+    data: { user_id: userId, name: "Push Day", session_date: new Date("2026-08-01"), completed_at: new Date() },
+  });
+  const sessionExercise = await prisma.session_exercises.create({
+    data: { user_id: userId, session_id: session.id, exercise_id: exercise.id, position: 0 },
+  });
+  await prisma.sets.createMany({
+    data: [
+      { user_id: userId, session_exercise_id: sessionExercise.id, exercise_id: exercise.id, set_number: 1, weight_kg: 20, reps: 12, is_warmup: false },
+      { user_id: userId, session_exercise_id: sessionExercise.id, exercise_id: exercise.id, set_number: 2, weight_kg: 22.5, reps: 10, is_warmup: false },
+    ],
+  });
   return { exerciseName: exercise.name, exerciseId: exercise.id };
 }
 
 describe("backup service", () => {
-  const admin = createAdminClient();
   let userA: string;
-  let clientA: Client;
   let seeded: { exerciseName: string; exerciseId: string };
   let backup: BackupFile;
 
   beforeAll(async () => {
-    const a = await createTestUser(admin);
-    userA = a.userId;
-    clientA = a.client;
-    seeded = await seedWorkout(clientA, userA);
+    userA = (await createTestUser()).userId;
+    seeded = await seedWorkout(userA);
     backup = await exportUserData(prisma, userA);
   });
 
@@ -83,13 +50,12 @@ describe("backup service", () => {
     expect(backup.data.sessions).toHaveLength(1);
     expect(backup.data.session_exercises).toHaveLength(1);
     expect(backup.data.sets).toHaveLength(2);
-    // user_id is never written to the file.
     expect(backup.data.sessions[0]).not.toHaveProperty("user_id");
   });
 
   it("merge-imports another user's backup, reproducing every row", async () => {
-    const b = await createTestUser(admin);
-    const summary = await importUserData(prisma, b.userId, backup, "merge");
+    const b = (await createTestUser()).userId;
+    const summary = await importUserData(prisma, b, backup, "merge");
     expect(summary).toMatchObject({
       exercises: 1,
       routines: 1,
@@ -99,16 +65,12 @@ describe("backup service", () => {
       sets: 2,
     });
 
-    // The restored data is owned by user B and reads back identically.
-    const roundTrip = await exportUserData(prisma, b.userId);
+    const roundTrip = await exportUserData(prisma, b);
     expect(roundTrip.data.sets.map((s) => s.weight_kg).sort()).toEqual([20, 22.5]);
     expect(roundTrip.data.exercises[0].name).toBe(seeded.exerciseName);
   });
 
   it("merge is idempotent — re-importing a backup into its own account inserts nothing", async () => {
-    // userA already holds exactly this backup's rows (ids owned by A → skipped;
-    // exercises dedupe by name). This is the real backup/restore case: pulling
-    // your own backup back in must never duplicate.
     const summary = await importUserData(prisma, userA, backup, "merge");
     expect(summary).toMatchObject({
       exercises: 0,
@@ -121,28 +83,24 @@ describe("backup service", () => {
   });
 
   it("replace wipes existing data before restoring from the file", async () => {
-    const b = await createTestUser(admin);
-    // Give B some unrelated data of their own first.
-    await seedWorkout(b.client, b.userId);
-    const before = await exportUserData(prisma, b.userId);
+    const b = (await createTestUser()).userId;
+    await seedWorkout(b);
+    const before = await exportUserData(prisma, b);
     expect(before.data.sessions).toHaveLength(1);
 
-    await importUserData(prisma, b.userId, backup, "replace");
-    const after = await exportUserData(prisma, b.userId);
-    // B's own session is gone; only the file's single session remains.
+    await importUserData(prisma, b, backup, "replace");
+    const after = await exportUserData(prisma, b);
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.exercises).toHaveLength(1);
     expect(after.data.exercises[0].name).toBe(seeded.exerciseName);
   });
 
   it("remaps a file exercise onto an existing preset instead of duplicating it", async () => {
-    const b = await createTestUser(admin);
-    const { data: preset } = await b.client
-      .from("exercises")
-      .select("id, name")
-      .eq("is_preset", true)
-      .limit(1)
-      .single();
+    const b = (await createTestUser()).userId;
+    const preset = await prisma.exercises.findFirst({
+      where: { is_preset: true },
+      select: { id: true, name: true },
+    });
     if (!preset) throw new Error("expected a preset exercise to exist");
 
     const sessionId = randomUUID();
@@ -168,27 +126,22 @@ describe("backup service", () => {
       },
     };
 
-    const summary = await importUserData(prisma, b.userId, file, "merge");
+    const summary = await importUserData(prisma, b, file, "merge");
     expect(summary.exercises).toBe(0); // matched the preset, nothing inserted
 
-    // No custom exercise was created for B, and the child points at the preset.
-    const { data: customs } = await b.client
-      .from("exercises")
-      .select("id")
-      .eq("user_id", b.userId);
-    expect(customs ?? []).toHaveLength(0);
+    const customs = await prisma.exercises.findMany({ where: { user_id: b }, select: { id: true } });
+    expect(customs).toHaveLength(0);
 
-    const { data: se } = await b.client
-      .from("session_exercises")
-      .select("exercise_id")
-      .eq("id", seId)
-      .single();
+    const se = await prisma.session_exercises.findUnique({
+      where: { id: seId },
+      select: { exercise_id: true },
+    });
     expect(se?.exercise_id).toBe(preset.id);
   });
 
   it("rolls back a failed replace, leaving existing data intact (atomic)", async () => {
-    const b = await createTestUser(admin);
-    await seedWorkout(b.client, b.userId);
+    const b = (await createTestUser()).userId;
+    await seedWorkout(b);
 
     // A structurally valid file whose two sets collide on (session_exercise_id, set_number),
     // which trips the unique constraint mid-insert — after the replace deletes have run.
@@ -212,10 +165,9 @@ describe("backup service", () => {
       },
     };
 
-    await expect(importUserData(prisma, b.userId, corrupt, "replace")).rejects.toThrow();
+    await expect(importUserData(prisma, b, corrupt, "replace")).rejects.toThrow();
 
-    // The replace's deletes were rolled back — B's original workout survives.
-    const after = await exportUserData(prisma, b.userId);
+    const after = await exportUserData(prisma, b);
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.sets).toHaveLength(2);
   });

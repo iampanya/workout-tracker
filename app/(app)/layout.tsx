@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getInProgressSessions } from "@/lib/dashboard/service";
+import { getInProgressSessions } from "@/lib/dashboard/current";
 import { getProfile } from "@/lib/profiles/service";
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";

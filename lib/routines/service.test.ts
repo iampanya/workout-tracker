@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
@@ -14,17 +14,19 @@ import {
 } from "./service";
 
 describe("routines service", () => {
-  const admin = createAdminClient();
   let userId: string;
   let benchId: string;
   let squatId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
 
-    const { data: presets } = await admin.from("exercises").select("id, name").eq("is_preset", true);
-    benchId = presets!.find((e) => e.name === "Bench Press")!.id;
-    squatId = presets!.find((e) => e.name === "Squat")!.id;
+    const presets = await prisma.exercises.findMany({
+      where: { is_preset: true },
+      select: { id: true, name: true },
+    });
+    benchId = presets.find((e) => e.name === "Bench Press")!.id;
+    squatId = presets.find((e) => e.name === "Squat")!.id;
   });
 
   it("creates and lists a routine", async () => {
@@ -91,8 +93,11 @@ describe("routines service", () => {
     const routine = await createRoutineForUser(prisma, userId, { name: "Delete Test" });
     await addExerciseToRoutineForUser(prisma, userId, { routineId: routine.id, exerciseId: benchId });
     await deleteRoutineForUser(prisma, userId, routine.id);
-    const { data } = await admin.from("routine_exercises").select("id").eq("routine_id", routine.id);
-    expect(data).toEqual([]);
+    const rows = await prisma.routine_exercises.findMany({
+      where: { routine_id: routine.id },
+      select: { id: true },
+    });
+    expect(rows).toEqual([]);
   });
 
   it("adds a new exercise after removing a middle one, without a position collision", async () => {
@@ -131,7 +136,7 @@ describe("routines service", () => {
   it("rejects adding an exercise to another user's routine", async () => {
     const routine = await createRoutineForUser(prisma, userId, { name: "Owned By Victim" });
 
-    const attacker = await createTestUser(admin);
+    const attacker = await createTestUser();
 
     await expect(
       addExerciseToRoutineForUser(prisma, attacker.userId, {

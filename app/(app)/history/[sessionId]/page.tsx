@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { CalendarBlank, Clock, Trophy } from "@phosphor-icons/react/ssr";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getSessionDetail, sessionDisplayName } from "@/lib/sessions/history";
 import {

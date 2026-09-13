@@ -335,14 +335,12 @@ skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
-# Google is the app's only sign-in method. Provide GOOGLE_CLIENT_ID / GOOGLE_SECRET in
-# .env.local (from a Google Cloud OAuth client). skip_nonce_check is required for local
-# Google sign-in. In production the provider is configured in the Supabase dashboard instead.
+# OAuth is handled by Auth.js (NextAuth), not GoTrue — GoTrue's Google provider stays disabled.
+# (GoTrue itself is only kept so the `auth` schema exists for the 0010 migration's backfill.)
 [auth.external.google]
-enabled = true
+enabled = false
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_SECRET)"
-skip_nonce_check = true
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.

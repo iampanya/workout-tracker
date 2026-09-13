@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Barbell, GoogleLogo } from "@phosphor-icons/react/ssr";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
@@ -18,16 +18,8 @@ function LoginCard() {
   async function handleGoogleLogin() {
     setLoading(true);
     setError(null);
-    const supabase = createBrowserSupabaseClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    // On success the browser navigates to Google, so we only reach here on failure.
-    if (oauthError) {
-      setError(oauthError.message);
-      setLoading(false);
-    }
+    // Redirects to Google; Auth.js handles the callback at /api/auth/callback/google.
+    await signIn("google", { callbackUrl: "/dashboard" });
   }
 
   return (

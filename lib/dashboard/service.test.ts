@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
@@ -51,11 +51,10 @@ async function seedCompletedSessionWithSets(
 }
 
 describe("dashboard service", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("lists sessions that have not been finished", async () => {
@@ -91,11 +90,10 @@ describe("dashboard service", () => {
 });
 
 describe("getOverviewStats", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("counts a day streak that survives today-not-yet-logged, then extends", async () => {
@@ -143,11 +141,10 @@ describe("getOverviewStats", () => {
 });
 
 describe("getWeeklyVolume", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("buckets non-warmup volume by week and zero-fills the rest of the window", async () => {
@@ -177,11 +174,10 @@ describe("getWeeklyVolume", () => {
 });
 
 describe("listTopPrs", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("returns all-time top non-warmup lifts, heaviest first", async () => {

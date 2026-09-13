@@ -1,17 +1,16 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import { startSessionForUser, addExerciseToSessionForUser, logSetForUser } from "@/lib/sessions/service";
 import { getExerciseHistory, getExercisePr } from "./progress";
 
 describe("exercise progress", () => {
-  const admin = createAdminClient();
   let userId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
   });
 
   it("returns history sorted by when it was logged, with each set's session date", async () => {

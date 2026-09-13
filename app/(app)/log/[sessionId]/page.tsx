@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
 import { getPriorMaxWeights } from "@/lib/sessions/service";

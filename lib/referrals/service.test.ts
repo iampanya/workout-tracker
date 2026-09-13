@@ -1,9 +1,7 @@
 import "dotenv/config";
 import { describe, it, expect } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
-import type { Database } from "@/lib/supabase/database.types";
 import { generateReferralCode, getReferralInfo, regenerateReferralCode } from "./service";
 
 function uniqueSuffix() {
@@ -11,45 +9,39 @@ function uniqueSuffix() {
 }
 
 describe("referrals service (DB)", () => {
-  const admin: SupabaseClient<Database> = createAdminClient();
   const createdUserIds: string[] = [];
 
-  // Creates an auth user (via GoTrue). The on_auth_user_created trigger already provisioned a
-  // profiles row, so we update it to the username + referral_code this test wants. The update is
-  // done with the admin client purely as test setup; the code under test runs through prisma.
+  // Creates a user (the on_public_user_created trigger provisions the profile), then updates it to
+  // the username + referral_code this test wants. The code under test runs through prisma.
   async function seedUserWithProfile() {
-    const { userId } = await createTestUser(admin);
+    const { userId } = await createTestUser();
     createdUserIds.push(userId);
     const code = generateReferralCode();
-    const { error } = await admin
-      .from("profiles")
-      .update({ username: `ref_${uniqueSuffix()}`, referral_code: code })
-      .eq("id", userId);
-    if (error) throw new Error(error.message);
+    await prisma.profiles.update({
+      where: { id: userId },
+      data: { username: `ref_${uniqueSuffix()}`, referral_code: code },
+    });
     return { userId, code };
   }
 
   it("getReferralInfo returns the user's own code and invited count", async () => {
     const inviter = await seedUserWithProfile();
 
-    // No invitees yet.
     const before = await getReferralInfo(prisma, inviter.userId);
     expect(before.code).toBe(inviter.code);
     expect(before.invitedCount).toBe(0);
 
-    // Add two invitees referred by this user.
     for (let i = 0; i < 2; i++) {
-      const { userId } = await createTestUser(admin);
+      const { userId } = await createTestUser();
       createdUserIds.push(userId);
-      const { error } = await admin
-        .from("profiles")
-        .update({
+      await prisma.profiles.update({
+        where: { id: userId },
+        data: {
           username: `invitee_${uniqueSuffix()}`,
           referral_code: generateReferralCode(),
           referred_by: inviter.userId,
-        })
-        .eq("id", userId);
-      if (error) throw new Error(error.message);
+        },
+      });
     }
 
     const after = await getReferralInfo(prisma, inviter.userId);
@@ -64,7 +56,6 @@ describe("referrals service (DB)", () => {
     expect(newCode).toHaveLength(8);
     expect(newCode).not.toBe(oldCode);
 
-    // The profile now holds the new code; the old code no longer resolves to anyone.
     const info = await getReferralInfo(prisma, user.userId);
     expect(info.code).toBe(newCode);
 
@@ -73,9 +64,7 @@ describe("referrals service (DB)", () => {
   });
 
   it("cleans up created users", async () => {
-    for (const id of createdUserIds) {
-      await admin.auth.admin.deleteUser(id).catch(() => {});
-    }
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
     expect(true).toBe(true);
   });
 });

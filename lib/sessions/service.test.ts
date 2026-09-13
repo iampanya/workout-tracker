@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
-import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
 import { createRoutineForUser, addExerciseToRoutineForUser } from "@/lib/routines/service";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
@@ -21,17 +21,19 @@ function uniqueExerciseName(label: string) {
 }
 
 describe("sessions service", () => {
-  const admin = createAdminClient();
   let userId: string;
   let benchId: string;
   let squatId: string;
 
   beforeAll(async () => {
-    userId = (await createTestUser(admin)).userId;
+    userId = (await createTestUser()).userId;
 
-    const { data: presets } = await admin.from("exercises").select("id, name").eq("is_preset", true);
-    benchId = presets!.find((e) => e.name === "Bench Press")!.id;
-    squatId = presets!.find((e) => e.name === "Squat")!.id;
+    const presets = await prisma.exercises.findMany({
+      where: { is_preset: true },
+      select: { id: true, name: true },
+    });
+    benchId = presets.find((e) => e.name === "Bench Press")!.id;
+    squatId = presets.find((e) => e.name === "Squat")!.id;
   });
 
   it("snapshots a routine's exercises into the new session, preserving order", async () => {
@@ -44,11 +46,11 @@ describe("sessions service", () => {
       sessionDate: "2026-01-05",
     });
 
-    const { data: sessionExercises } = await admin
-      .from("session_exercises")
-      .select("exercise_id, position")
-      .eq("session_id", session.id)
-      .order("position");
+    const sessionExercises = await prisma.session_exercises.findMany({
+      where: { session_id: session.id },
+      orderBy: { position: "asc" },
+      select: { exercise_id: true, position: true },
+    });
 
     expect(sessionExercises).toEqual([
       { exercise_id: benchId, position: 0 },
@@ -64,31 +66,31 @@ describe("sessions service", () => {
 
   it("rejects adding an exercise to another user's session", async () => {
     const victimSession = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-06" });
-    const attacker = await createTestUser(admin);
+    const attacker = await createTestUser();
 
     await expect(
       addExerciseToSessionForUser(prisma, attacker.userId, victimSession.id, benchId)
     ).rejects.toThrow();
 
-    const { data: sessionExercises } = await admin
-      .from("session_exercises")
-      .select("id")
-      .eq("session_id", victimSession.id);
+    const sessionExercises = await prisma.session_exercises.findMany({
+      where: { session_id: victimSession.id },
+      select: { id: true },
+    });
     expect(sessionExercises).toEqual([]);
   });
 
   it("rejects starting a session with another user's routineId, leaving no orphaned session row", async () => {
-    const owner = await createTestUser(admin);
+    const owner = await createTestUser();
     const routine = await createRoutineForUser(prisma, owner.userId, { name: "Not Yours" });
 
     await expect(
       startSessionForUser(prisma, userId, { routineId: routine.id, sessionDate: "2026-01-06" })
     ).rejects.toThrow();
 
-    const { data: sessions } = await admin
-      .from("sessions")
-      .select("id")
-      .eq("routine_id", routine.id);
+    const sessions = await prisma.sessions.findMany({
+      where: { routine_id: routine.id },
+      select: { id: true },
+    });
     expect(sessions).toEqual([]);
   });
 
@@ -245,12 +247,11 @@ describe("sessions service", () => {
       isWarmup: false,
     });
     await finishSessionForUser(prisma, userId, session.id);
-    const { data } = await admin
-      .from("sessions")
-      .select("completed_at")
-      .eq("id", session.id)
-      .single();
-    expect(data!.completed_at).not.toBeNull();
+    const finished = await prisma.sessions.findUnique({
+      where: { id: session.id },
+      select: { completed_at: true },
+    });
+    expect(finished!.completed_at).not.toBeNull();
   });
 
   it("refuses to finish a session with no exercises at all", async () => {
@@ -258,12 +259,11 @@ describe("sessions service", () => {
     await expect(finishSessionForUser(prisma, userId, session.id)).rejects.toThrow(
       /at least one exercise/i
     );
-    const { data } = await admin
-      .from("sessions")
-      .select("completed_at")
-      .eq("id", session.id)
-      .single();
-    expect(data!.completed_at).toBeNull();
+    const notFinished = await prisma.sessions.findUnique({
+      where: { id: session.id },
+      select: { completed_at: true },
+    });
+    expect(notFinished!.completed_at).toBeNull();
   });
 
   it("removes an exercise from a session, cascading its sets", async () => {
@@ -282,32 +282,32 @@ describe("sessions service", () => {
 
     await removeExerciseFromSessionForUser(prisma, userId, sessionExercise.id);
 
-    const { data: remaining } = await admin
-      .from("session_exercises")
-      .select("id")
-      .eq("id", sessionExercise.id);
+    const remaining = await prisma.session_exercises.findMany({
+      where: { id: sessionExercise.id },
+      select: { id: true },
+    });
     expect(remaining).toEqual([]);
-    const { data: sets } = await admin
-      .from("sets")
-      .select("id")
-      .eq("session_exercise_id", sessionExercise.id);
+    const sets = await prisma.sets.findMany({
+      where: { session_exercise_id: sessionExercise.id },
+      select: { id: true },
+    });
     expect(sets).toEqual([]);
   });
 
   it("rejects removing another user's session exercise", async () => {
     const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-19" });
     const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, benchId);
-    const attacker = await createTestUser(admin);
+    const attacker = await createTestUser();
 
     await expect(
       removeExerciseFromSessionForUser(prisma, attacker.userId, sessionExercise.id)
     ).rejects.toThrow();
 
-    const { data } = await admin
-      .from("session_exercises")
-      .select("id")
-      .eq("id", sessionExercise.id);
-    expect(data).toHaveLength(1);
+    const rows = await prisma.session_exercises.findMany({
+      where: { id: sessionExercise.id },
+      select: { id: true },
+    });
+    expect(rows).toHaveLength(1);
   });
 
   it("refuses to finish while an exercise has no sets, and allows it once removed", async () => {
@@ -349,11 +349,11 @@ describe("sessions service", () => {
 
     await discardSessionForUser(prisma, userId, session.id);
 
-    const { data } = await admin
-      .from("sets")
-      .select("id")
-      .eq("session_exercise_id", sessionExercise.id);
-    expect(data).toEqual([]);
+    const sets = await prisma.sets.findMany({
+      where: { session_exercise_id: sessionExercise.id },
+      select: { id: true },
+    });
+    expect(sets).toEqual([]);
   });
 
   it("updates a set's weight and reps", async () => {
@@ -443,7 +443,7 @@ describe("sessions service", () => {
   });
 
   it("does not leak another user's PR for the same exercise", async () => {
-    const attacker = await createTestUser(admin);
+    const attacker = await createTestUser();
     const session = await startSessionForUser(prisma, attacker.userId, {
       sessionDate: "2026-01-18",
     });
@@ -478,7 +478,7 @@ describe("sessions service", () => {
       reps: 10,
       isWarmup: false,
     });
-    const attacker = await createTestUser(admin);
+    const attacker = await createTestUser();
 
     await expect(
       updateSetForUser(prisma, attacker.userId, logged.set.id, {
@@ -488,7 +488,10 @@ describe("sessions service", () => {
       })
     ).rejects.toThrow();
 
-    const { data } = await admin.from("sets").select("weight_kg").eq("id", logged.set.id).single();
-    expect(Number(data!.weight_kg)).toBe(50);
+    const row = await prisma.sets.findUnique({
+      where: { id: logged.set.id },
+      select: { weight_kg: true },
+    });
+    expect(Number(row!.weight_kg)).toBe(50);
   });
 });

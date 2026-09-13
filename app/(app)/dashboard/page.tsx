@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
-import { getAuthUser } from "@/lib/supabase/auth";
+import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
+import { getInProgressSessions } from "@/lib/dashboard/current";
 import {
-  getInProgressSessions,
   listPrsFromLastCompletedSession,
   getOverviewStats,
   getWeeklyVolume,
