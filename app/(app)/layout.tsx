@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { getInProgressSessions } from "@/lib/dashboard/service";
 import { getProfile } from "@/lib/profiles/service";
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
 
   if (!user) {
@@ -15,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const [profile, inProgress] = await Promise.all([
-    getProfile(supabase, user.id),
+    getProfile(prisma, user.id),
     getInProgressSessions(),
   ]);
 

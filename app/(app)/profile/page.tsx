@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { getProfile } from "@/lib/profiles/service";
 import { getReferralInfo } from "@/lib/referrals/service";
 import { Card } from "@/components/ui/Card";
@@ -16,15 +16,14 @@ function formatMemberSince(iso: string): string {
 }
 
 export default async function ProfilePage() {
-  const supabase = await createServerSupabaseClient();
   const user = await getAuthUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const profile = await getProfile(supabase, user.id);
-  const referral = await getReferralInfo(supabase, user.id);
+  const profile = await getProfile(prisma, user.id);
+  const referral = await getReferralInfo(prisma, user.id);
 
   // Build the shareable link's origin server-side (no window on the server, and this avoids a
   // client effect + hydration flash). Falls back to a relative path if headers are unavailable.

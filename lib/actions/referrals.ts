@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db";
 import { regenerateReferralCode } from "@/lib/referrals/service";
 
 export type RegenerateResult = { code: string | null; error: string | null };
@@ -16,7 +17,7 @@ export async function regenerateReferralCodeAction(): Promise<RegenerateResult> 
   if (!user) return { code: null, error: "Not authenticated" };
 
   try {
-    const code = await regenerateReferralCode(supabase, user.id);
+    const code = await regenerateReferralCode(prisma, user.id);
     revalidatePath("/profile");
     return { code, error: null };
   } catch (err) {
