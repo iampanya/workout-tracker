@@ -1,193 +1,145 @@
-# คู่มือ Deploy: Supabase (คลาวด์) + Vercel
+# คู่มือ Deploy: Postgres + Vercel + Google OAuth
 
-Runbook แบบละเอียด สำหรับ deploy แอป workout-tracker ขึ้น production
-ทำ **Supabase ก่อนเสมอ** แล้วค่อย Vercel — เพราะ Vercel ต้องใช้ URL/keys ที่เพิ่งเกิดขึ้นตอนสร้างโปรเจกต์ Supabase
+Runbook สำหรับ deploy แอป workout-tracker ขึ้น production
+Stack ใหม่: **Next.js + Prisma (ต่อ Postgres ตรง) + Auth.js (Google sign-in)** — ไม่พึ่ง Supabase Auth/PostgREST อีกแล้ว Supabase เหลือบทบาทแค่ "ที่ host Postgres" (ซึ่งจะเปลี่ยนไปใช้เจ้าอื่นก็ได้)
 
-> **หลักคิดที่ต้องจำ 2 ข้อ (จะทำให้ทุกขั้นตอน make sense):**
-> 1. **โครงสร้าง (migrations) เดินทางข้ามสภาพแวดล้อมเองได้** — `supabase db push` ดันขึ้นให้
->    แต่ **ข้อมูล (seed exercises, บัญชีแรก) ต้องหยอดเองใน SQL Editor** ทุกครั้ง
-> 2. **key ใน `.env.local` = ของ Docker บนเครื่องคุณ ใช้กับ production ไม่ได้** — ค่าจริงมาจาก dashboard คลาวด์เท่านั้น
+> **หลักคิดที่ต้องจำ 3 ข้อ:**
+> 1. **โครงสร้าง (migrations) เดินทางข้ามสภาพแวดล้อมเองได้** แต่ **ข้อมูล (seed exercises) ต้องหยอดเอง** ทุกครั้ง
+> 2. **key/URL ใน `.env.local` = ของ Docker บนเครื่องคุณ ใช้กับ production ไม่ได้** — prod ต้องใช้ connection string ของ Postgres คลาวด์ + Google client ของจริง
+> 3. **การ isolate ข้อมูลอยู่ที่ระดับแอป (scope `user_id`)** ไม่ใช่ RLS — ไม่มี service-role key, ไม่มี public-signup toggle ให้ตั้งอีกแล้ว
 
-สิ่งที่ต้องมีก่อนเริ่ม: บัญชี [supabase.com](https://supabase.com), บัญชี [vercel.com](https://vercel.com), Supabase CLI (`brew install supabase/tap/supabase`), และโค้ดที่ push ขึ้น Git repo แล้ว
+สิ่งที่ต้องมีก่อนเริ่ม: Postgres สักที่ (Supabase / Neon / RDS / self-host), บัญชี [vercel.com](https://vercel.com), Google Cloud project, และโค้ดที่ push ขึ้น Git repo แล้ว
 
 ---
 
-## ส่วน A — Supabase (ทำก่อน)
+## ส่วน A — Database (Postgres)
 
-### A1. สร้างโปรเจกต์คลาวด์
+### A1. เลือกที่ host Postgres + เอา connection string
 
-1. ไปที่ [supabase.com](https://supabase.com) → **New project**
-2. ตั้งชื่อ, ตั้ง **database password** (จดไว้ให้ดี), เลือก region ใกล้ผู้ใช้ (เช่น Southeast Asia — Singapore)
-3. รอสร้างเสร็จ ~2 นาที
-4. เข้า **Project Settings → API** แล้วจดค่า 3 อย่างนี้ไว้:
-   - **Project URL** — หน้าตา `https://<ref>.supabase.co`
-   - **anon / public key**
-   - **service_role key** ⚠️ (secret — ห้ามหลุด)
+แอปต่อ Postgres ผ่าน `DATABASE_URL` ตรงๆ — ใช้ Postgres เจ้าไหนก็ได้ ต้องการ 2 ค่า:
 
-> จาก URL คุณจะเห็น **project ref** (ส่วน `<ref>`) ด้วย เอาไว้ใช้ตอน `link`
+- **`DATABASE_URL`** — connection แบบ **pooled** (สำหรับ runtime บน Vercel serverless)
+- **`DIRECT_URL`** — connection แบบ **direct** (สำหรับ apply migrations)
 
-### A2. ปิด public signup (ล็อกประตูหลัง)
+**ถ้าใช้ Supabase เป็นที่ host Postgres** (ทางที่เปลี่ยนน้อยสุด): **Project Settings → Database → Connection string**
+- pooled: Supavisor พอร์ต **6543** ต่อท้าย `?pgbouncer=true&connection_limit=1` → ใส่ `DATABASE_URL`
+- direct: พอร์ต **5432** → ใส่ `DIRECT_URL`
 
-เข้า **Authentication → Sign In / Providers** (หรือ **Settings**) → **ปิด "Allow new users to sign up"**
+> **ทำไมต้อง pooled บน Vercel:** serverless เปิด connection เยอะมาก ถ้าต่อ direct 5432 จะเปิด connection ทะลักจน Postgres ปฏิเสธ — pooler (transaction mode) แก้ปัญหานี้
 
-> **ทำไม:** แอปนี้ invite-gated — บัญชีถูกมินต์ผ่าน server action ที่ใช้ service_role admin API หลังตรวจ invite code
-> ถ้าเปิด public signup ทิ้งไว้ ใครก็ยิง Supabase Auth endpoint ตรงๆ สมัครบัญชีเองได้ **ข้าม invite gate ทั้งหมด**
-> การปิดตรงนี้ *ไม่* กระทบหน้า `/signup` ของแอป เพราะมันไม่ได้ใช้ signup มาตรฐานของ Supabase
+### A2. Apply migrations (โครงสร้าง)
 
-### A3. ดัน schema ขึ้น (migrations)
-
+**ถ้าเป็น Supabase-hosted Postgres:**
 ```bash
 supabase link --project-ref <your-project-ref>
-supabase db push
+supabase db push          # รัน migrations 0001 → 0010 ตามลำดับ
 ```
 
-- `link` จะถาม database password (จากข้อ A1)
-- `db push` จะรัน migrations ทั้ง 5 ไฟล์ (`0001_init` → `0005_backup_import`) เรียงตามลำดับ สร้างตาราง/RLS/view/ฟังก์ชันให้
-
-> **ทำไมใช้ CLI:** migrations เป็น "โครงสร้าง" ที่ track ได้ว่าไฟล์ไหนรันไปแล้ว (ใน `supabase_migrations.schema_migrations`) จึง push ข้ามสภาพแวดล้อมได้ปลอดภัย
-> **บน deploy ครั้งแรก (ยังไม่มี user):** `0004` แค่สร้างคอลัมน์ `referral_code`/`referred_by` + ฟังก์ชัน แล้ว drop ตาราง `invite_codes` เดิม — ไม่มีอะไรให้ backfill
-
-### A4. หยอด seed exercises (ข้อมูล — CLI ไม่ทำให้)
-
-เปิด **SQL Editor** ในโปรเจกต์คลาวด์ → paste เนื้อหาทั้งไฟล์ `supabase/seed.sql` → **Run** (รันครั้งเดียว)
-
-> **ทำไมต้องทำเอง:** `supabase db push` **ไม่** รัน `seed.sql` บน remote (มันรันอัตโนมัติแค่ตอน `supabase start` / `db reset` ในเครื่อง local) เพราะ Supabase ถือว่า seed คือ dev fixtures ไม่กล้ายัดข้อมูลลง production ให้เอง
-> **ถ้าลืมข้อนี้:** ตาราง `exercises` จะว่าง → เปิดแอปแล้ว log workout ไม่ได้เพราะไม่มีท่าให้เลือกใน `ExerciseCombobox`
-> (`seed.sql` มี `on conflict do nothing` — เผลอรันซ้ำก็ปลอดภัย)
-
-### A5. สร้างบัญชีแรก (ตัด loop ไก่-ไข่)
-
-signup ต้องใช้ referral code ของ user ที่มีอยู่ → บัญชีแรกยังไม่มีใคร invite ได้ ต้อง bootstrap เองตรงๆ
-
-1. **Authentication → Users → Add user** สร้าง auth user (ใส่ email + password)
-2. ใน **SQL Editor** insert `profiles` row ที่ผูกกัน (username login + referral code ต้องใช้ทั้งคู่):
-
-```sql
-insert into public.profiles (id, username, referral_code)
-values ('<the-new-user-id>', 'yourname', '<an-8-char-code>');
+**ถ้าเป็น Postgres เจ้าอื่น** (Neon/RDS/self-host): รันไฟล์ `.sql` ใน `supabase/migrations/` เรียงตามเลข ผ่าน `psql`:
+```bash
+for f in supabase/migrations/*.sql; do psql "$DIRECT_URL" -f "$f"; done
 ```
 
-> **ทำไม:** ไม่มี UI สร้างบัญชีแรกได้เอง → หยอด profile row แรกที่นี่
-> หลังจากนี้ทุกคน invite คนอื่นได้เองด้วย **invite link ในหน้า Profile** (ไม่ต้อง SQL อีก) — กด Regenerate เพื่อยกเลิก link ที่หลุดได้
-> `<an-8-char-code>` ใช้ตัวอักษร A–Z/2–9 (เลี่ยง 0/O/1/I/L) เช่น `DEV12345`
+> migrations สร้างตาราง + view `exercise_prs` + ฟังก์ชัน (`import_backup`, `gen_referral_code`, `handle_new_user`) + ตาราง Auth.js (`users`/`accounts`) และ **ปิด RLS** ให้เอง (0010)
+> **หมายเหตุ 0010:** ถ้าย้ายมาจากระบบเดิม (GoTrue) มันจะ copy user จาก `auth.users` → `public.users` โดยคง id เดิม เพื่อให้ข้อมูลเก่าไม่หลุด FK
+
+### A3. หยอด seed exercises (ข้อมูล — ไม่ auto)
+
+รันไฟล์ `supabase/seed.sql` หนึ่งครั้ง ผ่าน SQL Editor (Supabase) หรือ `psql "$DIRECT_URL" -f supabase/seed.sql`
+
+> **ถ้าลืม:** ตาราง `exercises` ว่าง → log workout ไม่ได้เพราะไม่มีท่าให้เลือก (`seed.sql` มี `on conflict do nothing` รันซ้ำปลอดภัย)
+
+> **ไม่ต้อง bootstrap บัญชีแรกแล้ว** — พอ deploy เสร็จ login ด้วย Google ครั้งแรก trigger จะสร้าง profile ให้อัตโนมัติ (ต่างจากระบบเดิมที่ต้องหยอด SQL)
 
 ---
 
-## ส่วน B — Vercel
+## ส่วน B — Google OAuth
 
-### B1. Link โปรเจกต์
+### B1. ตั้งค่า OAuth client ให้รองรับโดเมน production
 
+[Google Cloud Console](https://console.cloud.google.com) → **APIs & Services → Credentials** → เปิด OAuth client เดิม (หรือสร้างใหม่แบบ *Web application*) → เพิ่ม **Authorized redirect URI**:
+```
+https://<your-domain>/api/auth/callback/google
+```
+
+> ⚠️ callback ของ Auth.js คือ `/api/auth/callback/google` (ไม่ใช่ของ Supabase เดิม `/auth/v1/callback` แล้ว) — ต้องใส่ URI นี้ให้ตรงเป๊ะทุกโดเมนที่ใช้ (local + prod) ไม่งั้นจะเจอ `redirect_uri_mismatch`
+
+---
+
+## ส่วน C — Vercel
+
+### C1. Link โปรเจกต์
 ```bash
 npx vercel link
 ```
 
-ตอบตามที่ถาม (เลือก scope + โปรเจกต์ หรือสร้างใหม่)
-
-### B2. ใส่ environment variables (production)
-
+### C2. ใส่ environment variables (production)
 ```bash
-npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
-npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
-npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
+npx vercel env add DATABASE_URL production      # pooled (:6543, ?pgbouncer=true&connection_limit=1)
+npx vercel env add DIRECT_URL production        # direct (:5432)
+npx vercel env add AUTH_SECRET production        # openssl rand -base64 32
+npx vercel env add GOOGLE_CLIENT_ID production
+npx vercel env add GOOGLE_SECRET production
+npx vercel env add AUTH_URL production           # https://<your-domain> (แนะนำให้ตั้งชัดเจน)
 ```
 
-แต่ละคำสั่งจะให้ paste ค่า — **เอาค่าจาก dashboard คลาวด์ (ข้อ A1) เท่านั้น**
+> **กับดักอันดับ 1:** อย่า copy ค่าจาก `.env.local` — นั่นคือ Postgres ใน Docker บนเครื่องคุณ (`127.0.0.1:54322`) prod ต้องเป็น connection string ของ Postgres คลาวด์
+> **กับดักอันดับ 2:** `DATABASE_URL` ต้องเป็น **pooled** (6543) ไม่ใช่ direct — ไม่งั้น serverless จะ connection ทะลัก
+> **กับดักอันดับ 3:** `AUTH_SECRET` ต้องเป็นค่าสุ่มที่แข็งแรง และ **คงที่** ระหว่าง deploy (ถ้าเปลี่ยน session ของทุกคนจะหลุดทันที)
 
-> **กับดักอันดับ 1:** อย่า copy จาก `.env.local` เด็ดขาด — นั่นคือ key ของ Supabase ใน Docker บนเครื่องคุณ
-> (URL เป็น `http://127.0.0.1:54321`) พอ Vercel เอาไปใช้จะต่อ `127.0.0.1` ของ *ตัวเซิร์ฟเวอร์ Vercel เอง* ที่ไม่มี Supabase → build ผ่านแต่ใช้จริง error หมด
-> **กฎง่ายๆ:** ถ้า URL ขึ้นต้น `127.0.0.1`/`localhost` = ผิด, production ต้องเป็น `https://<ref>.supabase.co`
->
-> **กับดักอันดับ 2 — ห้ามพลาดชีวิต:** `SUPABASE_SERVICE_ROLE_KEY` **ต้องไม่มี** prefix `NEXT_PUBLIC_`
-> ตัวแปร `NEXT_PUBLIC_*` ถูกฝังลง bundle ฝั่ง browser (ใครเปิด DevTools ก็อ่านได้) — ส่วน service_role key
-> **bypass RLS ทั้งหมด** (อ่าน/ลบข้อมูลทุก user, มินต์บัญชีข้าม invite, ดึง email ทุกคนได้) ถ้าหลุด = เจาะทั้งระบบในคีย์เดียว
-
-> ถ้าจะเปิด preview deployments ด้วยในอนาคต ค่อย add ซ้ำเป็น `preview` ทีหลัง (รอบแรก production พอ)
-
-### B3. Deploy
-
+### C3. Deploy
 ```bash
 npx vercel --prod
 ```
 
-รอ build เสร็จ จะได้ URL production กลับมา
+> build จะรัน `prisma generate` ให้เองผ่าน `postinstall`
 
 ---
 
-## ส่วน C — หลัง deploy
+## ส่วน D — หลัง deploy
 
-### C1. เข้าใช้บัญชีแรก
+### D1. เข้าใช้งาน
+เปิด `<deployed-url>` → **Sign in with Google** → profile ถูกสร้างอัตโนมัติ → เข้า `/dashboard`
 
-เปิด `<deployed-url>/login` → login ด้วย username + password ของบัญชีที่ bootstrap ไว้ในข้อ A5
-จากนั้นเปิดหน้า **Profile** → copy invite link ไปชวนคนอื่นสมัครที่ `/signup` ได้เลย
+> **ผู้ใช้เดิม (ย้ายมาจาก GoTrue):** ข้อมูลจะกลับมาก็ต่อเมื่อ **email Google = email บัญชีเดิม** ที่ 0010 migrate มา (Auth.js link by email ให้ ผ่าน `allowDangerousEmailAccountLinking`) ถ้า email ไม่ตรง จะได้บัญชีใหม่ว่างเปล่า
 
-### C2. Verify (ให้ครบ loop)
-
-login ด้วย username → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี **"New PR" banner** โผล่ตอนทำน้ำหนักเกินสถิติเดิม → **Finish** → เช็คว่า **dashboard** ขึ้น session นั้น
-ลองทั้งบนมือถือและ desktop browser
+### D2. Verify (ให้ครบ loop)
+login ด้วย Google → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี **"New PR" banner** ตอนทำน้ำหนักเกินสถิติเดิม → **Finish** → เช็ค **dashboard** ขึ้น session นั้น → ลองทั้งมือถือและ desktop
 
 ---
 
-## ส่วน D — อัปเดต production ที่ deploy ไปแล้ว (มี migration ใหม่)
+## ส่วน E — อัปเดต production ที่มี migration ใหม่
 
-เมื่อมี migration ไฟล์ใหม่ (เช่น `0004_referral_codes.sql`) และจะ deploy โค้ดที่ใช้ schema นั้น
-**ต้อง migrate DB ก่อน แล้วค่อย deploy Vercel เสมอ** — เพราะโค้ดใหม่ query คอลัมน์/ฟังก์ชันที่ยังไม่มีใน DB จะพัง
+**migrate DB ก่อน แล้วค่อย deploy Vercel เสมอ** — โค้ดใหม่ที่ query คอลัมน์/ฟังก์ชันที่ DB ยังไม่มีจะพัง
 
 ```bash
-# 1. Migrate DB ก่อน (link ไว้แล้วรันแค่บรรทัดนี้) — push เฉพาะ migration ที่ยังไม่เคยรัน
-supabase db push
-
-# 2. แล้วค่อย deploy โค้ด
-npx vercel --prod    # หรือ push ขึ้น branch ให้ Vercel auto-deploy
+supabase db push        # หรือ psql รันไฟล์ .sql ใหม่ (ถ้าไม่ได้ใช้ Supabase host)
+npx vercel --prod
 ```
 
-> **ทำไมลำดับนี้ห้ามสลับ:** ถ้า deploy Vercel ก่อน โค้ดใหม่จะเรียกคอลัมน์ `referral_code`/RPC `referral_count()` ที่ DB ยังไม่มี → หน้า Profile + signup error
-> **ช่วงรอยต่อสั้นๆ:** ระหว่าง `db push` เสร็จ ถึง Vercel deploy เสร็จ โค้ด**เก่า**ที่ยังรันอยู่จะ signup ไม่ได้ชั่วคราว (เพราะ `0004` drop ตาราง `invite_codes` ไปแล้ว) — deploy Vercel ตามให้ไวจบ
-
-**เฉพาะ `0004`:** ถ้า production มี user อยู่แล้ว migration จะ **backfill `referral_code` ให้ทุกคนอัตโนมัติ** (ทุกคนได้ invite link ทันที) และเพิ่ม `referred_by`, สร้าง `referral_count()`, drop `invite_codes`
-
-ตรวจหลัง push (SQL Editor):
-
-```sql
-select id, username, referral_code, referred_by from public.profiles;  -- ทุกแถวต้องมี referral_code
-select to_regclass('public.invite_codes');                             -- ต้องได้ null (ถูก drop แล้ว)
-```
-
-> ตัว env vars ของ Vercel **ไม่ต้องเพิ่มอะไรใหม่** สำหรับ `0004` — ใช้ URL/anon/service_role key ชุดเดิม
-
-**เฉพาะ `0005` (Backup/Restore):** migration แค่ **เพิ่มฟังก์ชัน `import_backup(jsonb, text)`** อย่างเดียว — ไม่แก้/ลบตารางเดิม, ไม่มี backfill, ไม่มีช่วงรอยต่อที่โค้ดเก่าพัง (โค้ดเก่าไม่รู้จักฟังก์ชันนี้อยู่แล้ว) จึง `db push` ก่อนหรือหลัง deploy Vercel ก็ได้ในทางปฏิบัติ — แต่ยึดลำดับเดิม (DB ก่อน) ไว้เป็นนิสัยจะปลอดภัยสุด
-
-- ฟังก์ชันเป็น `SECURITY DEFINER` (เหมือน `referral_count()`) แต่ stamp `user_id = auth.uid()` ทุก row และคืนแค่ตัวเลขสรุป — ไม่รั่วข้อมูลข้ามผู้ใช้
-- **env vars ไม่ต้องเพิ่มอะไรใหม่** — ใช้ชุดเดิม (ไม่พึ่ง service-role บน path นี้)
-
-ตรวจหลัง push (SQL Editor):
-
-```sql
-select to_regprocedure('public.import_backup(jsonb, text)');  -- ต้องไม่ได้ null (ฟังก์ชันถูกสร้างแล้ว)
-```
+> **env vars ไม่ต้องเพิ่มใหม่** ถ้า migration แค่แก้ schema — ใช้ชุดเดิม
+> migrations ล่าสุดที่ต้องมีบน prod: `0008` (trigger auto-profile), `0009` (`import_backup` รับ user id param), `0010` (ตาราง Auth.js + repoint FK + ปิด RLS)
 
 ---
 
-## Operational — เรื่องที่ต้องรู้หลังใช้ไปสักพัก
+## Operational — เรื่องที่ต้องรู้
 
-- **Free tier auto-pause หลังไม่มี API activity ~7 วัน** → แอปจะต่อ database ไม่ติด (ไม่ใช่ bug ของโค้ด)
-  แก้: เข้า Supabase dashboard กด **Resume/Restore**
-  ป้องกัน: (ก) อัป **Pro plan** ($25/เดือน ไม่มี pause — วิธีที่ถูกต้องถ้ามีคนใช้จริง),
-  หรือ (ข) ตั้ง **Vercel Cron** ยิง endpoint เบาๆ (เช่น `select count(*) from exercises`) ทุกไม่กี่วันเพื่อ keep-alive
-- **เพิ่ม/แก้ schema ทีหลัง:** เขียน migration ไฟล์ใหม่ใน `supabase/migrations/` → `supabase db push` (อย่าแก้ไฟล์ migration เดิมที่ push ไปแล้ว)
-- **Invite คนเพิ่ม:** เปิดหน้า **Profile** → copy invite link ส่งให้เขาไปสมัครที่ `/signup` (code เติมให้อัตโนมัติ) — ไม่ต้อง SQL แล้ว
+- **ถ้าใช้ Supabase free tier เป็น Postgres host:** auto-pause หลังไม่มี activity ~7 วัน → แอปต่อ DB ไม่ติด แก้: กด Resume ใน dashboard; ป้องกัน: อัป Pro plan หรือตั้ง cron ยิง query เบาๆ keep-alive
+- **ย้าย Postgres ไปเจ้าอื่นเมื่อไรก็ได้:** dump ข้อมูลจากที่เดิม → restore ที่ใหม่ → เปลี่ยน `DATABASE_URL`/`DIRECT_URL` บน Vercel → redeploy (ไม่ต้องแก้โค้ด) นี่คือจุดประสงค์หลักของการย้ายมา Prisma
+- **เพิ่ม/แก้ schema:** เขียน migration ไฟล์ใหม่ใน `supabase/migrations/` แล้ว `supabase db push` — อย่าแก้ไฟล์ migration เดิมที่ push ไปแล้ว (ถ้าเปลี่ยน Prisma model ด้วย ให้ `npx prisma db pull` + `prisma generate` ให้ schema.prisma ตรงกับ DB)
+- **ปิด service ที่ไม่ใช้บน Supabase host:** แอปไม่ใช้ Supabase Auth/PostgREST แล้ว — ถ้า host Postgres บน Supabase จะปล่อย service พวกนั้นทิ้งไว้ก็ได้ (ไม่กระทบ)
 
 ---
 
 ## Cheat sheet — ลำดับที่ห้ามสลับ
 
 ```
-Supabase                          Vercel                        หลัง deploy
-────────────────────────         ──────────────────────       ──────────────────
-A1 สร้างโปรเจกต์ + จด keys    →  B1 vercel link            →  C1 login บัญชีแรก
-A2 ปิด public signup            B2 add env (จากคลาวด์!)       C2 verify loop
-A3 db push (schema)             B3 vercel --prod
-A4 seed.sql (SQL Editor)
-A5 bootstrap บัญชีแรก (SQL Editor)
+Database                          Google + Vercel                หลัง deploy
+────────────────────────         ──────────────────────         ──────────────────
+A1 เอา connection string      →  B1 เพิ่ม redirect URI prod   →  D1 sign in with Google
+A2 apply migrations              C1 vercel link                  D2 verify loop
+A3 seed.sql                      C2 add env (pooled DATABASE_URL!)
+                                 C3 vercel --prod
 ```
 
-เหตุที่ Supabase ต้องมาก่อน: B2 ต้องกรอกค่าที่เกิดใน A1 — ทำ Vercel ก่อนจะไม่มีอะไรไปใส่
+เหตุที่ Database ต้องมาก่อน: C2 ต้องกรอก connection string ที่ได้จาก A1

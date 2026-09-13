@@ -1,92 +1,67 @@
 # Weight Training Tracker
 
-A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, Supabase (Postgres + Auth), Tailwind CSS, and Recharts.
+A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, **Postgres via [Prisma](https://www.prisma.io/)**, **[Auth.js](https://authjs.dev/) (NextAuth v5) with Google sign-in**, Tailwind CSS, and Recharts.
 
-**Multi-user, invite-gated.** Login is by **username**; each user has an isolated profile (enforced by
-row-level security). There is no open public signup: new accounts self-register on `/signup` but require
-a valid **referral code**. Every user owns one permanent, personal referral code (shown as a shareable
-invite link on their **Profile** page) that anyone can use to sign up; a user can **regenerate** it to
-invalidate a leaked link. The very first account is bootstrapped directly in the database (below).
+**Google sign-in.** Anyone can sign in with a Google account; a profile (username derived from the
+email, plus a personal referral code) is provisioned automatically on first login. Each user's data is
+isolated **at the application layer** — every query is scoped by `user_id` in the service layer
+(`lib/*/service.ts`), not by Postgres row-level security.
+
+**Portable data layer.** The app talks to Postgres directly through Prisma over `DATABASE_URL`. Nothing
+is tied to a specific host — point `DATABASE_URL` at any Postgres (local, Supabase, Neon, RDS, self-hosted)
+and the app runs unchanged. Locally we use the Supabase CLI purely as a convenient way to run Postgres in
+Docker and apply the SQL migrations.
 
 ## Local Development
 
-1. Install the Supabase CLI: `brew install supabase/tap/supabase`
-2. Start the local stack (requires Docker running): `supabase start`
-3. Copy `.env.local.example` to `.env.local` and fill in the URL/keys printed by `supabase start`
-4. Install dependencies: `npm install`
-5. Run the app: `npm run dev`
-6. Run unit tests (no DB required): `npm test`
-7. Run the full suite including DB-backed integration tests (requires `supabase start` to be running, and `DOTENV_CONFIG_PATH=.env.local` set): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
-8. Run the end-to-end browser tests (Playwright, drives the real UI against a production build): `npm run test:e2e`. Requires `supabase start` running and `.env.local` populated; the first run needs the browser binary once: `npx playwright install chromium`. A fresh test user (username `e2e_tester`) is reset and seeded automatically before each run by `e2e/global-setup.ts`. To iterate faster against `next dev` instead of a prod build, prefix with `E2E_DEV=1`.
-9. Create the first local account. Signup needs an existing user's referral code, so the first account is bootstrapped directly (there's no one to invite you yet). `.env.local` must include `SUPABASE_SERVICE_ROLE_KEY` (printed by `supabase start`). In Supabase Studio (`supabase status` prints its URL, typically `http://127.0.0.1:54323`): **Authentication → Users → Add user** to create the auth user, then in the **SQL Editor** insert a matching `public.profiles` row — username login and referral codes both require it:
-   ```sql
-   insert into public.profiles (id, username, referral_code)
-   values ('<the-new-user-id>', 'yourname', 'DEV12345');
+1. **Install the Supabase CLI** (used only to run a local Postgres in Docker and apply migrations):
+   `brew install supabase/tap/supabase`
+2. **Start local Postgres** (requires Docker running): `supabase start`
+3. **Create a Google OAuth client** — [Google Cloud Console](https://console.cloud.google.com) →
+   *APIs & Services → Credentials → Create credentials → OAuth client ID → Web application*. Add the
+   authorized redirect URI:
    ```
-   Log in at `/login` with `yourname` and the password you set. To add more accounts, open your **Profile** page, copy your invite link, and register through it at `/signup` (the code is prefilled) — or share it with anyone else.
+   http://localhost:3000/api/auth/callback/google
+   ```
+   Note the **Client ID** and **Client secret**.
+4. **Create `.env.local`** (copy from `.env.local.example`) and fill in:
+   ```bash
+   # Local Postgres from `supabase start` (port 54322). No pooler locally, so both are equal.
+   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   # Auth.js — generate a secret with: openssl rand -base64 32
+   AUTH_SECRET="..."
+   GOOGLE_CLIENT_ID="...apps.googleusercontent.com"
+   GOOGLE_SECRET="GOCSPX-..."
+   ```
+   Also create a `.env` with the same `DATABASE_URL`/`DIRECT_URL` — the Prisma CLI reads `.env`, not
+   `.env.local`. (Both are gitignored.)
+5. **Install dependencies:** `npm install` (its `postinstall` runs `prisma generate`)
+6. **Apply migrations + seed to local Postgres:** `supabase db reset` (runs every migration in
+   `supabase/migrations/` in order, then `supabase/seed.sql` for the preset exercises)
+7. **Run the app:** `npm run dev`, then open `http://localhost:3000` and **sign in with Google**. Your
+   profile is created automatically — there's no separate signup step or bootstrap.
+8. **Unit tests** (pure functions, no DB): `npm test`
+9. **DB-backed integration tests** (needs `supabase start` running): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
+10. **Typecheck + lint:** `npx tsc --noEmit && npm run lint`
+
+> **Note:** `DATABASE_URL` in `.env` / `.env.local` is what the Prisma CLI and the app connect to. The
+> Supabase CLI runs the local Postgres; the app itself never uses Supabase Auth or the PostgREST API.
 
 ## Deployment
 
-Accounts are invite-gated: users self-register at `/signup` with a referral code from an existing user's
-invite link. Supabase's own public signup stays **disabled** — the app mints users server-side via the
-service-role admin API, which is what enforces the invite gate. The first account is bootstrapped
-directly in the database (step 3), after which everyone invites others via their Profile page's link.
-
-### 1. Create the hosted Supabase project
-
-Create a new project at [supabase.com](https://supabase.com). Note its project ref, database password, API URL, anon key, and **service role key**.
-
-In the hosted project's dashboard: **Authentication → Settings → disable "Allow new users to sign up"** (kept off on purpose — the app's own invite-gated flow creates accounts).
-
-### 2. Push the schema
-
-```bash
-supabase link --project-ref <your-project-ref>
-supabase db push
-```
-
-Then, in the hosted project's **SQL Editor**, run the contents of `supabase/seed.sql` once to seed the preset exercises (the CLI does not auto-run `seed.sql` against a linked remote project).
-
-### 3. Bootstrap the first account
-
-There's no one to invite you into a brand-new project, so create the first account directly. In the
-hosted project's dashboard: **Authentication → Users → Add user** (set an email + password), then in the
-**SQL Editor** insert a matching profile with a referral code:
-
-```sql
-insert into public.profiles (id, username, referral_code)
-values ('<the-new-user-id>', 'yourname', '<an-8-char-code>');
-```
-
-After that, everyone invites others by sharing the personal invite link on their **Profile** page — no
-more manual SQL. A user can regenerate their code from that page to invalidate a leaked link.
-
-### 4. Deploy to Vercel
-
-```bash
-npx vercel link
-npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
-npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
-npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
-npx vercel --prod
-```
-
-Paste the **hosted** project's URL, anon key, and service role key when prompted — never the local Docker
-ones. `SUPABASE_SERVICE_ROLE_KEY` is required at runtime by the auth server actions (username login and
-invite-gated signup); it is server-only and must never be exposed as a `NEXT_PUBLIC_*` variable.
-
-### 5. Create your account
-
-You bootstrapped it in step 3 — log in at `<deployed-url>/login` with that username and password. To
-invite others, share the invite link from your **Profile** page.
-
-### 6. Verify
-
-Log in with your username from both a phone and a desktop browser: start a workout, log a few sets, confirm a "New PR" banner appears when you exceed a prior best, finish the workout, and confirm the dashboard shows it.
+See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any Postgres host + Vercel).
 
 ## Notes
 
-- `/` is a public landing page for logged-out visitors (hero + feature overview + Log in / Sign up). Logged-in users are redirected straight to `/dashboard`. Everything else stays auth-gated.
+- `/` is a public landing page for logged-out visitors (hero + feature overview + Log in). Logged-in
+  users are redirected to `/dashboard`. Everything else is auth-gated by `proxy.ts` (Auth.js middleware).
+- Auth callback lives at `/api/auth/callback/google` (Auth.js). The Google Cloud OAuth client must list
+  this exact URI (per environment).
+- Data isolation is enforced in the service layer (`user_id` scoping), **not** RLS — a query that forgets
+  to scope by `user_id` would leak data, so every service function takes a `userId` and filters by it, and
+  there are cross-user isolation tests (e.g. `lib/exercises/service.test.ts`).
 - All weights are stored and displayed in kilograms.
-- The hosted Supabase free-tier project auto-pauses after ~7 days with no API activity. If the app stops responding, resume it from the Supabase dashboard.
-- Full implementation history and design rationale: `docs/superpowers/specs/2026-08-09-workout-tracker-design.md` and `docs/superpowers/plans/2026-08-09-workout-tracker-implementation.md`.
+- The `exercise_prs` view and the `import_backup` / `gen_referral_code` / `handle_new_user` functions live
+  in the SQL migrations (Prisma is the client only; the view is read via `$queryRaw`).
+- Full implementation history and design rationale: `docs/superpowers/specs/…` and `docs/superpowers/plans/…`.
