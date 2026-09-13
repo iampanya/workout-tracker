@@ -3,10 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
 // "/" is the public landing page (viewable while logged in — it just adapts its
-// CTAs; it does NOT redirect). "/login" and "/signup" are guest-only: an already
-// logged-in visitor is bounced off them to /dashboard. Everything else is protected.
-const PUBLIC_ROUTES = new Set(["/", "/login", "/signup"]);
-const GUEST_ONLY_ROUTES = new Set(["/login", "/signup"]);
+// CTAs; it does NOT redirect). "/login" is guest-only: an already logged-in visitor is
+// bounced off it to /dashboard. "/auth/callback" is the Google OAuth return route — it must
+// be reachable while logged out (the session isn't set until it runs), but it is NOT
+// guest-only. Everything else is protected.
+const PUBLIC_ROUTES = new Set(["/", "/login", "/auth/callback"]);
+const GUEST_ONLY_ROUTES = new Set(["/login"]);
 
 export function isProtectedRoute(pathname: string): boolean {
   return !PUBLIC_ROUTES.has(pathname);
@@ -44,7 +46,7 @@ export async function updateSession(request: NextRequest) {
   // setAll adapter above — so middleware keeps its refresh-and-propagate duty.
   const { data } = await supabase.auth.getClaims();
 
-  // Logged-in visitor on a guest-only page (/login, /signup) → send to /dashboard.
+  // Logged-in visitor on a guest-only page (/login) → send to /dashboard.
   // This runs before render, so bookmarking /login and returning while still signed
   // in lands on the dashboard with no flash of the login form.
   if (data && isGuestOnlyRoute(request.nextUrl.pathname)) {

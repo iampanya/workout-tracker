@@ -80,16 +80,7 @@ export function LandingPage({ authed = false }: { authed?: boolean }) {
                 <Play className="h-5 w-5" weight="fill" />
                 {primaryCta.label}
               </Link>
-              {!authed && (
-                <Link
-                  href="/signup"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 text-base font-medium text-foreground transition [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
-                >
-                  Sign up
-                </Link>
-              )}
             </div>
-            {!authed && <p className="mt-3 text-sm text-muted">Sign-up is invite-only.</p>}
           </div>
 
           {/* Product preview built from real primitives */}

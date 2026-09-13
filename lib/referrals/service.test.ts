@@ -12,15 +12,17 @@ describe("referrals service (DB)", () => {
   const admin: SupabaseClient<Database> = createAdminClient();
   const createdUserIds: string[] = [];
 
-  // Creates an auth user + a profile row with a referral code, returning an RLS-scoped client for
-  // that user (createTestUser signs in as them). Mirrors how signup provisions a profile.
+  // Creates an auth user and returns an RLS-scoped client for them (createTestUser signs in as
+  // them). The on_auth_user_created trigger (0008) already provisioned a profiles row, so we
+  // update it to the username + referral_code this test wants rather than inserting a new one.
   async function seedUserWithProfile() {
     const { userId, client } = await createTestUser(admin);
     createdUserIds.push(userId);
     const code = generateReferralCode();
     const { error } = await admin
       .from("profiles")
-      .insert({ id: userId, username: `ref_${uniqueSuffix()}`, referral_code: code });
+      .update({ username: `ref_${uniqueSuffix()}`, referral_code: code })
+      .eq("id", userId);
     if (error) throw new Error(error.message);
     return { userId, client, code };
   }
@@ -37,12 +39,15 @@ describe("referrals service (DB)", () => {
     for (let i = 0; i < 2; i++) {
       const { userId } = await createTestUser(admin);
       createdUserIds.push(userId);
-      const { error } = await admin.from("profiles").insert({
-        id: userId,
-        username: `invitee_${uniqueSuffix()}`,
-        referral_code: generateReferralCode(),
-        referred_by: inviter.userId,
-      });
+      // The trigger already created the profile; set referred_by (+ fresh username/code) on it.
+      const { error } = await admin
+        .from("profiles")
+        .update({
+          username: `invitee_${uniqueSuffix()}`,
+          referral_code: generateReferralCode(),
+          referred_by: inviter.userId,
+        })
+        .eq("id", userId);
       if (error) throw new Error(error.message);
     }
 

@@ -1,35 +1,59 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Barbell, SignIn } from "@phosphor-icons/react/ssr";
-import { loginWithUsername } from "@/lib/actions/auth";
+import { Barbell, GoogleLogo } from "@phosphor-icons/react/ssr";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+function LoginCard() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error") ? "Sign-in failed. Please try again." : null
+  );
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleGoogleLogin() {
     setLoading(true);
     setError(null);
-    const result = await loginWithUsername({ username, password });
-    if (result.error) {
-      setError(result.error);
+    const supabase = createBrowserSupabaseClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    // On success the browser navigates to Google, so we only reach here on failure.
+    if (oauthError) {
+      setError(oauthError.message);
       setLoading(false);
-      return;
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
+  return (
+    <Card className="w-full max-w-sm">
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">Log in</h1>
+          <p className="text-sm text-muted">Continue with your Google account.</p>
+        </div>
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <Button
+          type="button"
+          variant="primary"
+          icon={<GoogleLogo className="h-4 w-4" weight="bold" />}
+          loading={loading}
+          onClick={handleGoogleLogin}
+          className="w-full"
+        >
+          Continue with Google
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
       <Link
@@ -41,46 +65,9 @@ export default function LoginPage() {
         </span>
         Weight Training Tracker
       </Link>
-      <Card className="w-full max-w-sm">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <h1 className="text-2xl font-semibold">Log in</h1>
-          <Input
-            label="Username"
-            required
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="username"
-            placeholder="yourname"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <Input
-            type="password"
-            label="Password"
-            required
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && <p className="text-sm text-danger">{error}</p>}
-          <Button
-            type="submit"
-            variant="primary"
-            icon={<SignIn className="h-4 w-4" />}
-            loading={loading}
-            className="w-full"
-          >
-            Log in
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-muted">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-accent hover:underline">
-            Sign up
-          </Link>
-        </p>
-      </Card>
+      <Suspense>
+        <LoginCard />
+      </Suspense>
     </main>
   );
 }
