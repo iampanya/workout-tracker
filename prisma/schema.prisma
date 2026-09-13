@@ -1,0 +1,110 @@
+// Typed client for the app's own (public-schema) tables. DB objects — tables, the
+// exercise_prs view, functions (referral_count/import_backup/gen_referral_code),
+// triggers — remain owned by the raw SQL migrations in supabase/migrations/*. Prisma is
+// the client only; regenerate with `prisma db pull` against a public-only introspection.
+//
+// user_id columns are kept as plain scalars (no relation to auth.users): in phase 1 users
+// still live in GoTrue's auth.users, and the app never joins to them from Prisma. Per-user
+// isolation is enforced in the service layer (every query filters by user_id), replacing RLS.
+// The exercise_prs view is read via $queryRaw (see lib/dashboard/service.ts), so it is not
+// modeled here.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model exercises {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String?             @db.Uuid
+  name              String
+  muscle_group      String?
+  is_preset         Boolean             @default(false)
+  is_archived       Boolean             @default(false)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  routine_exercises routine_exercises[]
+  session_exercises session_exercises[]
+  sets              sets[]
+
+  @@unique([user_id, name], map: "exercises_user_name_key")
+}
+
+model profiles {
+  id            String   @id @db.Uuid
+  username      String   @unique
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  referral_code String   @unique
+  referred_by   String?  @db.Uuid
+}
+
+model routines {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String              @db.Uuid
+  name              String
+  notes             String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  routine_exercises routine_exercises[]
+  sessions          sessions[]
+}
+
+model routine_exercises {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  routine_id  String    @db.Uuid
+  user_id     String    @db.Uuid
+  exercise_id String    @db.Uuid
+  position    Int
+  target_sets Int?
+  exercises   exercises @relation(fields: [exercise_id], references: [id], onUpdate: NoAction)
+  routines    routines  @relation(fields: [routine_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([routine_id, position])
+}
+
+model sessions {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String              @db.Uuid
+  routine_id        String?             @db.Uuid
+  name              String?
+  session_date      DateTime            @db.Date
+  started_at        DateTime            @default(now()) @db.Timestamptz(6)
+  completed_at      DateTime?           @db.Timestamptz(6)
+  notes             String?
+  session_exercises session_exercises[]
+  routines          routines?           @relation(fields: [routine_id], references: [id], onUpdate: NoAction)
+
+  @@map("sessions")
+}
+
+model session_exercises {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id  String    @db.Uuid
+  user_id     String    @db.Uuid
+  exercise_id String    @db.Uuid
+  position    Int
+  notes       String?
+  exercises   exercises @relation(fields: [exercise_id], references: [id], onUpdate: NoAction)
+  sessions    sessions  @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sets        sets[]
+
+  @@unique([session_id, position])
+}
+
+model sets {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_exercise_id String            @db.Uuid
+  user_id             String            @db.Uuid
+  exercise_id         String            @db.Uuid
+  set_number          Int
+  weight_kg           Decimal           @db.Decimal(6, 2)
+  reps                Int
+  is_warmup           Boolean           @default(false)
+  created_at          DateTime          @default(now()) @db.Timestamptz(6)
+  exercises           exercises         @relation(fields: [exercise_id], references: [id], onUpdate: NoAction)
+  session_exercises   session_exercises @relation(fields: [session_exercise_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([session_exercise_id, set_number])
+  @@index([user_id, exercise_id, is_warmup], map: "sets_user_exercise_idx")
+}
