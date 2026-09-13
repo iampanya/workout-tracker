@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import { startSessionForUser, addExerciseToSessionForUser, logSetForUser } from "@/lib/sessions/service";
 import { getExerciseHistory, getExercisePr } from "./progress";
@@ -18,7 +19,7 @@ describe("exercise progress", () => {
   });
 
   it("returns history sorted by when it was logged, with each set's session date", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Progress Exercise ${Date.now()}`,
       muscleGroup: "Chest",
     });
@@ -51,7 +52,7 @@ describe("exercise progress", () => {
   });
 
   it("returns null PR for an exercise with no logged sets", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Untouched Exercise ${Date.now()}`,
       muscleGroup: "Chest",
     });

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
 import { getPriorMaxWeights } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
@@ -26,7 +27,7 @@ export default async function LogSessionPage({
       .select("*, exercise:exercises(id, name), sets(*)")
       .eq("session_id", sessionId)
       .order("position"),
-    listExercises(supabase),
+    listExercises(prisma, user!.id),
   ]);
   if (!sessionRow) {
     notFound();

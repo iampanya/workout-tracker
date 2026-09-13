@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   startSessionForUser,
@@ -63,7 +64,7 @@ describe("session history", () => {
   });
 
   it("returns full exercise/set detail for a session", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `History Exercise ${Date.now()}`,
       muscleGroup: "Chest",
     });

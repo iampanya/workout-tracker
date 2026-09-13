@@ -1,7 +1,11 @@
+import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import { createRoutineForUser, addExerciseToRoutineForUser } from "@/lib/routines/service";
+// exercises/service is already on Prisma, so seed exercises via `prisma`; the sessions
+// service under test is still supabase-backed and keeps using `client` until its own conversion.
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   startSessionForUser,
@@ -96,7 +100,7 @@ describe("sessions service", () => {
   });
 
   it("marks the first logged set for a fresh exercise as a PR", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("First Set Exercise"),
       muscleGroup: "Chest",
     });
@@ -115,7 +119,7 @@ describe("sessions service", () => {
   });
 
   it("does not mark a lighter set as a PR, and increments set_number within the exercise", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Lighter Set Exercise"),
       muscleGroup: "Chest",
     });
@@ -140,7 +144,7 @@ describe("sessions service", () => {
   });
 
   it("never counts a warmup set as a PR, nor toward future PR comparisons", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Warmup Exercise"),
       muscleGroup: "Chest",
     });
@@ -165,7 +169,7 @@ describe("sessions service", () => {
   });
 
   it("recomputes PR live after a correction, with no stale cache", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Correction Exercise"),
       muscleGroup: "Chest",
     });
@@ -196,7 +200,7 @@ describe("sessions service", () => {
     // A naive count(*)-based set_number calculation would compute set_number 3 for
     // the next insert, colliding with the unique(session_exercise_id, set_number)
     // constraint.
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Set Number Gap Exercise"),
       muscleGroup: "Chest",
     });
@@ -235,7 +239,7 @@ describe("sessions service", () => {
   });
 
   it("finishes a session by setting completed_at", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Finish Complete"),
       muscleGroup: "Chest",
     });
@@ -270,7 +274,7 @@ describe("sessions service", () => {
   });
 
   it("removes an exercise from a session, cascading its sets", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Remove Exercise"),
       muscleGroup: "Chest",
     });
@@ -314,7 +318,7 @@ describe("sessions service", () => {
   });
 
   it("refuses to finish while an exercise has no sets, and allows it once removed", async () => {
-    const withSets = await createCustomExerciseForUser(client, userId, {
+    const withSets = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Finish Guard With Sets"),
       muscleGroup: "Chest",
     });
@@ -337,7 +341,7 @@ describe("sessions service", () => {
   });
 
   it("discarding a session cascades to remove its sets", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Discard Exercise"),
       muscleGroup: "Chest",
     });
@@ -360,7 +364,7 @@ describe("sessions service", () => {
   });
 
   it("updates a set's weight and reps", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Update Weight Exercise"),
       muscleGroup: "Chest",
     });
@@ -384,7 +388,7 @@ describe("sessions service", () => {
   });
 
   it("marks an edited set as a new PR when raised above the prior best", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Edit To PR Exercise"),
       muscleGroup: "Back",
     });
@@ -413,11 +417,11 @@ describe("sessions service", () => {
   });
 
   it("batches PR lookups across multiple exercises, omitting exercises with no PR yet", async () => {
-    const benchedExercise = await createCustomExerciseForUser(client, userId, {
+    const benchedExercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Batch PR Bench"),
       muscleGroup: "Chest",
     });
-    const untouchedExercise = await createCustomExerciseForUser(client, userId, {
+    const untouchedExercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Batch PR Untouched"),
       muscleGroup: "Legs",
     });
@@ -469,7 +473,7 @@ describe("sessions service", () => {
   });
 
   it("rejects updating another user's set", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Foreign Update Exercise"),
       muscleGroup: "Legs",
     });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/ssr";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
 import { Card } from "@/components/ui/Card";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
@@ -17,8 +18,8 @@ const MUSCLE_GROUP_TONE: Record<string, BadgeTone> = {
 };
 
 export default async function ExercisesPage() {
-  const supabase = await createServerSupabaseClient();
-  const exercises = await listExercises(supabase);
+  const user = await getAuthUser();
+  const exercises = await listExercises(prisma, user!.id);
 
   return (
     <div className="space-y-6">

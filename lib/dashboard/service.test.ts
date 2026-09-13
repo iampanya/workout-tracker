@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   startSessionForUser,
@@ -90,7 +91,7 @@ describe("dashboard service", () => {
   });
 
   it("surfaces PRs set during the most recently finished session", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Dashboard PR Exercise ${Date.now()}`,
       muscleGroup: "Chest",
     });
@@ -148,7 +149,7 @@ describe("getOverviewStats", () => {
   });
 
   it("sums non-warmup volume for the current week only", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Overview Volume ${Date.now()}`,
       muscleGroup: "Legs",
     });
@@ -179,7 +180,7 @@ describe("getWeeklyVolume", () => {
   });
 
   it("buckets non-warmup volume by week and zero-fills the rest of the window", async () => {
-    const exercise = await createCustomExerciseForUser(client, userId, {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Weekly Volume ${Date.now()}`,
       muscleGroup: "Back",
     });
@@ -216,11 +217,11 @@ describe("listTopPrs", () => {
   });
 
   it("returns all-time top non-warmup lifts, heaviest first", async () => {
-    const heavy = await createCustomExerciseForUser(client, userId, {
+    const heavy = await createCustomExerciseForUser(prisma, userId, {
       name: `Top PR Heavy ${Date.now()}`,
       muscleGroup: "Legs",
     });
-    const light = await createCustomExerciseForUser(client, userId, {
+    const light = await createCustomExerciseForUser(prisma, userId, {
       name: `Top PR Light ${Date.now()}`,
       muscleGroup: "Chest",
     });

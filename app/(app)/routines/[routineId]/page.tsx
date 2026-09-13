@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { prisma } from "@/lib/db";
 import { getRoutineWithExercises } from "@/lib/routines/service";
 import { listExercises } from "@/lib/exercises/service";
 import { RoutineExerciseRow } from "./RoutineExerciseRow";
@@ -12,9 +13,10 @@ export default async function RoutineEditorPage({
 }) {
   const { routineId } = await params;
   const supabase = await createServerSupabaseClient();
+  const userId = (await getAuthUser())!.id;
   const [{ routine, exercises }, allExercises] = await Promise.all([
-    getRoutineWithExercises(supabase, (await getAuthUser())!.id, routineId),
-    listExercises(supabase),
+    getRoutineWithExercises(supabase, userId, routineId),
+    listExercises(prisma, userId),
   ]);
 
   return (

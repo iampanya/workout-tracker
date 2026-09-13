@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createTestUser } from "@/lib/supabase/test-helpers";
+import { prisma } from "@/lib/db";
 import { createCustomExerciseForUser } from "@/lib/exercises/service";
 import {
   listRoutines,
@@ -103,7 +104,7 @@ describe("routines service", () => {
     // A naive count(*)-based position calculation would compute position 2 for the
     // next insert, colliding with the unique(routine_id, position) constraint.
     const routine = await createRoutineForUser(client, userId, { name: "Position Gap Test" });
-    const customExercise = await createCustomExerciseForUser(client, userId, {
+    const customExercise = await createCustomExerciseForUser(prisma, userId, {
       name: `Position Gap Exercise ${Date.now()}-${Math.random().toString(36).slice(2)}`,
       muscleGroup: "Chest",
     });

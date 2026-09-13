@@ -1,63 +1,57 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { PrismaClient, exercises } from "@prisma/client";
 import { createExerciseSchema } from "@/lib/validation";
 
-export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
+export type Exercise = exercises;
 
 // Only the columns the list UIs actually read (picker, exercises index, archive button).
-// Selecting these instead of `*` avoids shipping user_id/created_at/notes over the wire.
 export type ExerciseListItem = Pick<Exercise, "id" | "name" | "muscle_group" | "is_preset">;
 
+// Presets (user_id null) plus the user's own exercises. RLS used to scope this implicitly;
+// now the OR filter does it explicitly — dropping the userId would leak nothing (presets only)
+// but would also hide the user's custom exercises, so it is required.
 export async function listExercises(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
+  userId: string,
   options: { includeArchived?: boolean } = {}
 ): Promise<ExerciseListItem[]> {
-  let query = supabase
-    .from("exercises")
-    .select("id, name, muscle_group, is_preset")
-    .order("muscle_group")
-    .order("name");
-  if (!options.includeArchived) {
-    query = query.eq("is_archived", false);
-  }
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return db.exercises.findMany({
+    where: {
+      OR: [{ user_id: null }, { user_id: userId }],
+      ...(options.includeArchived ? {} : { is_archived: false }),
+    },
+    select: { id: true, name: true, muscle_group: true, is_preset: true },
+    orderBy: [{ muscle_group: "asc" }, { name: "asc" }],
+  });
 }
 
 export async function createCustomExerciseForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   input: unknown
 ): Promise<Exercise> {
   const parsed = createExerciseSchema.parse(input);
-  const { data, error } = await supabase
-    .from("exercises")
-    .insert({
+  return db.exercises.create({
+    data: {
       user_id: userId,
       name: parsed.name,
       muscle_group: parsed.muscleGroup ?? null,
       is_preset: false,
-    })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
+    },
+  });
 }
 
 export async function archiveExerciseForUser(
-  supabase: SupabaseClient<Database>,
+  db: PrismaClient,
   userId: string,
   exerciseId: string
 ): Promise<void> {
-  const { data, error } = await supabase
-    .from("exercises")
-    .update({ is_archived: true })
-    .eq("id", exerciseId)
-    .eq("user_id", userId)
-    .select();
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) {
+  // Scope the update by user_id so a user can only archive their own exercise; count === 0
+  // means the row doesn't exist or isn't theirs (replaces the RLS ownership check).
+  const result = await db.exercises.updateMany({
+    where: { id: exerciseId, user_id: userId },
+    data: { is_archived: true },
+  });
+  if (result.count === 0) {
     throw new Error("Exercise not found or not owned by user");
   }
 }
