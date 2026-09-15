@@ -77,18 +77,14 @@ DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate deploy
 หลังยืนยัน Step 4 ผ่านและใช้งาน prod ได้ 2–3 วันแล้ว:
 
 **5a. (optional) ลบ Supabase-only objects ที่ตายแล้วบน prod** ให้ prod ตรง baseline เป๊ะ (กัน edge-case ที่ policy
-เก่าค้างขวางการ ALTER ในอนาคต):
-```sql
--- RLS ปิดอยู่แล้ว policy เหล่านี้ inert — ลบทิ้งได้
-drop policy if exists exercises_select on public.exercises;
--- ... (policy อื่นๆ ตาม pre-flight) ...
-drop function if exists public.referral_count();
-drop function if exists public.import_backup(jsonb, text);   -- overload เก่า (เหลือ 3-arg)
+เก่าค้างขวางการ ALTER ในอนาคต) — สคริปต์พร้อมรัน (idempotent, transaction, ลบ 11 policies + `referral_count()` +
+`import_backup` 2-arg; ไม่แตะ data):
+```bash
+psql "$PROD_DIRECT_URL" -f scripts/drop-legacy-supabase-objects.sql
 ```
 
-**5b. Retire Supabase** — เมื่อมั่นใจแล้ว:
-- ลบโฟลเดอร์ `supabase/` (`migrations/`, `config.toml`, `seed.sql` → ย้าย preset ไป `prisma/seed.mjs` เก็บ SQL ไว้ก็ได้)
-- ถอด Supabase CLI ออกจาก workflow/docs
+**5b. Retire Supabase** — ทำแล้ว: `supabase/` เก็บเป็น archive (ดู `supabase/README.md`, `seed.sql` ยังใช้ผ่าน
+`prisma/seed.mjs`); Supabase CLI ไม่อยู่ใน local workflow แล้ว; docs (`CLAUDE.md`/`README`/`DEPLOY`) เป็น single-source แล้ว
 - อัปเดตเอกสารให้เหลือ **single source**: `CLAUDE.md` (ลบ gotcha "Two migration sources"),
   `docs/DEPLOY.md` (prod ใช้ `prisma migrate deploy`), `docs/adr/0001-*` (mark Follow-up ว่าทำแล้ว)
 
