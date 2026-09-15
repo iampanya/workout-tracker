@@ -52,7 +52,8 @@ self-hosted) and the app runs unchanged. Local development uses a plain Postgres
 
 > **Note:** `DATABASE_URL` in `.env` / `.env.local` is what the Prisma CLI and the app connect to. Local
 > development no longer needs the Supabase CLI; the app itself never uses Supabase Auth or the PostgREST API.
-> Production still uses Supabase-hosted Postgres via `supabase/migrations/` — see `docs/DEPLOY.md`.
+> Schema is managed by **Prisma Migrate** on both local and production (prod baselined 2026-09-15);
+> `supabase/migrations/` is archived legacy. See `docs/DEPLOY.md`.
 
 ## Deployment
 
@@ -69,7 +70,6 @@ See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any 
   there are cross-user isolation tests (e.g. `lib/exercises/service.test.ts`).
 - All weights are stored and displayed in kilograms.
 - The `exercise_prs` view and the `import_backup` / `gen_referral_code` / `handle_new_user` functions are
-  defined as raw SQL in the migration (Prisma is the client only; the view is read via `$queryRaw`). Locally
-  they come from the squashed `prisma/migrations/0001_init`; on production they still come from the legacy
-  `supabase/migrations/` chain.
+  defined as raw SQL in the squashed `prisma/migrations/0001_init` (Prisma is the client only; the view is
+  read via `$queryRaw`). This migration is the schema baseline for both local and production.
 - Full implementation history and design rationale: `docs/superpowers/specs/…` and `docs/superpowers/plans/…`.

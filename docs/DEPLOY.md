@@ -3,7 +3,7 @@
 Runbook สำหรับ deploy แอป workout-tracker ขึ้น production
 Stack ใหม่: **Next.js + Prisma (ต่อ Postgres ตรง) + Auth.js (Google sign-in)** — ไม่พึ่ง Supabase Auth/PostgREST อีกแล้ว Supabase เหลือบทบาทแค่ "ที่ host Postgres" (ซึ่งจะเปลี่ยนไปใช้เจ้าอื่นก็ได้)
 
-> **หมายเหตุ (local ≠ prod):** เอกสารนี้เป็น runbook **production เท่านั้น** — prod ยังใช้ **Supabase-hosted Postgres** + `supabase/migrations/` (`supabase db push`) ส่วน **local dev ย้ายไปใช้ Docker Postgres + Prisma Migrate แล้ว** (ดู `README.md` และ `docs/adr/0001-local-db-on-docker-postgres.md`) จนกว่าจะ baseline prod ขึ้น Prisma Migrate migration source จะแยกกันอยู่ชั่วคราว
+> **หมายเหตุ (schema = Prisma Migrate ทั้ง local + prod ตั้งแต่ 2026-09-15):** prod ถูก baseline ขึ้น **Prisma Migrate** แล้ว (`prisma migrate resolve --applied 0001_init`) — apply schema บน prod ด้วย `prisma migrate deploy` ไม่ใช่ `supabase db push` อีก `supabase/migrations/` เป็น **archived legacy** (ดู `supabase/README.md`) Supabase เหลือบทบาทแค่ที่ host Postgres ดู workflow เต็มใน `docs/baseline-prod-to-prisma-migrate.md`
 
 > **หลักคิดที่ต้องจำ 3 ข้อ:**
 > 1. **โครงสร้าง (migrations) เดินทางข้ามสภาพแวดล้อมเองได้** แต่ **ข้อมูล (seed exercises) ต้องหยอดเอง** ทุกครั้ง
@@ -31,16 +31,12 @@ Stack ใหม่: **Next.js + Prisma (ต่อ Postgres ตรง) + Auth.js 
 
 ### A2. Apply migrations (โครงสร้าง)
 
-**ถ้าเป็น Supabase-hosted Postgres:**
+**Postgres เจ้าไหนก็ได้ (Supabase / Neon / RDS / self-host)** — ใช้ **Prisma Migrate** เป็นมาตรฐานเดียว:
 ```bash
-supabase link --project-ref <your-project-ref>
-supabase db push          # รัน migrations 0001 → 0010 ตามลำดับ
+DIRECT_URL="$DIRECT_URL" npx prisma migrate deploy   # apply prisma/migrations/* (vanilla PG, portable)
 ```
-
-**ถ้าเป็น Postgres เจ้าอื่น** (Neon/RDS/self-host หรือ vanilla Postgres): **อย่าใช้** `supabase/migrations/*.sql` เพราะมันพึ่ง `auth` schema / role `authenticated`,`service_role` / `auth.uid()` ของ Supabase (รันบน Postgres เปล่าไม่ผ่าน) — ให้ใช้ **Prisma Migrate baseline** แทน:
-```bash
-DIRECT_URL="$DIRECT_URL" npx prisma migrate deploy   # apply prisma/migrations/0001_init (vanilla PG)
-```
+> **DB ที่ยังว่างเปล่า** → คำสั่งเดียวจบ **DB ที่มี schema อยู่แล้วจากยุค Supabase (`supabase/migrations`)** → baseline ครั้งเดียวก่อน: `prisma migrate resolve --applied 0001_init` แล้วค่อย `migrate deploy` (ดู `docs/baseline-prod-to-prisma-migrate.md`)
+> **อย่าใช้** `supabase/migrations/*.sql` (archived) — มันพึ่ง `auth` schema / role Supabase / `auth.uid()` รันบน Postgres เปล่าไม่ผ่าน
 
 > migrations สร้างตาราง + view `exercise_prs` + ฟังก์ชัน (`import_backup`, `gen_referral_code`, `handle_new_user`) + ตาราง Auth.js (`users`/`accounts`) และ **ปิด RLS** ให้เอง (0010)
 > **หมายเหตุ 0010:** ถ้าย้ายมาจากระบบเดิม (GoTrue) มันจะ copy user จาก `auth.users` → `public.users` โดยคง id เดิม เพื่อให้ข้อมูลเก่าไม่หลุด FK
@@ -115,12 +111,12 @@ login ด้วย Google → **Log workout** → เลือกท่า + log
 **migrate DB ก่อน แล้วค่อย deploy Vercel เสมอ** — โค้ดใหม่ที่ query คอลัมน์/ฟังก์ชันที่ DB ยังไม่มีจะพัง
 
 ```bash
-supabase db push        # หรือ psql รันไฟล์ .sql ใหม่ (ถ้าไม่ได้ใช้ Supabase host)
+DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate deploy   # apply migration ใหม่บน prod ก่อน
 npx vercel --prod
 ```
 
 > **env vars ไม่ต้องเพิ่มใหม่** ถ้า migration แค่แก้ schema — ใช้ชุดเดิม
-> migrations ล่าสุดที่ต้องมีบน prod: `0008` (trigger auto-profile), `0009` (`import_backup` รับ user id param), `0010` (ตาราง Auth.js + repoint FK + ปิด RLS)
+> อย่าเอา `prisma migrate deploy` ไปใส่ Vercel build command — รันมือ/CI แยกก่อน promote
 
 ---
 
@@ -128,7 +124,7 @@ npx vercel --prod
 
 - **ถ้าใช้ Supabase free tier เป็น Postgres host:** auto-pause หลังไม่มี activity ~7 วัน → แอปต่อ DB ไม่ติด แก้: กด Resume ใน dashboard; ป้องกัน: อัป Pro plan หรือตั้ง cron ยิง query เบาๆ keep-alive
 - **ย้าย Postgres ไปเจ้าอื่นเมื่อไรก็ได้:** dump ข้อมูลจากที่เดิม → restore ที่ใหม่ → เปลี่ยน `DATABASE_URL`/`DIRECT_URL` บน Vercel → redeploy (ไม่ต้องแก้โค้ด) นี่คือจุดประสงค์หลักของการย้ายมา Prisma
-- **เพิ่ม/แก้ schema:** เขียน migration ไฟล์ใหม่ใน `supabase/migrations/` แล้ว `supabase db push` — อย่าแก้ไฟล์ migration เดิมที่ push ไปแล้ว (ถ้าเปลี่ยน Prisma model ด้วย ให้ `npx prisma db pull` + `prisma generate` ให้ schema.prisma ตรงกับ DB)
+- **เพิ่ม/แก้ schema:** `prisma migrate dev --name <x>` (local สร้าง+apply) → `DIRECT_URL=<prod> npx prisma migrate deploy` (prod) — อย่าแก้ไฟล์ migration เดิมที่ deploy ไปแล้ว ถ้าแก้ view/function/trigger ต้องเขียน SQL เพิ่มเองในไฟล์ migration ที่ `migrate dev` สร้าง แล้ว `prisma db pull` ให้ schema.prisma sync
 - **ปิด service ที่ไม่ใช้บน Supabase host:** แอปไม่ใช้ Supabase Auth/PostgREST แล้ว — ถ้า host Postgres บน Supabase จะปล่อย service พวกนั้นทิ้งไว้ก็ได้ (ไม่กระทบ)
 
 ---

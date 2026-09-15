@@ -1,8 +1,8 @@
 # ADR 0001 — Local dev DB ย้ายจาก Supabase CLI → Docker Postgres + Prisma Migrate
 
 - **สถานะ:** Accepted
-- **วันที่:** 2026-09-13
-- **ขอบเขต:** Local development เท่านั้น (production ยังไม่เปลี่ยน)
+- **วันที่:** 2026-09-13 (ปรับปรุง 2026-09-15: baseline production ขึ้น Prisma Migrate แล้ว)
+- **ขอบเขต:** เริ่มที่ local development; ต่อมา production ถูก baseline ขึ้น Prisma Migrate ด้วย (ดู Follow-ups)
 
 ## Context
 
@@ -49,13 +49,16 @@ provision ให้ — `auth.users` (สร้างโดย GoTrue), role `au
 
 - ✅ Local dev ไม่ต้องเปิด `supabase start` อีก — เบาลง, ใช้ Postgres ที่มีอยู่, portable ไป Postgres เจ้าไหนก็ได้
 - ✅ Baseline สะอาด (ไม่มี auth/role/RLS) สะท้อนสิ่งที่ runtime ใช้จริง (Prisma + isolation ที่ service layer)
-- ⚠️ **มี migration source 2 ระบบชั่วคราว** — local (`prisma/migrations`) กับ prod (`supabase/migrations`)
-  เมื่อแก้ schema ต้องอัปเดต **ทั้งสองฝั่ง** จนกว่าจะ baseline prod ขึ้น Prisma Migrate
-  (`prisma migrate resolve --applied 0001_init` บน prod) — เป็น follow-up
+- ✅ **Prisma Migrate เป็น single source ทั้ง local + prod** (baseline prod เสร็จ 2026-09-15) — แก้ schema
+  ที่เดียว: `prisma migrate dev` (local) → `prisma migrate deploy` (prod)
 - ⚠️ `prisma migrate reset` ต้องรันด้วย role ที่เป็น owner ของ database/schema `public` (workout_tracker เป็น
   owner จึงผ่าน)
 
 ## Follow-ups
 
-- Baseline production ขึ้น Prisma Migrate แล้วปลด `supabase/migrations/` + Supabase CLI ทิ้งทั้งหมด
-- (optional) `supabase stop` ปิด container Supabase local ที่ไม่ใช้แล้ว
+- ✅ **Done (2026-09-15):** baseline production ขึ้น Prisma Migrate (`prisma migrate resolve --applied 0001_init`)
+  — runbook: `docs/baseline-prod-to-prisma-migrate.md`
+- `supabase/migrations/` เก็บเป็น **archive** (ดู `supabase/README.md`) — ไม่ถูก apply แล้ว
+- (optional, ยังไม่ทำ) ลบ Supabase-only objects ที่ตายบน prod (RLS policies, `referral_count()`,
+  `import_backup` 2-arg) ให้ prod ตรง baseline เป๊ะ — SQL อยู่ใน runbook Step 5a
+- ✅ Supabase local stack หยุดแล้ว (`supabase stop`)
