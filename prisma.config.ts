@@ -9,6 +9,8 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // Run after migrations on `prisma migrate reset` / `prisma db seed`.
+    seed: "node prisma/seed.mjs",
   },
   datasource: {
     url: env("DIRECT_URL"),

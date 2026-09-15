@@ -8,27 +8,31 @@ isolated **at the application layer** — every query is scoped by `user_id` in 
 (`lib/*/service.ts`), not by Postgres row-level security.
 
 **Portable data layer.** The app talks to Postgres directly through Prisma over `DATABASE_URL`. Nothing
-is tied to a specific host — point `DATABASE_URL` at any Postgres (local, Supabase, Neon, RDS, self-hosted)
-and the app runs unchanged. Locally we use the Supabase CLI purely as a convenient way to run Postgres in
-Docker and apply the SQL migrations.
+is tied to a specific host — point `DATABASE_URL` at any Postgres (local Docker, Supabase, Neon, RDS,
+self-hosted) and the app runs unchanged. Local development uses a plain Postgres in Docker and
+**Prisma Migrate** to build the schema; see [`docs/adr/0001-local-db-on-docker-postgres.md`](docs/adr/0001-local-db-on-docker-postgres.md).
 
 ## Local Development
 
-1. **Install the Supabase CLI** (used only to run a local Postgres in Docker and apply migrations):
-   `brew install supabase/tap/supabase`
-2. **Start local Postgres** (requires Docker running): `supabase start`
-3. **Create a Google OAuth client** — [Google Cloud Console](https://console.cloud.google.com) →
+1. **Run Postgres in Docker** (any recent Postgres image, e.g. `postgres:18`). Then create a dedicated
+   database and login role for this app (run as a superuser, e.g. via `docker exec … psql`):
+   ```sql
+   CREATE ROLE workout_tracker LOGIN CREATEDB PASSWORD '<pick-a-password>';
+   CREATE DATABASE workout_tracker_dev OWNER workout_tracker;
+   ```
+   (`CREATEDB` lets `prisma migrate dev` create its shadow database later.)
+2. **Create a Google OAuth client** — [Google Cloud Console](https://console.cloud.google.com) →
    *APIs & Services → Credentials → Create credentials → OAuth client ID → Web application*. Add the
    authorized redirect URI:
    ```
    http://localhost:3000/api/auth/callback/google
    ```
    Note the **Client ID** and **Client secret**.
-4. **Create `.env.local`** (copy from `.env.local.example`) and fill in:
+3. **Create `.env.local`** (copy from `.env.local.example`) and fill in:
    ```bash
-   # Local Postgres from `supabase start` (port 54322). No pooler locally, so both are equal.
-   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-   DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   # Local Docker Postgres (port 5432). No pooler locally, so both are equal.
+   DATABASE_URL="postgresql://workout_tracker:<pw>@127.0.0.1:5432/workout_tracker_dev"
+   DIRECT_URL="postgresql://workout_tracker:<pw>@127.0.0.1:5432/workout_tracker_dev"
    # Auth.js — generate a secret with: openssl rand -base64 32
    AUTH_SECRET="..."
    GOOGLE_CLIENT_ID="...apps.googleusercontent.com"
@@ -36,17 +40,19 @@ Docker and apply the SQL migrations.
    ```
    Also create a `.env` with the same `DATABASE_URL`/`DIRECT_URL` — the Prisma CLI reads `.env`, not
    `.env.local`. (Both are gitignored.)
-5. **Install dependencies:** `npm install` (its `postinstall` runs `prisma generate`)
-6. **Apply migrations + seed to local Postgres:** `supabase db reset` (runs every migration in
-   `supabase/migrations/` in order, then `supabase/seed.sql` for the preset exercises)
-7. **Run the app:** `npm run dev`, then open `http://localhost:3000` and **sign in with Google**. Your
+4. **Install dependencies:** `npm install` (its `postinstall` runs `prisma generate`)
+5. **Apply the schema + seed to local Postgres:** `npm run db:reset` (runs `prisma migrate reset`, then
+   seeds the preset exercises via `prisma/seed.mjs`). For a non-destructive apply use `npm run db:migrate`.
+6. **Run the app:** `npm run dev`, then open `http://localhost:3000` and **sign in with Google**. Your
    profile is created automatically — there's no separate signup step or bootstrap.
-8. **Unit tests** (pure functions, no DB): `npm test`
-9. **DB-backed integration tests** (needs `supabase start` running): `DOTENV_CONFIG_PATH=.env.local npm run test:db`
-10. **Typecheck + lint:** `npx tsc --noEmit && npm run lint`
+7. **Unit tests** (pure functions, no DB): `npm test`
+8. **DB-backed integration tests** (needs Docker Postgres running + `npm run db:migrate` applied):
+   `DOTENV_CONFIG_PATH=.env.local npm run test:db`
+9. **Typecheck + lint:** `npx tsc --noEmit && npm run lint`
 
-> **Note:** `DATABASE_URL` in `.env` / `.env.local` is what the Prisma CLI and the app connect to. The
-> Supabase CLI runs the local Postgres; the app itself never uses Supabase Auth or the PostgREST API.
+> **Note:** `DATABASE_URL` in `.env` / `.env.local` is what the Prisma CLI and the app connect to. Local
+> development no longer needs the Supabase CLI; the app itself never uses Supabase Auth or the PostgREST API.
+> Production still uses Supabase-hosted Postgres via `supabase/migrations/` — see `docs/DEPLOY.md`.
 
 ## Deployment
 
@@ -62,6 +68,8 @@ See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any 
   to scope by `user_id` would leak data, so every service function takes a `userId` and filters by it, and
   there are cross-user isolation tests (e.g. `lib/exercises/service.test.ts`).
 - All weights are stored and displayed in kilograms.
-- The `exercise_prs` view and the `import_backup` / `gen_referral_code` / `handle_new_user` functions live
-  in the SQL migrations (Prisma is the client only; the view is read via `$queryRaw`).
+- The `exercise_prs` view and the `import_backup` / `gen_referral_code` / `handle_new_user` functions are
+  defined as raw SQL in the migration (Prisma is the client only; the view is read via `$queryRaw`). Locally
+  they come from the squashed `prisma/migrations/0001_init`; on production they still come from the legacy
+  `supabase/migrations/` chain.
 - Full implementation history and design rationale: `docs/superpowers/specs/…` and `docs/superpowers/plans/…`.

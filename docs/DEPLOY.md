@@ -3,6 +3,8 @@
 Runbook สำหรับ deploy แอป workout-tracker ขึ้น production
 Stack ใหม่: **Next.js + Prisma (ต่อ Postgres ตรง) + Auth.js (Google sign-in)** — ไม่พึ่ง Supabase Auth/PostgREST อีกแล้ว Supabase เหลือบทบาทแค่ "ที่ host Postgres" (ซึ่งจะเปลี่ยนไปใช้เจ้าอื่นก็ได้)
 
+> **หมายเหตุ (local ≠ prod):** เอกสารนี้เป็น runbook **production เท่านั้น** — prod ยังใช้ **Supabase-hosted Postgres** + `supabase/migrations/` (`supabase db push`) ส่วน **local dev ย้ายไปใช้ Docker Postgres + Prisma Migrate แล้ว** (ดู `README.md` และ `docs/adr/0001-local-db-on-docker-postgres.md`) จนกว่าจะ baseline prod ขึ้น Prisma Migrate migration source จะแยกกันอยู่ชั่วคราว
+
 > **หลักคิดที่ต้องจำ 3 ข้อ:**
 > 1. **โครงสร้าง (migrations) เดินทางข้ามสภาพแวดล้อมเองได้** แต่ **ข้อมูล (seed exercises) ต้องหยอดเอง** ทุกครั้ง
 > 2. **key/URL ใน `.env.local` = ของ Docker บนเครื่องคุณ ใช้กับ production ไม่ได้** — prod ต้องใช้ connection string ของ Postgres คลาวด์ + Google client ของจริง
@@ -35,9 +37,9 @@ supabase link --project-ref <your-project-ref>
 supabase db push          # รัน migrations 0001 → 0010 ตามลำดับ
 ```
 
-**ถ้าเป็น Postgres เจ้าอื่น** (Neon/RDS/self-host): รันไฟล์ `.sql` ใน `supabase/migrations/` เรียงตามเลข ผ่าน `psql`:
+**ถ้าเป็น Postgres เจ้าอื่น** (Neon/RDS/self-host หรือ vanilla Postgres): **อย่าใช้** `supabase/migrations/*.sql` เพราะมันพึ่ง `auth` schema / role `authenticated`,`service_role` / `auth.uid()` ของ Supabase (รันบน Postgres เปล่าไม่ผ่าน) — ให้ใช้ **Prisma Migrate baseline** แทน:
 ```bash
-for f in supabase/migrations/*.sql; do psql "$DIRECT_URL" -f "$f"; done
+DIRECT_URL="$DIRECT_URL" npx prisma migrate deploy   # apply prisma/migrations/0001_init (vanilla PG)
 ```
 
 > migrations สร้างตาราง + view `exercise_prs` + ฟังก์ชัน (`import_backup`, `gen_referral_code`, `handle_new_user`) + ตาราง Auth.js (`users`/`accounts`) และ **ปิด RLS** ให้เอง (0010)
@@ -83,7 +85,7 @@ npx vercel env add GOOGLE_SECRET production
 npx vercel env add AUTH_URL production           # https://<your-domain> (แนะนำให้ตั้งชัดเจน)
 ```
 
-> **กับดักอันดับ 1:** อย่า copy ค่าจาก `.env.local` — นั่นคือ Postgres ใน Docker บนเครื่องคุณ (`127.0.0.1:54322`) prod ต้องเป็น connection string ของ Postgres คลาวด์
+> **กับดักอันดับ 1:** อย่า copy ค่าจาก `.env.local` — นั่นคือ Postgres ใน Docker บนเครื่องคุณ (`127.0.0.1:5432`) prod ต้องเป็น connection string ของ Postgres คลาวด์
 > **กับดักอันดับ 2:** `DATABASE_URL` ต้องเป็น **pooled** (6543) ไม่ใช่ direct — ไม่งั้น serverless จะ connection ทะลัก
 > **กับดักอันดับ 3:** `AUTH_SECRET` ต้องเป็นค่าสุ่มที่แข็งแรง และ **คงที่** ระหว่าง deploy (ถ้าเปลี่ยน session ของทุกคนจะหลุดทันที)
 

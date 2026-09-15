@@ -8,8 +8,11 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force && prisma db seed",
     "test": "vitest run lib/date.test.ts lib/validation.test.ts lib/pr.test.ts lib/progress.test.ts lib/dashboard/streak.test.ts lib/routes.test.ts lib/sessions/summary.test.ts lib/referrals/generate.test.ts",
-    "test:db": "echo 'Requires: supabase start (running locally) and .env.local populated, see .env.local.example' && vitest run --exclude lib/date.test.ts --exclude lib/validation.test.ts --exclude lib/pr.test.ts --exclude lib/progress.test.ts --exclude lib/dashboard/streak.test.ts --exclude lib/routes.test.ts --exclude lib/sessions/summary.test.ts --exclude lib/referrals/generate.test.ts"
+    "test:db": "echo 'Requires: Docker Postgres running with workout_tracker_dev migrated (npm run db:migrate) and .env.local populated, see .env.local.example' && vitest run --exclude lib/date.test.ts --exclude lib/validation.test.ts --exclude lib/pr.test.ts --exclude lib/progress.test.ts --exclude lib/dashboard/streak.test.ts --exclude lib/routes.test.ts --exclude lib/sessions/summary.test.ts --exclude lib/referrals/generate.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
