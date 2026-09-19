@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { toDateOnlyString } from "@/lib/date";
 
 export type ExerciseHistorySet = {
   id: string;
@@ -36,7 +37,7 @@ export async function getExerciseHistory(
       weight_kg: Number(row.weight_kg),
       reps: row.reps,
       is_warmup: row.is_warmup,
-      session_date: row.session_exercises.sessions.session_date.toISOString().slice(0, 10),
+      session_date: toDateOnlyString(row.session_exercises.sessions.session_date),
     }))
     .reverse();
 }

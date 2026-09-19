@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { toDateOnlyString } from "@/lib/date";
 import {
   backupFileSchema,
   BACKUP_FORMAT,
@@ -18,9 +19,6 @@ export type ImportSummary = {
   sets: number;
 };
 
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 // Gathers everything a user owns into the backup file shape. user_id is omitted (import always
 // stamps the caller's id). Presets (user_id IS NULL) are excluded by the user_id filter.
@@ -91,7 +89,7 @@ export async function exportUserData(db: PrismaClient, userId: string): Promise<
       routine_exercises: routineExercises,
       sessions: sessions.map((s) => ({
         ...s,
-        session_date: toDateStr(s.session_date),
+        session_date: toDateOnlyString(s.session_date),
         started_at: s.started_at.toISOString(),
         completed_at: s.completed_at ? s.completed_at.toISOString() : null,
       })),

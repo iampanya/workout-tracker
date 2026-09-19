@@ -9,7 +9,7 @@ describe("exercises service", () => {
   let otherUserId: string;
 
   beforeAll(async () => {
-    // Users are still minted via GoTrue in phase 1; data access is Prisma.
+    // Users are created directly in public.users via Prisma; the trigger provisions the profile.
     userId = (await createTestUser()).userId;
     otherUserId = (await createTestUser()).userId;
   });

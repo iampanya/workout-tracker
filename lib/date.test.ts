@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getLocalDateString, getWeekStart, getWeekEnd } from "./date";
+import { getLocalDateString, getWeekStart, getWeekEnd, toDateOnlyString } from "./date";
 
 describe("getLocalDateString", () => {
   it("formats a date as YYYY-MM-DD using local time, zero-padded", () => {
@@ -10,6 +10,14 @@ describe("getLocalDateString", () => {
   it("defaults to now when no argument is passed", () => {
     const result = getLocalDateString();
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("toDateOnlyString", () => {
+  it("returns the UTC calendar day of a @db.Date value (UTC midnight)", () => {
+    // Prisma returns a @db.Date column as a Date at UTC midnight.
+    const d = new Date("2026-01-05T00:00:00.000Z");
+    expect(toDateOnlyString(d)).toBe("2026-01-05");
   });
 });
 

@@ -1,3 +1,10 @@
+// Format a Prisma `@db.Date` column (e.g. sessions.session_date) as YYYY-MM-DD. Prisma
+// returns a date-only column as a Date at UTC midnight, so slice the ISO string — do NOT use
+// getLocalDateString here, whose local parts would shift the calendar day on a non-UTC server.
+export function toDateOnlyString(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export function getLocalDateString(d: Date = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");

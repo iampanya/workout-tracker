@@ -36,7 +36,7 @@ export function LogoutButton({ labeled = false }: { labeled?: boolean }) {
       <ConfirmDialog
         open={confirmOpen}
         title="Log out?"
-        description="You'll need to sign in with your username again to get back in."
+        description="You'll need to sign in with Google again to get back in."
         confirmLabel="Log out"
         tone="danger"
         loading={pending}

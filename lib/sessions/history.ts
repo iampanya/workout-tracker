@@ -1,15 +1,7 @@
-import type { PrismaClient, sessions } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+import { type CompletedSession, toCompletedSession } from "./serialize";
 
-export type CompletedSession = {
-  id: string;
-  user_id: string;
-  routine_id: string | null;
-  name: string | null;
-  session_date: string;
-  started_at: string;
-  completed_at: string | null;
-  notes: string | null;
-};
+export type { CompletedSession };
 export type CompletedSessionListItem = CompletedSession & { routineName: string | null };
 
 export type SessionDetail = {
@@ -19,21 +11,6 @@ export type SessionDetail = {
     sets: { weight_kg: number; reps: number; is_warmup: boolean; set_number: number }[];
   }[];
 } | null;
-
-// Serialize a Prisma sessions row back to the string-dated shape the UI consumes (session_date
-// as YYYY-MM-DD, timestamps as ISO). Keeps the external contract stable across the DB-layer swap.
-function toCompletedSession(s: sessions): CompletedSession {
-  return {
-    id: s.id,
-    user_id: s.user_id,
-    routine_id: s.routine_id,
-    name: s.name,
-    session_date: s.session_date.toISOString().slice(0, 10),
-    started_at: s.started_at.toISOString(),
-    completed_at: s.completed_at ? s.completed_at.toISOString() : null,
-    notes: s.notes,
-  };
-}
 
 // The display label for a session: the name snapshotted at start, falling back to the linked
 // routine's current name, then "Freeform Workout".

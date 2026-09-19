@@ -24,5 +24,5 @@ export const proxy = auth((req) => {
 // Exclude Auth.js API routes (/api/auth/*), static assets, and images so the OAuth flow and
 // framework internals are reachable without a session.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

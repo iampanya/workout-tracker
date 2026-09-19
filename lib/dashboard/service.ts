@@ -1,36 +1,13 @@
 import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
-import { getLocalDateString, getWeekStart, getWeekEnd } from "@/lib/date";
+import { getLocalDateString, getWeekStart, getWeekEnd, toDateOnlyString } from "@/lib/date";
+import { type CompletedSession, toCompletedSession } from "@/lib/sessions/serialize";
 import { computeStreakDays } from "./streak";
 
-export type InProgressSession = {
-  id: string;
-  user_id: string;
-  routine_id: string | null;
-  name: string | null;
-  session_date: string;
-  started_at: string;
-  completed_at: string | null;
-  notes: string | null;
-  routineName: string | null;
-};
+export type InProgressSession = CompletedSession & { routineName: string | null };
 export type SessionPr = { exerciseName: string; weightKg: number };
 
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 function serializeSession(s: sessions, routineName: string | null): InProgressSession {
-  return {
-    id: s.id,
-    user_id: s.user_id,
-    routine_id: s.routine_id,
-    name: s.name,
-    session_date: toDateStr(s.session_date),
-    started_at: s.started_at.toISOString(),
-    completed_at: s.completed_at ? s.completed_at.toISOString() : null,
-    notes: s.notes,
-    routineName,
-  };
+  return { ...toCompletedSession(s), routineName };
 }
 
 export async function listInProgressSessions(
@@ -75,7 +52,7 @@ export async function getOverviewStats(
     orderBy: { session_date: "desc" },
     select: { id: true, session_date: true },
   });
-  const recentSessions = recentRows.map((s) => ({ id: s.id, session_date: toDateStr(s.session_date) }));
+  const recentSessions = recentRows.map((s) => ({ id: s.id, session_date: toDateOnlyString(s.session_date) }));
 
   const streakDays = computeStreakDays(
     recentSessions.map((s) => s.session_date),
@@ -144,7 +121,7 @@ export async function getWeeklyVolume(
   });
 
   for (const set of sets) {
-    const dateStr = toDateStr(set.session_exercises.sessions.session_date);
+    const dateStr = toDateOnlyString(set.session_exercises.sessions.session_date);
     const weekStart = getWeekStart(new Date(`${dateStr}T00:00:00`));
     const idx = bucketIndex.get(weekStart);
     if (idx === undefined) continue;

@@ -36,21 +36,6 @@ export const updateSetSchema = z.object({
   isWarmup: z.boolean(),
 });
 
-// Usernames are the login handle: 3–30 chars, letters/digits/underscore, stored and
-// compared lowercased (accept mixed-case input, normalize to lowercase).
-export const usernameSchema = z
-  .string()
-  .trim()
-  .min(3, "Username must be at least 3 characters")
-  .max(30, "Username must be at most 30 characters")
-  .regex(/^[a-zA-Z0-9_]+$/, "Use only letters, numbers, and underscores")
-  .transform((value) => value.toLowerCase());
-
-export const loginSchema = z.object({
-  username: usernameSchema,
-  password: z.string().min(1, "Password is required"),
-});
-
 // --- Backup file (Export/Import) ---------------------------------------------
 // Shape of the JSON produced by the Export button and accepted by Import. Row
 // schemas stay permissive on the exact column set (extra keys are stripped by
@@ -129,11 +114,3 @@ export const backupFileSchema = z.object({
 });
 
 export type BackupFile = z.infer<typeof backupFileSchema>;
-
-export const signupSchema = z.object({
-  username: usernameSchema,
-  email: z.string().trim().email("Enter a valid email"),
-  // Matches Supabase's minimum_password_length (config.toml).
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  inviteCode: z.string().trim().min(1, "Invite code is required"),
-});
