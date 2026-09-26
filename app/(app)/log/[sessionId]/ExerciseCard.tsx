@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CaretDown, ClockCounterClockwise, PencilSimple, Plus, Trash, Trophy } from "@phosphor-icons/react/ssr";
+import {
+  CaretDown,
+  ClockCounterClockwise,
+  PencilSimple,
+  Plus,
+  Trash,
+  Trophy,
+} from "@phosphor-icons/react/ssr";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -16,7 +23,8 @@ import type { ExerciseEntry, SetEntry, SetFormInput, SetValues } from "./types";
 // working set from last time, else blank.
 function initialInput(exercise: ExerciseEntry): SetFormInput {
   const lastSet = exercise.sets[exercise.sets.length - 1];
-  if (lastSet) return { weight: String(lastSet.weight_kg), reps: String(lastSet.reps), warmup: false };
+  if (lastSet)
+    return { weight: String(lastSet.weight_kg), reps: String(lastSet.reps), warmup: false };
   const prefill = prefillFromLast(exercise.lastSession);
   return prefill ? { ...prefill, warmup: false } : { weight: "", reps: "", warmup: false };
 }
@@ -132,7 +140,9 @@ export function ExerciseCard({
       </div>
 
       {blocked && (
-        <p className="mt-1 text-sm text-danger">Add a set or remove this exercise before finishing.</p>
+        <p className="mt-1 text-sm text-danger">
+          Add a set or remove this exercise before finishing.
+        </p>
       )}
       {error && (
         <p role="alert" className="mt-2 rounded-lg bg-danger/15 px-3 py-2 text-sm text-danger">

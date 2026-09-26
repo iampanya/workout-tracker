@@ -20,6 +20,8 @@ import {
 export async function startSession(input: unknown) {
   const userId = await requireUserId();
   const session = await startSessionForUser(prisma, userId, input);
+  // The (app) layout reads the in-progress session for the Resume links, so refresh it too.
+  revalidatePath("/", "layout");
   revalidatePath("/dashboard");
   return session;
 }
@@ -63,6 +65,8 @@ export async function updateSessionNotes(sessionId: string, notes: string) {
 export async function finishSession(sessionId: string) {
   const userId = await requireUserId();
   await finishSessionForUser(prisma, userId, sessionId);
+  // The (app) layout reads the in-progress session for the Resume links, so refresh it too.
+  revalidatePath("/", "layout");
   revalidatePath("/dashboard");
   revalidatePath("/history");
 }
@@ -70,6 +74,8 @@ export async function finishSession(sessionId: string) {
 export async function discardSession(sessionId: string) {
   const userId = await requireUserId();
   await discardSessionForUser(prisma, userId, sessionId);
+  // The (app) layout reads the in-progress session for the Resume links, so refresh it too.
+  revalidatePath("/", "layout");
   revalidatePath("/dashboard");
 }
 

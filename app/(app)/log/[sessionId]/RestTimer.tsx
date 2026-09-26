@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Timer, X } from "@phosphor-icons/react/ssr";
-import { formatClock, remainingSeconds, REST_PRESETS, DEFAULT_REST_SECONDS } from "@/lib/rest-timer";
+import {
+  formatClock,
+  remainingSeconds,
+  REST_PRESETS,
+  DEFAULT_REST_SECONDS,
+} from "@/lib/rest-timer";
 
 const STORAGE_KEY = "rest-timer-seconds";
 const CHANGE_EVENT = "rest-timer-seconds-change";

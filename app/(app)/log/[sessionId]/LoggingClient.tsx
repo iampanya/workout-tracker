@@ -159,7 +159,10 @@ export function LoggingClient({
             : ex
         )
       );
-      setError(vars.sessionExerciseId, "Failed to save that set — check your connection and try again.");
+      setError(
+        vars.sessionExerciseId,
+        "Failed to save that set — check your connection and try again."
+      );
     },
   });
 
@@ -300,7 +303,7 @@ export function LoggingClient({
     setFinishPending(true);
     try {
       await finishSession(sessionId);
-      router.push("/dashboard");
+      router.push(`/history/${sessionId}?finished=1`);
     } catch (err) {
       setFinishError(err instanceof Error ? err.message : "Failed to finish workout");
       setFinishPending(false);

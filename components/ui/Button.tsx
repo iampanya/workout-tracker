@@ -1,4 +1,5 @@
-import { type ButtonHTMLAttributes, type ReactNode } from "react";
+import { type ButtonHTMLAttributes, type ComponentProps, type ReactNode } from "react";
+import Link from "next/link";
 import { CircleNotch } from "@phosphor-icons/react/ssr";
 
 type ButtonVariant = "primary" | "secondary" | "success" | "ghost" | "danger";
@@ -16,6 +17,13 @@ const sizeClasses: Record<ButtonSize, string> = {
   md: "min-h-11 px-4 text-sm",
   lg: "min-h-12 px-5 text-base",
 };
+
+const BASE_CLASSES =
+  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
+
+export function buttonClasses(variant: ButtonVariant = "primary", size: ButtonSize = "md"): string {
+  return `${BASE_CLASSES} ${variantClasses[variant]} ${sizeClasses[size]}`;
+}
 
 export function Button({
   variant = "primary",
@@ -35,11 +43,32 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`${buttonClasses(variant, size)} ${className}`}
       {...rest}
     >
       {loading ? <CircleNotch className="h-4 w-4 animate-spin" /> : icon}
       {children}
     </button>
+  );
+}
+
+// A navigation link styled as a Button (same variants/sizes), for CTAs that go to a page.
+export function ButtonLink({
+  variant = "primary",
+  size = "md",
+  icon,
+  children,
+  className = "",
+  ...rest
+}: ComponentProps<typeof Link> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: ReactNode;
+}) {
+  return (
+    <Link className={`${buttonClasses(variant, size)} ${className}`} {...rest}>
+      {icon}
+      {children}
+    </Link>
   );
 }

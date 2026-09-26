@@ -3,6 +3,8 @@ import { toDateOnlyString } from "@/lib/date";
 
 export type ExerciseHistorySet = {
   id: string;
+  session_id: string;
+  set_number: number;
   session_date: string;
   weight_kg: number;
   reps: number;
@@ -27,13 +29,16 @@ export async function getExerciseHistory(
       weight_kg: true,
       reps: true,
       is_warmup: true,
-      session_exercises: { select: { sessions: { select: { session_date: true } } } },
+      set_number: true,
+      session_exercises: { select: { sessions: { select: { id: true, session_date: true } } } },
     },
   });
 
   return rows
     .map((row) => ({
       id: row.id,
+      session_id: row.session_exercises.sessions.id,
+      set_number: row.set_number,
       weight_kg: Number(row.weight_kg),
       reps: row.reps,
       is_warmup: row.is_warmup,

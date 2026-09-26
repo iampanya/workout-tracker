@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { toDateOnlyString } from "@/lib/date";
 import { type CompletedSession, toCompletedSession } from "./serialize";
 import { sessionDurationMinutes } from "./summary";
 
@@ -124,4 +125,48 @@ export async function getSessionDetail(
   }));
 
   return { session: sessionWithRoutineName, exercises };
+}
+
+export type PreviousSessionComparison = {
+  sessionId: string;
+  sessionDate: string;
+  volumeKg: number;
+};
+
+// The most recent earlier completed session of the same routine, with its working-set volume,
+// so a finished workout can say "+8% vs last Push Day". Null for freeform sessions or the
+// routine's first run.
+export async function getPreviousRoutineSession(
+  db: PrismaClient,
+  userId: string,
+  sessionId: string
+): Promise<PreviousSessionComparison | null> {
+  const session = await db.sessions.findFirst({
+    where: { id: sessionId, user_id: userId },
+    select: { routine_id: true, started_at: true },
+  });
+  if (!session?.routine_id) return null;
+
+  const previous = await db.sessions.findFirst({
+    where: {
+      user_id: userId,
+      routine_id: session.routine_id,
+      id: { not: sessionId },
+      completed_at: { not: null },
+      started_at: { lt: session.started_at },
+    },
+    orderBy: { started_at: "desc" },
+    select: { id: true, session_date: true },
+  });
+  if (!previous) return null;
+
+  const sets = await db.sets.findMany({
+    where: { user_id: userId, is_warmup: false, session_exercises: { session_id: previous.id } },
+    select: { weight_kg: true, reps: true },
+  });
+  return {
+    sessionId: previous.id,
+    sessionDate: toDateOnlyString(previous.session_date),
+    volumeKg: Math.round(sets.reduce((sum, set) => sum + Number(set.weight_kg) * set.reps, 0)),
+  };
 }

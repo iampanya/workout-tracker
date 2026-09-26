@@ -9,7 +9,8 @@ import {
   logSetForUser,
   finishSessionForUser,
 } from "@/lib/sessions/service";
-import { listCompletedSessions, getSessionDetail } from "./history";
+import { listCompletedSessions, getSessionDetail, getPreviousRoutineSession } from "./history";
+import { createRoutineForUser, addExerciseToRoutineForUser } from "@/lib/routines/service";
 
 // A finished session needs at least one logged set; seed one on a preset exercise for
 // tests that only care about which sessions are completed.
@@ -103,5 +104,42 @@ describe("session history", () => {
   it("returns null for a nonexistent session id, so the page can 404 instead of throwing", async () => {
     const detail = await getSessionDetail(prisma, userId, "00000000-0000-0000-0000-000000000000");
     expect(detail).toBeNull();
+  });
+});
+
+describe("getPreviousRoutineSession", () => {
+  async function runRoutine(userId: string, routineId: string, date: string, weightKg: number) {
+    const session = await startSessionForUser(prisma, userId, { routineId, sessionDate: date });
+    const se = await prisma.session_exercises.findFirstOrThrow({ where: { session_id: session.id } });
+    await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg, reps: 10, isWarmup: false });
+    await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg: 10, reps: 10, isWarmup: true });
+    await finishSessionForUser(prisma, userId, session.id);
+    return session;
+  }
+
+  it("returns the routine's previous run with its working-set volume", async () => {
+    const { userId } = await createTestUser();
+    const preset = await prisma.exercises.findFirst({ where: { user_id: null }, select: { id: true } });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Compare" });
+    await addExerciseToRoutineForUser(prisma, userId, { routineId: routine.id, exerciseId: preset!.id });
+
+    const first = await runRoutine(userId, routine.id, "2026-05-01", 50);
+    const second = await runRoutine(userId, routine.id, "2026-05-08", 60);
+
+    expect(await getPreviousRoutineSession(prisma, userId, first.id)).toBeNull();
+    expect(await getPreviousRoutineSession(prisma, userId, second.id)).toEqual({
+      sessionId: first.id,
+      sessionDate: "2026-05-01",
+      volumeKg: 500,
+    });
+  });
+
+  it("returns null for a freeform session and for another user's session", async () => {
+    const { userId } = await createTestUser();
+    const freeform = await seedCompletedSession(userId, "2026-05-02");
+    expect(await getPreviousRoutineSession(prisma, userId, freeform.id)).toBeNull();
+
+    const other = await createTestUser();
+    expect(await getPreviousRoutineSession(prisma, other.userId, freeform.id)).toBeNull();
   });
 });

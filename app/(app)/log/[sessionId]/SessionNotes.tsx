@@ -56,7 +56,9 @@ export function SessionNotes({
         <span className="text-xs text-muted" aria-live="polite">
           {status === "saving" && "Saving…"}
           {status === "saved" && "Saved"}
-          {status === "error" && <span className="text-danger">Couldn&apos;t save — try again</span>}
+          {status === "error" && (
+            <span className="text-danger">Couldn&apos;t save — try again</span>
+          )}
         </span>
       </div>
       <textarea

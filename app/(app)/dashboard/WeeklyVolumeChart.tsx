@@ -11,6 +11,12 @@ const WeeklyVolumeChartInner = dynamic(() => import("./WeeklyVolumeChartInner"),
   loading: () => <div className="h-48 w-full animate-pulse rounded-lg bg-surface-muted" />,
 });
 
-export function WeeklyVolumeChart({ data }: { data: { weekStart: string; volumeKg: number }[] }) {
-  return <WeeklyVolumeChartInner data={data} />;
+export function WeeklyVolumeChart({
+  data,
+  currentWeekStart,
+}: {
+  data: { weekStart: string; volumeKg: number }[];
+  currentWeekStart: string;
+}) {
+  return <WeeklyVolumeChartInner data={data} currentWeekStart={currentWeekStart} />;
 }
