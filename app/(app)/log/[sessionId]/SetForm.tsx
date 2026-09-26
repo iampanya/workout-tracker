@@ -16,8 +16,10 @@ export function WarmupToggle({
       type="button"
       aria-pressed={checked}
       onClick={() => onChange(!checked)}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-        checked ? "bg-accent-secondary/15 text-accent-secondary" : "bg-surface-muted text-muted"
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        checked
+          ? "border-accent-secondary/40 bg-accent-secondary/15 text-accent-secondary"
+          : "border-border bg-surface text-muted"
       }`}
     >
       {checked && <Check className="h-4 w-4" />}

@@ -17,7 +17,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressChart } from "./ProgressChart";
 
-// Sets (chronological) → one entry per session, newest first, sets in logged order.
+// Sets (chronological) → one entry per session, newest first (two sessions on the same day keep
+// their logged order, reversed), sets in logged order.
 function groupBySession(history: ExerciseHistorySet[]) {
   const groups = new Map<string, { sessionId: string; date: string; sets: ExerciseHistorySet[] }>();
   for (const set of history) {
@@ -30,6 +31,7 @@ function groupBySession(history: ExerciseHistorySet[]) {
     groups.set(set.session_id, group);
   }
   return [...groups.values()]
+    .reverse()
     .map((group) => ({ ...group, sets: group.sets.sort((a, b) => a.set_number - b.set_number) }))
     .sort((a, b) => b.date.localeCompare(a.date));
 }

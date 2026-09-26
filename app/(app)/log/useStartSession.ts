@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLocalDateString } from "@/lib/date";
 import { startSession } from "@/lib/actions/sessions";
@@ -13,9 +13,13 @@ export function useStartSession() {
   const router = useRouter();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // State updates land on the next render, so two clicks in the same tick would both see
+  // pendingKey === null; the ref closes that gap.
+  const inFlight = useRef(false);
 
   async function start(routine?: { id: string; name: string }) {
-    if (pendingKey !== null) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     setPendingKey(routine?.id ?? "freeform");
     setError(null);
     try {
@@ -28,6 +32,7 @@ export function useStartSession() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start workout");
       setPendingKey(null);
+      inFlight.current = false;
     }
   }
 

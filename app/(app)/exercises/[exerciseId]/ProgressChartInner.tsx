@@ -54,6 +54,7 @@ export default function ProgressChartInner({
             }
           />
           <Tooltip
+            separator=": "
             contentStyle={{
               backgroundColor: "var(--surface)",
               border: "1px solid var(--border)",

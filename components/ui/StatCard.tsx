@@ -24,7 +24,8 @@ export function StatCard({
   value: ReactNode;
   unit?: string;
   icon?: ReactNode;
-  // Small marker next to the label (e.g. a "NEW" badge).
+  // Small marker after the value (e.g. a "NEW" badge) — kept off the label row so it never
+  // squeezes a long exercise name.
   badge?: ReactNode;
   tone?: StatCardTone;
   // When set, the whole card links there.
@@ -34,17 +35,16 @@ export function StatCard({
   const body = (
     <>
       <div className="flex min-w-0 items-center justify-between gap-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-xs font-medium text-muted">{label}</span>
-          {badge}
-        </span>
+        <span className="truncate text-xs font-medium text-muted">{label}</span>
         {icon && <span className={`shrink-0 ${toneClasses[tone]}`}>{icon}</span>}
       </div>
+      {/* Unit wraps under the number on narrow tiles rather than truncating ("0 sessi…"). */}
       <div
-        className={`truncate font-mono text-xl font-semibold tabular-nums sm:text-2xl ${toneClasses[tone]}`}
+        className={`flex flex-wrap items-baseline gap-x-1 font-mono text-xl font-semibold tabular-nums sm:text-2xl ${toneClasses[tone]}`}
       >
-        {value}
-        {unit && <span className="ml-1 text-sm font-normal text-muted">{unit}</span>}
+        <span className="min-w-0 break-all">{value}</span>
+        {unit && <span className="text-sm font-normal text-muted">{unit}</span>}
+        {badge && <span className="self-center font-sans">{badge}</span>}
       </div>
     </>
   );

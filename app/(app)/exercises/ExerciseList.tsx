@@ -68,7 +68,7 @@ export function ExerciseList({
       <div
         role="radiogroup"
         aria-label="Filter by muscle group"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0"
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {[null, ...MUSCLE_GROUPS].map((option) => {
           const active = group === option;

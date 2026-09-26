@@ -74,6 +74,10 @@ describe("dashboard service", () => {
       name: `Dashboard PR Exercise ${Date.now()}`,
       muscleGroup: "Chest",
     });
+    // An earlier, lighter session gives the PR something to beat.
+    await seedCompletedSessionWithSets(userId, "2026-01-06", exercise.id, [
+      { weightKg: 90, reps: 5, isWarmup: false },
+    ]);
     const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-07" });
     const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
     await logSetForUser(prisma, userId, {

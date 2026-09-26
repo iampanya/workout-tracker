@@ -53,6 +53,7 @@ export default function WeeklyVolumeChartInner({
             width={40}
           />
           <Tooltip
+            separator=": "
             cursor={{ fill: "var(--surface-muted)" }}
             contentStyle={{
               backgroundColor: "var(--surface)",

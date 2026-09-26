@@ -99,9 +99,16 @@ export function LoggingClient({
     });
   }
 
-  function announcePr(sessionExerciseId: string, weightKg: number) {
+  // Toast only when an earlier record was actually beaten — the first set ever logged for an
+  // exercise is technically a "PR" but celebrating it is just noise.
+  function announcePr(sessionExerciseId: string, weightKg: number, hadPriorPr: boolean) {
+    if (!hadPriorPr) return;
     const exercise = exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId);
     setToast(`New PR on ${exercise?.exerciseName ?? "this exercise"}: ${weightKg} kg!`);
+  }
+
+  function hasPriorPr(sessionExerciseId: string): boolean {
+    return exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId)?.prWeightKg != null;
   }
 
   const logSetMutation = useMutation({
@@ -109,6 +116,7 @@ export function LoggingClient({
     // The optimistic row's temporary id travels to onSuccess/onError via the mutation context.
     onMutate: (vars) => {
       const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const hadPriorPr = hasPriorPr(vars.sessionExerciseId);
       setError(vars.sessionExerciseId, null);
       setExercises((prev) =>
         prev.map((ex) =>
@@ -130,7 +138,7 @@ export function LoggingClient({
             : ex
         )
       );
-      return { tempId };
+      return { tempId, hadPriorPr };
     },
     onSuccess: (result, vars, context) => {
       setExercises((prev) =>
@@ -146,7 +154,7 @@ export function LoggingClient({
             : ex
         )
       );
-      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg);
+      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg, context.hadPriorPr);
       setRestStartedAt(Date.now());
       setFlashSetId(result.set.id);
       setTimeout(() => setFlashSetId((id) => (id === result.set.id ? null : id)), 900);
@@ -169,7 +177,8 @@ export function LoggingClient({
   const updateSetMutation = useMutation({
     mutationFn: (vars: SetValues & { setId: string; sessionExerciseId: string }) =>
       updateSet(vars.setId, { weightKg: vars.weightKg, reps: vars.reps, isWarmup: vars.isWarmup }),
-    onSuccess: (result, vars) => {
+    onMutate: (vars) => ({ hadPriorPr: hasPriorPr(vars.sessionExerciseId) }),
+    onSuccess: (result, vars, context) => {
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
@@ -181,7 +190,7 @@ export function LoggingClient({
             : ex
         )
       );
-      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg);
+      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg, context.hadPriorPr);
     },
   });
 
@@ -303,6 +312,9 @@ export function LoggingClient({
     setFinishPending(true);
     try {
       await finishSession(sessionId);
+      // The summary card sits at the top; a long workout leaves us scrolled far down, and the
+      // router keeps the position when the new page's top is partly on screen.
+      window.scrollTo({ top: 0 });
       router.push(`/history/${sessionId}?finished=1`);
     } catch (err) {
       setFinishError(err instanceof Error ? err.message : "Failed to finish workout");

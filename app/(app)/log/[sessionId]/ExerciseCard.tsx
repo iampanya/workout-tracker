@@ -200,7 +200,11 @@ export function ExerciseCard({
         </div>
       )}
 
-      <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
+      <div
+        className={`mt-3 flex flex-col gap-3 ${
+          exercise.sets.length > 0 ? "border-t border-border pt-3" : ""
+        }`}
+      >
         <WeightRepsFields value={input} onChange={setInput} />
         <div className="flex items-center justify-between gap-2">
           <WarmupToggle

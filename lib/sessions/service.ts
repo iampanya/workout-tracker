@@ -300,8 +300,9 @@ export async function updateSessionNotesForUser(
 
 export type SessionPr = { exerciseId: string; exerciseName: string; weightKg: number };
 
-// Exercises where this session's heaviest working set beat every working set the user logged in
-// earlier sessions (or where there was no earlier set at all) — i.e. PRs *set* in this session.
+// Exercises where this session's heaviest working set beat the best working set the user logged
+// in earlier sessions — i.e. PRs *set* in this session. An exercise done for the first time has
+// no record to beat, so it isn't listed (otherwise a new user's every exercise is a "PR").
 export async function getSessionPrs(
   db: PrismaClient,
   userId: string,
@@ -352,6 +353,9 @@ export async function getSessionPrs(
       exerciseName: nameById.get(row.exercise_id)!,
       weightKg: Number(row._max.weight_kg),
     }))
-    .filter((pr) => isNewPr(pr.weightKg, priorByExercise.get(pr.exerciseId) ?? null))
+    .filter((pr) => {
+      const prior = priorByExercise.get(pr.exerciseId);
+      return prior !== undefined && pr.weightKg > prior;
+    })
     .sort((a, b) => b.weightKg - a.weightKg);
 }

@@ -30,15 +30,17 @@ export function SetEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-3">
+    <div className="-mx-2 flex flex-col gap-3 rounded-xl bg-surface-muted p-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         Edit set {set.set_number}
       </p>
       <WeightRepsFields value={input} onChange={setInput} />
-      <WarmupToggle
-        checked={input.warmup}
-        onChange={(warmup) => setInput((prev) => ({ ...prev, warmup }))}
-      />
+      <div>
+        <WarmupToggle
+          checked={input.warmup}
+          onChange={(warmup) => setInput((prev) => ({ ...prev, warmup }))}
+        />
+      </div>
       <div className="flex items-center justify-between gap-2">
         <Button
           variant="danger"

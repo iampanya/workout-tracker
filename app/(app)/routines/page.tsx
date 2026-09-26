@@ -41,7 +41,7 @@ export default async function RoutinesPage() {
                 <CaretRight className="h-4 w-4 shrink-0 text-muted" />
               </Link>
               {routine.exerciseCount > 0 && (
-                <StartRoutineButton routine={{ id: routine.id, name: routine.name }} />
+                <StartRoutineButton routine={{ id: routine.id, name: routine.name }} compact />
               )}
               <DeleteRoutineButton routineId={routine.id} routineName={routine.name} />
             </Card>

@@ -597,20 +597,18 @@ describe("getSessionPrs", () => {
     const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-04-08" });
     const se = await addExerciseToSessionForUser(prisma, userId, session.id, improved.id);
     await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg: 105, reps: 3, isWarmup: false });
-    const tied = await createCustomExerciseForUser(prisma, userId, {
-      name: uniqueExerciseName("Tied"),
+    // A first-ever exercise has no record to beat, and a heavier warmup never counts.
+    const firstTime = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("First Time"),
       muscleGroup: "Legs",
     });
-    // A first-ever working set counts as a PR; a heavier warmup does not.
-    const se2 = await addExerciseToSessionForUser(prisma, userId, session.id, tied.id);
+    const se2 = await addExerciseToSessionForUser(prisma, userId, session.id, firstTime.id);
     await logSetForUser(prisma, userId, { sessionExerciseId: se2.id, weightKg: 40, reps: 8, isWarmup: false });
-    await logSetForUser(prisma, userId, { sessionExerciseId: se2.id, weightKg: 200, reps: 1, isWarmup: true });
+    const se3 = await addExerciseToSessionForUser(prisma, userId, session.id, improved.id);
+    await logSetForUser(prisma, userId, { sessionExerciseId: se3.id, weightKg: 200, reps: 1, isWarmup: true });
 
     const prs = await getSessionPrs(prisma, userId, session.id);
-    expect(prs).toEqual([
-      { exerciseId: improved.id, exerciseName: improved.name, weightKg: 105 },
-      { exerciseId: tied.id, exerciseName: tied.name, weightKg: 40 },
-    ]);
+    expect(prs).toEqual([{ exerciseId: improved.id, exerciseName: improved.name, weightKg: 105 }]);
   });
 
   it("returns nothing when no working set beat the previous best", async () => {
