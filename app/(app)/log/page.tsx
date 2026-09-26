@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
 import { getInProgressSessions } from "@/lib/dashboard/current";
 import { sessionDisplayName } from "@/lib/sessions/history";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StartSessionButtons } from "./StartSessionButtons";
 
@@ -27,13 +27,10 @@ export default async function LogPage() {
               {sessionDisplayName(current)} · {current.session_date}
             </p>
           </div>
-          <Link
-            href={`/log/${current.id}`}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
+          <ButtonLink href={`/log/${current.id}`}>
             Resume
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </ButtonLink>
         </Card>
       )}
       <StartSessionButtons

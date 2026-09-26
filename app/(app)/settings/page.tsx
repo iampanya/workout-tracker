@@ -14,7 +14,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
-      <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+      <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
 
       <Card className="flex flex-col gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-muted">

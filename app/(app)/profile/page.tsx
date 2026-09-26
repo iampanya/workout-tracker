@@ -34,7 +34,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
-      <h1 className="text-xl font-semibold text-foreground">Profile</h1>
+      <h1 className="text-2xl font-semibold text-foreground">Profile</h1>
 
       <Card className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">

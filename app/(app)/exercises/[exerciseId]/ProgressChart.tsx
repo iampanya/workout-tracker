@@ -9,7 +9,7 @@ import type { SessionSeriesPoint } from "@/lib/progress";
 // Lazy Loading → Skipping SSR). Placeholder reserves the chart height (h-64) to avoid shift.
 const ProgressChartInner = dynamic(() => import("./ProgressChartInner"), {
   ssr: false,
-  loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-surface-muted" />,
+  loading: () => <div className="h-64 w-full rounded-lg motion-safe:animate-pulse bg-surface-muted" />,
 });
 
 export type ProgressMetric = "maxWeight" | "e1rm" | "volume";

@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 // placeholder reserves the chart's height (h-48) to avoid layout shift.
 const WeeklyVolumeChartInner = dynamic(() => import("./WeeklyVolumeChartInner"), {
   ssr: false,
-  loading: () => <div className="h-48 w-full animate-pulse rounded-lg bg-surface-muted" />,
+  loading: () => <div className="h-48 w-full rounded-lg motion-safe:animate-pulse bg-surface-muted" />,
 });
 
 export function WeeklyVolumeChart({

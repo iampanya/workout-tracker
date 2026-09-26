@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CaretLeft, Barbell, Plus } from "@phosphor-icons/react/ssr";
+import { CaretLeft, Barbell, Play, Plus } from "@phosphor-icons/react/ssr";
+import { ButtonLink } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { AccountMenu } from "./AccountMenu";
 import { NAV_ITEMS } from "./nav-items";
@@ -69,13 +70,20 @@ export function TopBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={fabHref}
-            className="hidden min-h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:inline-flex"
-          >
-            <Plus className="h-4 w-4" weight="bold" />
-            Log workout
-          </Link>
+          <div className="hidden lg:block">
+            <ButtonLink
+              href={fabHref}
+              icon={
+                resumeSessionId ? (
+                  <Play className="h-4 w-4" weight="fill" />
+                ) : (
+                  <Plus className="h-4 w-4" weight="bold" />
+                )
+              }
+            >
+              {resumeSessionId ? "Resume workout" : "Log workout"}
+            </ButtonLink>
+          </div>
           <AccountMenu username={username} email={email} />
         </div>
       </div>
