@@ -11,6 +11,8 @@ import {
   addExerciseToRoutineForUser,
   removeRoutineExerciseForUser,
   moveRoutineExerciseForUser,
+  updateRoutineExerciseTargetSetsForUser,
+  getRoutineTargetSets,
 } from "./service";
 
 describe("routines service", () => {
@@ -147,5 +149,59 @@ describe("routines service", () => {
 
     const { exercises } = await getRoutineWithExercises(prisma, userId, routine.id);
     expect(exercises).toHaveLength(0);
+  });
+});
+
+describe("routine list preview and target sets", () => {
+  it("lists each routine with its exercise count and first names in order", async () => {
+    const { userId } = await createTestUser();
+    const presets = await prisma.exercises.findMany({
+      where: { is_preset: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 4,
+    });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Preview" });
+    for (const p of presets) {
+      await addExerciseToRoutineForUser(prisma, userId, { routineId: routine.id, exerciseId: p.id });
+    }
+    const [item] = await listRoutines(prisma, userId);
+    expect(item.exerciseCount).toBe(4);
+    expect(item.exerciseNames).toEqual(presets.slice(0, 3).map((p) => p.name));
+  });
+
+  it("sets and clears target sets, and exposes them by exercise id", async () => {
+    const { userId } = await createTestUser();
+    const preset = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true } });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Targets" });
+    const entry = await addExerciseToRoutineForUser(prisma, userId, {
+      routineId: routine.id,
+      exerciseId: preset.id,
+    });
+
+    await updateRoutineExerciseTargetSetsForUser(prisma, userId, entry.id, { targetSets: 4 });
+    expect(await getRoutineTargetSets(prisma, userId, routine.id)).toEqual({ [preset.id]: 4 });
+
+    await updateRoutineExerciseTargetSetsForUser(prisma, userId, entry.id, { targetSets: null });
+    expect(await getRoutineTargetSets(prisma, userId, routine.id)).toEqual({});
+  });
+
+  it("rejects changing another user's target sets and never lists their routines", async () => {
+    const owner = await createTestUser();
+    const attacker = await createTestUser();
+    const preset = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true } });
+    const routine = await createRoutineForUser(prisma, owner.userId, { name: "Private" });
+    const entry = await addExerciseToRoutineForUser(prisma, owner.userId, {
+      routineId: routine.id,
+      exerciseId: preset.id,
+    });
+
+    await expect(
+      updateRoutineExerciseTargetSetsForUser(prisma, attacker.userId, entry.id, { targetSets: 9 })
+    ).rejects.toThrow();
+    const row = await prisma.routine_exercises.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(row.target_sets).toBeNull();
+    expect(await getRoutineTargetSets(prisma, attacker.userId, routine.id)).toEqual({});
+    expect(await listRoutines(prisma, attacker.userId)).toEqual([]);
   });
 });

@@ -36,7 +36,14 @@ export default async function LogPage() {
           </Link>
         </Card>
       )}
-      <StartSessionButtons routines={routines.map((r) => ({ id: r.id, name: r.name }))} />
+      <StartSessionButtons
+        routines={routines.map((r) => ({
+          id: r.id,
+          name: r.name,
+          exerciseCount: r.exerciseCount,
+          exerciseNames: r.exerciseNames,
+        }))}
+      />
     </div>
   );
 }

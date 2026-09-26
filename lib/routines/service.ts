@@ -1,5 +1,9 @@
 import type { PrismaClient, routines, routine_exercises } from "@prisma/client";
-import { createRoutineSchema, addRoutineExerciseSchema } from "@/lib/validation";
+import {
+  createRoutineSchema,
+  addRoutineExerciseSchema,
+  updateRoutineTargetSetsSchema,
+} from "@/lib/validation";
 
 export type Routine = routines;
 export type RoutineExercise = routine_exercises;
@@ -7,11 +11,28 @@ export type RoutineExerciseWithExercise = RoutineExercise & {
   exercise: { id: string; name: string; muscle_group: string | null };
 };
 
-export async function listRoutines(db: PrismaClient, userId: string): Promise<Routine[]> {
-  return db.routines.findMany({
+// A routine plus a preview of its contents for list rows ("5 exercises · Bench, Squat, Row").
+export type RoutineListItem = Routine & { exerciseCount: number; exerciseNames: string[] };
+
+const PREVIEW_NAMES = 3;
+
+export async function listRoutines(db: PrismaClient, userId: string): Promise<RoutineListItem[]> {
+  const rows = await db.routines.findMany({
     where: { user_id: userId },
     orderBy: { created_at: "desc" },
+    include: {
+      routine_exercises: {
+        where: { user_id: userId },
+        orderBy: { position: "asc" },
+        select: { exercises: { select: { name: true } } },
+      },
+    },
   });
+  return rows.map(({ routine_exercises, ...routine }) => ({
+    ...routine,
+    exerciseCount: routine_exercises.length,
+    exerciseNames: routine_exercises.slice(0, PREVIEW_NAMES).map((re) => re.exercises.name),
+  }));
 }
 
 export async function createRoutineForUser(
@@ -126,4 +147,33 @@ export async function moveRoutineExerciseForUser(
   await db.routine_exercises.update({ where: { id: current.id }, data: { position: -1 } });
   await db.routine_exercises.update({ where: { id: neighbor.id }, data: { position: current.position } });
   await db.routine_exercises.update({ where: { id: current.id }, data: { position: targetPosition } });
+}
+
+// Planned working sets for one exercise in a routine (null clears it). Shown as "2/4 sets"
+// while logging a session started from the routine.
+export async function updateRoutineExerciseTargetSetsForUser(
+  db: PrismaClient,
+  userId: string,
+  routineExerciseId: string,
+  input: unknown
+): Promise<void> {
+  const parsed = updateRoutineTargetSetsSchema.parse(input);
+  const result = await db.routine_exercises.updateMany({
+    where: { id: routineExerciseId, user_id: userId },
+    data: { target_sets: parsed.targetSets },
+  });
+  if (result.count === 0) throw new Error("Routine exercise not found or not owned by user");
+}
+
+// routine_exercises.target_sets keyed by exercise_id, for a session started from `routineId`.
+export async function getRoutineTargetSets(
+  db: PrismaClient,
+  userId: string,
+  routineId: string
+): Promise<Record<string, number>> {
+  const rows = await db.routine_exercises.findMany({
+    where: { routine_id: routineId, user_id: userId, target_sets: { not: null } },
+    select: { exercise_id: true, target_sets: true },
+  });
+  return Object.fromEntries(rows.map((row) => [row.exercise_id, row.target_sets!]));
 }

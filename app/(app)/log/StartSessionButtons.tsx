@@ -1,37 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Play, Shuffle } from "@phosphor-icons/react/ssr";
-import { getLocalDateString } from "@/lib/date";
-import { startSession } from "@/lib/actions/sessions";
+import { routinePreview } from "@/lib/routines/preview";
 import { Button } from "@/components/ui/Button";
+import { useStartSession } from "./useStartSession";
 
-const FREEFORM_KEY = "freeform";
-
-export function StartSessionButtons({ routines }: { routines: { id: string; name: string }[] }) {
-  const router = useRouter();
-  // One start at a time: every button is disabled while a session is being created, so a
-  // double tap can't create two sessions. Left set on success — we're navigating away.
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleStart(routine?: { id: string; name: string }) {
-    if (pendingKey !== null) return;
-    setPendingKey(routine?.id ?? FREEFORM_KEY);
-    setError(null);
-    try {
-      const session = await startSession({
-        routineId: routine?.id,
-        name: routine?.name,
-        sessionDate: getLocalDateString(),
-      });
-      router.push(`/log/${session.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start workout");
-      setPendingKey(null);
-    }
-  }
+export function StartSessionButtons({
+  routines,
+}: {
+  routines: { id: string; name: string; exerciseCount: number; exerciseNames: string[] }[];
+}) {
+  const { start, pendingKey, error } = useStartSession();
 
   return (
     <div className="space-y-2">
@@ -39,21 +18,26 @@ export function StartSessionButtons({ routines }: { routines: { id: string; name
         <Button
           key={routine.id}
           variant="secondary"
-          icon={<Play className="h-4 w-4" />}
+          icon={<Play className="h-4 w-4 shrink-0" weight="fill" />}
           loading={pendingKey === routine.id}
           disabled={pendingKey !== null}
-          onClick={() => handleStart(routine)}
-          className="w-full"
+          onClick={() => start(routine)}
+          className="w-full justify-start py-2 text-left"
         >
-          {routine.name}
+          <span className="min-w-0">
+            <span className="block truncate">{routine.name}</span>
+            <span className="block truncate text-xs font-normal text-muted">
+              {routinePreview(routine)}
+            </span>
+          </span>
         </Button>
       ))}
       <Button
         variant="secondary"
         icon={<Shuffle className="h-4 w-4" />}
-        loading={pendingKey === FREEFORM_KEY}
+        loading={pendingKey === "freeform"}
         disabled={pendingKey !== null}
-        onClick={() => handleStart(undefined)}
+        onClick={() => start()}
         className="w-full border-dashed"
       >
         Freeform Workout

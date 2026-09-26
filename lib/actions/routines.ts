@@ -9,6 +9,7 @@ import {
   addExerciseToRoutineForUser,
   removeRoutineExerciseForUser,
   moveRoutineExerciseForUser,
+  updateRoutineExerciseTargetSetsForUser,
 } from "@/lib/routines/service";
 
 export async function createRoutine(input: unknown) {
@@ -45,5 +46,15 @@ export async function moveRoutineExercise(
 ) {
   const userId = await requireUserId();
   await moveRoutineExerciseForUser(prisma, userId, routineExerciseId, direction);
+  revalidatePath(`/routines/${routineId}`);
+}
+
+export async function updateRoutineExerciseTargetSets(
+  routineExerciseId: string,
+  routineId: string,
+  targetSets: number | null
+) {
+  const userId = await requireUserId();
+  await updateRoutineExerciseTargetSetsForUser(prisma, userId, routineExerciseId, { targetSets });
   revalidatePath(`/routines/${routineId}`);
 }

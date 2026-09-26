@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 type FormValues = z.infer<typeof createRoutineSchema>;
 
 export function CreateRoutineForm() {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -22,8 +24,10 @@ export function CreateRoutineForm() {
 
   async function onSubmit(values: FormValues) {
     try {
-      await createRoutine(values);
+      const routine = await createRoutine(values);
       reset();
+      // Straight into the editor: a new routine is empty until exercises are added.
+      router.push(`/routines/${routine.id}`);
     } catch (err) {
       setError("root", {
         message: err instanceof Error ? err.message : "Failed to create routine",

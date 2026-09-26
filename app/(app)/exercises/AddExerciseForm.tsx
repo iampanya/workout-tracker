@@ -3,11 +3,12 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import { Plus } from "@phosphor-icons/react/ssr";
+import { Plus, X } from "@phosphor-icons/react/ssr";
 import { createExerciseSchema } from "@/lib/validation";
 import { createCustomExercise } from "@/lib/actions/exercises";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 
@@ -15,7 +16,7 @@ type FormValues = z.infer<typeof createExerciseSchema>;
 
 const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"] as const;
 
-export function AddExerciseForm() {
+export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
   const {
     register,
     handleSubmit,
@@ -31,6 +32,7 @@ export function AddExerciseForm() {
     try {
       await createCustomExercise(values);
       reset({ name: "", muscleGroup: "Chest" });
+      onDone?.();
     } catch (err) {
       setError("root", {
         message: err instanceof Error ? err.message : "Failed to add exercise",
@@ -40,11 +42,23 @@ export function AddExerciseForm() {
 
   return (
     <Card>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-medium">New exercise</h2>
+        {onDone && (
+          <IconButton
+            icon={<X className="h-4 w-4" />}
+            aria-label="Close new exercise form"
+            onClick={onDone}
+            className="-mr-2"
+          />
+        )}
+      </div>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Input
           label="Exercise name"
           {...register("name")}
           placeholder="e.g. Bicep Curl"
+          autoFocus
           error={errors.name?.message}
           wrapperClassName="sm:flex-1"
         />

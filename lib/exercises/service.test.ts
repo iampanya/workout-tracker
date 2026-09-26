@@ -2,7 +2,13 @@ import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
 import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
-import { listExercises, createCustomExerciseForUser, archiveExerciseForUser } from "./service";
+import { listExercises, createCustomExerciseForUser, archiveExerciseForUser, listExerciseStats } from "./service";
+import {
+  startSessionForUser,
+  addExerciseToSessionForUser,
+  logSetForUser,
+  finishSessionForUser,
+} from "@/lib/sessions/service";
 
 describe("exercises service", () => {
   let userId: string;
@@ -69,5 +75,26 @@ describe("exercises service", () => {
     // ...and it stays unarchived for B.
     const stillTheirs = await listExercises(prisma, otherUserId);
     expect(stillTheirs.find((e) => e.id === theirs.id)).toBeDefined();
+  });
+});
+
+describe("listExerciseStats", () => {
+  it("returns each logged exercise's PR and last completed date, scoped to the user", async () => {
+    const { userId } = await createTestUser();
+    const other = await createTestUser();
+    const preset = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true } });
+
+    for (const [date, weightKg] of [["2026-06-01", 60], ["2026-06-08", 70]] as const) {
+      const session = await startSessionForUser(prisma, userId, { sessionDate: date });
+      const se = await addExerciseToSessionForUser(prisma, userId, session.id, preset.id);
+      await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg, reps: 5, isWarmup: false });
+      await finishSessionForUser(prisma, userId, session.id);
+    }
+
+    expect((await listExerciseStats(prisma, userId))[preset.id]).toEqual({
+      prKg: 70,
+      lastDate: "2026-06-08",
+    });
+    expect(await listExerciseStats(prisma, other.userId)).toEqual({});
   });
 });
