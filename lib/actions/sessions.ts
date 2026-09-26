@@ -13,6 +13,8 @@ import {
   finishSessionForUser,
   discardSessionForUser,
   getPriorMaxWeight,
+  getLastSessionSets,
+  updateSessionNotesForUser,
 } from "@/lib/sessions/service";
 
 export async function startSession(input: unknown) {
@@ -25,8 +27,11 @@ export async function startSession(input: unknown) {
 export async function addExerciseToSession(sessionId: string, exerciseId: string) {
   const userId = await requireUserId();
   const sessionExercise = await addExerciseToSessionForUser(prisma, userId, sessionId, exerciseId);
-  const prWeightKg = await getPriorMaxWeight(prisma, userId, exerciseId);
-  return { ...sessionExercise, prWeightKg };
+  const [prWeightKg, lastSessions] = await Promise.all([
+    getPriorMaxWeight(prisma, userId, exerciseId),
+    getLastSessionSets(prisma, userId, [exerciseId], sessionId),
+  ]);
+  return { ...sessionExercise, prWeightKg, lastSession: lastSessions[exerciseId] ?? null };
 }
 
 export async function removeExerciseFromSession(sessionExerciseId: string) {
@@ -47,6 +52,12 @@ export async function updateSet(setId: string, input: unknown) {
 export async function deleteSet(setId: string) {
   const userId = await requireUserId();
   await deleteSetForUser(prisma, userId, setId);
+}
+
+export async function updateSessionNotes(sessionId: string, notes: string) {
+  const userId = await requireUserId();
+  await updateSessionNotesForUser(prisma, userId, sessionId, { notes });
+  revalidatePath(`/history/${sessionId}`);
 }
 
 export async function finishSession(sessionId: string) {

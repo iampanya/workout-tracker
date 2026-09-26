@@ -5,6 +5,9 @@ import {
   formatSessionDate,
   sessionDurationMinutes,
   formatDuration,
+  formatShortDate,
+  formatRelativeDate,
+  formatMonthHeading,
   type ExerciseSummary,
 } from "./summary";
 
@@ -85,5 +88,37 @@ describe("formatDuration", () => {
     expect(formatDuration(58)).toBe("58 min");
     expect(formatDuration(75)).toBe("1h 15m");
     expect(formatDuration(120)).toBe("2h 00m");
+  });
+});
+
+describe("formatShortDate", () => {
+  it("formats a date-only string with its weekday", () => {
+    expect(formatShortDate("2026-09-23")).toBe("Wed, Sep 23");
+  });
+
+  it("returns unparseable input unchanged", () => {
+    expect(formatShortDate("nope")).toBe("nope");
+  });
+});
+
+describe("formatRelativeDate", () => {
+  it("says Today / Yesterday for the two most recent days", () => {
+    expect(formatRelativeDate("2026-09-26", "2026-09-26")).toBe("Today");
+    expect(formatRelativeDate("2026-09-25", "2026-09-26")).toBe("Yesterday");
+  });
+
+  it("handles a month boundary for Yesterday", () => {
+    expect(formatRelativeDate("2026-08-31", "2026-09-01")).toBe("Yesterday");
+  });
+
+  it("uses the short form within the year and the full form across years", () => {
+    expect(formatRelativeDate("2026-09-20", "2026-09-26")).toBe("Sun, Sep 20");
+    expect(formatRelativeDate("2025-12-30", "2026-01-02")).toBe("Dec 30, 2025");
+  });
+});
+
+describe("formatMonthHeading", () => {
+  it("names the month and year", () => {
+    expect(formatMonthHeading("2026-09-23")).toBe("September 2026");
   });
 });

@@ -140,3 +140,15 @@ body {
     animation: landing-fade-up 0.5s ease-out both;
   }
 }
+
+/* Toast entrance (components/ui/Toast.tsx); applied only under motion-safe. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

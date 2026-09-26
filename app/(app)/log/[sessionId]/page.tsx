@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
-import { getPriorMaxWeights } from "@/lib/sessions/service";
+import { getPriorMaxWeights, getLastSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
 import { QueryProvider } from "./QueryProvider";
 import { LoggingClient } from "./LoggingClient";
@@ -39,7 +39,10 @@ export default async function LogSessionPage({
   });
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
-  const prMap = await getPriorMaxWeights(prisma, userId, exerciseIds);
+  const [prMap, lastSessions] = await Promise.all([
+    getPriorMaxWeights(prisma, userId, exerciseIds),
+    getLastSessionSets(prisma, userId, exerciseIds, sessionId),
+  ]);
 
   const exercises = sessionExercises.map((se) => ({
     sessionExerciseId: se.id,
@@ -49,6 +52,8 @@ export default async function LogSessionPage({
       .sort((a, b) => a.set_number - b.set_number)
       .map((s) => ({ ...s, weight_kg: Number(s.weight_kg) })),
     prWeightKg: prMap[se.exercise_id] ?? null,
+    lastSession: lastSessions[se.exercise_id] ?? null,
+    targetSets: null,
   }));
 
   return (
@@ -56,7 +61,9 @@ export default async function LogSessionPage({
       <LoggingClient
         sessionId={sessionId}
         sessionName={displayName}
-        initialExercises={exercises as never}
+        startedAt={session.started_at.toISOString()}
+        initialNotes={session.notes}
+        initialExercises={exercises}
         availableExercises={availableExercises.map((exercise) => ({
           id: exercise.id,
           name: exercise.name,

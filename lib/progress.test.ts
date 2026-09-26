@@ -9,8 +9,8 @@ describe("aggregateSessionSeries", () => {
       { session_date: "2026-01-12", weight_kg: 105, reps: 5 },
     ]);
     expect(result).toEqual([
-      { date: "2026-01-05", maxWeight: 100, volume: 100 * 5 + 90 * 8 },
-      { date: "2026-01-12", maxWeight: 105, volume: 105 * 5 },
+      { date: "2026-01-05", maxWeight: 100, volume: 100 * 5 + 90 * 8, e1rm: 116.5 },
+      { date: "2026-01-12", maxWeight: 105, volume: 105 * 5, e1rm: 122.5 },
     ]);
   });
 
@@ -24,5 +24,14 @@ describe("aggregateSessionSeries", () => {
 
   it("returns an empty array for no sets", () => {
     expect(aggregateSessionSeries([])).toEqual([]);
+  });
+
+  it("tracks the best estimated 1RM per day, so a heavier set for reps can beat a heavier single", () => {
+    const [point] = aggregateSessionSeries([
+      { session_date: "2026-03-01", weight_kg: 100, reps: 1 },
+      { session_date: "2026-03-01", weight_kg: 90, reps: 8 },
+    ]);
+    expect(point.maxWeight).toBe(100);
+    expect(point.e1rm).toBe(114);
   });
 });

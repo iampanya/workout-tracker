@@ -93,3 +93,52 @@ export function formatDuration(minutes: number): string {
   const mins = minutes % 60;
   return `${hours}h ${String(mins).padStart(2, "0")}m`;
 }
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function parseDateParts(dateStr: string): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+}
+
+// Whole days from `from` to `to` (both YYYY-MM-DD), computed in UTC so no timezone can shift it.
+function dayDiff(from: string, to: string): number | null {
+  const a = parseDateParts(from);
+  const b = parseDateParts(to);
+  if (!a || !b) return null;
+  const ms = Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day);
+  return Math.round(ms / 86_400_000);
+}
+
+// "2026-09-23" -> "Wed, Sep 23". The weekday comes from a UTC date built from the calendar
+// parts, so it never shifts across timezones.
+export function formatShortDate(dateStr: string): string {
+  const parts = parseDateParts(dateStr);
+  if (!parts) return dateStr;
+  const weekday = WEEKDAYS[new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay()];
+  return `${weekday}, ${MONTHS[parts.month - 1]} ${parts.day}`;
+}
+
+// "Today" / "Yesterday" / "Wed, Sep 23" (same year) / "Sep 23, 2025" (other years).
+// `today` is the viewer's local calendar date (getLocalDateString), passed in to keep this pure.
+export function formatRelativeDate(dateStr: string, today: string): string {
+  const diff = dayDiff(dateStr, today);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  const parts = parseDateParts(dateStr);
+  const todayParts = parseDateParts(today);
+  if (parts && todayParts && parts.year === todayParts.year) return formatShortDate(dateStr);
+  return formatSessionDate(dateStr);
+}
+
+// "2026-09-23" -> "September 2026", used as a month group heading in History.
+export function formatMonthHeading(dateStr: string): string {
+  const parts = parseDateParts(dateStr);
+  if (!parts) return dateStr;
+  return `${MONTH_NAMES[parts.month - 1]} ${parts.year}`;
+}

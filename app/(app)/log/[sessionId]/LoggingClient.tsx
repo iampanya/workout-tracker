@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Trash, PencilSimple, Check, X, CheckCircle, Trophy, CircleNotch } from "@phosphor-icons/react/ssr";
+import { CheckCircle, CircleNotch, Trash, Trophy } from "@phosphor-icons/react/ssr";
 import {
   logSet,
   updateSet,
@@ -13,114 +13,103 @@ import {
   addExerciseToSession,
   removeExerciseFromSession,
 } from "@/lib/actions/sessions";
+import { computeSessionSummary, formatDuration } from "@/lib/sessions/summary";
 import { Button } from "@/components/ui/Button";
-import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { NumberField, applyStep } from "@/components/ui/NumberField";
 import { ExerciseCombobox } from "@/components/ui/ExerciseCombobox";
+import { Toast } from "@/components/ui/Toast";
+import { ExerciseCard } from "./ExerciseCard";
+import { RestTimer } from "./RestTimer";
+import { SessionNotes } from "./SessionNotes";
+import type { ExerciseEntry, SetEntry, SetValues } from "./types";
 
-type SetEntry = {
-  id: string;
-  set_number: number;
-  weight_kg: number;
-  reps: number;
-  is_warmup: boolean;
-  pending?: boolean;
-};
-type ExerciseEntry = {
-  sessionExerciseId: string;
-  exerciseId: string;
-  exerciseName: string;
-  sets: SetEntry[];
-  prWeightKg: number | null;
-};
-type SetFormInput = { weight: string; reps: string; warmup: boolean };
 type AvailableExercise = { id: string; name: string; muscleGroup: string | null };
 
-function buildInputsFromExercises(list: ExerciseEntry[]): Record<string, SetFormInput> {
-  const result: Record<string, SetFormInput> = {};
-  for (const exercise of list) {
-    const lastSet = exercise.sets[exercise.sets.length - 1];
-    result[exercise.sessionExerciseId] = lastSet
-      ? { weight: String(lastSet.weight_kg), reps: String(lastSet.reps), warmup: false }
-      : { weight: "", reps: "", warmup: false };
-  }
-  return result;
+// The exercise to open first: the first one still short of its target (or with no sets),
+// else the last one.
+function initialExpandedId(list: ExerciseEntry[]): string | null {
+  const next = list.find((ex) => {
+    const working = ex.sets.filter((s) => !s.is_warmup).length;
+    return ex.sets.length === 0 || (ex.targetSets !== null && working < ex.targetSets);
+  });
+  return (next ?? list[list.length - 1])?.sessionExerciseId ?? null;
 }
 
-const WEIGHT_STEP = 2.5;
-const REPS_STEP = 1;
-
-function WarmupToggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={checked}
-      onClick={() => onChange(!checked)}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition [touch-action:manipulation] ${
-        checked ? "bg-accent-secondary/15 text-accent-secondary" : "bg-surface-muted text-muted"
-      }`}
-    >
-      {checked && <Check className="h-4 w-4" />}
-      Warmup
-    </button>
-  );
+// Minutes since the session started, ticking every 30s. Null until mounted so the server
+// render and hydration agree (the clock differs between them).
+function useElapsedMinutes(startedAt: string): number | null {
+  const [minutes, setMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    const start = Date.parse(startedAt);
+    const update = () => setMinutes(Math.max(0, Math.floor((Date.now() - start) / 60000)));
+    update();
+    const interval = setInterval(update, 30_000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  return minutes;
 }
 
 export function LoggingClient({
   sessionId,
   sessionName,
+  startedAt,
+  initialNotes,
   initialExercises,
   availableExercises,
 }: {
   sessionId: string;
   sessionName: string;
+  startedAt: string;
+  initialNotes: string | null;
   initialExercises: ExerciseEntry[];
   availableExercises: AvailableExercise[];
 }) {
   const router = useRouter();
   const [exercises, setExercises] = useState(initialExercises);
-  const [prBanner, setPrBanner] = useState<string | null>(null);
-  const [inputs, setInputs] = useState<Record<string, SetFormInput>>(() =>
-    buildInputsFromExercises(initialExercises)
-  );
+  const [expandedId, setExpandedId] = useState(() => initialExpandedId(initialExercises));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<string | null>(null);
+  const [flashSetId, setFlashSetId] = useState<string | null>(null);
+  const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   // Starts empty so nothing gets added by accident; picking an exercise adds it immediately.
   const [pickerExerciseId, setPickerExerciseId] = useState("");
   const [addExercisePending, setAddExercisePending] = useState(false);
   const [addExerciseError, setAddExerciseError] = useState<string | null>(null);
-  const [editingSetId, setEditingSetId] = useState<string | null>(null);
-  const [editInputs, setEditInputs] = useState<Record<string, SetFormInput>>({});
-  const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [flashSetId, setFlashSetId] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [discardPending, setDiscardPending] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
   const [confirmRemoveExerciseId, setConfirmRemoveExerciseId] = useState<string | null>(null);
   const [removeExercisePending, setRemoveExercisePending] = useState(false);
-  const [removeExerciseError, setRemoveExerciseError] = useState<string | null>(null);
   const [finishBlocked, setFinishBlocked] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
   const [finishPending, setFinishPending] = useState(false);
 
+  const elapsedMinutes = useElapsedMinutes(startedAt);
+  const summary = computeSessionSummary(exercises);
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  function setError(sessionExerciseId: string, message: string | null) {
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[sessionExerciseId] = message;
+      else delete next[sessionExerciseId];
+      return next;
+    });
+  }
+
+  function announcePr(sessionExerciseId: string, weightKg: number) {
+    const exercise = exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId);
+    setToast(`New PR on ${exercise?.exerciseName ?? "this exercise"}: ${weightKg} kg!`);
+  }
+
   const logSetMutation = useMutation({
-    mutationFn: (vars: {
-      sessionExerciseId: string;
-      weightKg: number;
-      reps: number;
-      isWarmup: boolean;
-      tempId: string;
-    }) => logSet(vars),
+    mutationFn: (vars: SetValues & { sessionExerciseId: string }) => logSet(vars),
+    // The optimistic row's temporary id travels to onSuccess/onError via the mutation context.
     onMutate: (vars) => {
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      setError(vars.sessionExerciseId, null);
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
@@ -129,8 +118,8 @@ export function LoggingClient({
                 sets: [
                   ...ex.sets,
                   {
-                    id: vars.tempId,
-                    set_number: ex.sets.length + 1,
+                    id: tempId,
+                    set_number: (ex.sets[ex.sets.length - 1]?.set_number ?? 0) + 1,
                     weight_kg: vars.weightKg,
                     reps: vars.reps,
                     is_warmup: vars.isWarmup,
@@ -141,45 +130,42 @@ export function LoggingClient({
             : ex
         )
       );
+      return { tempId };
     },
-    onSuccess: (result, vars) => {
+    onSuccess: (result, vars, context) => {
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
             ? {
                 ...ex,
-                sets: ex.sets.map((s) => (s.id === vars.tempId ? { ...result.set, pending: false } : s)),
+                sets: ex.sets.map((s) =>
+                  s.id === context.tempId ? { ...result.set, pending: false } : s
+                ),
                 prWeightKg: result.isPr ? vars.weightKg : ex.prWeightKg,
               }
             : ex
         )
       );
-      if (result.isPr) {
-        const exercise = exercises.find((ex) => ex.sessionExerciseId === vars.sessionExerciseId);
-        setPrBanner(`New PR on ${exercise?.exerciseName}: ${vars.weightKg}kg!`);
-      }
+      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg);
+      setRestStartedAt(Date.now());
       setFlashSetId(result.set.id);
       setTimeout(() => setFlashSetId((id) => (id === result.set.id ? null : id)), 900);
     },
-    onError: (_err, vars) => {
+    onError: (_err, vars, context) => {
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
-            ? { ...ex, sets: ex.sets.filter((s) => s.id !== vars.tempId) }
+            ? { ...ex, sets: ex.sets.filter((s) => s.id !== context?.tempId) }
             : ex
         )
       );
+      setError(vars.sessionExerciseId, "Failed to save that set — check your connection and try again.");
     },
   });
 
   const updateSetMutation = useMutation({
-    mutationFn: (vars: {
-      setId: string;
-      sessionExerciseId: string;
-      weightKg: number;
-      reps: number;
-      isWarmup: boolean;
-    }) => updateSet(vars.setId, { weightKg: vars.weightKg, reps: vars.reps, isWarmup: vars.isWarmup }),
+    mutationFn: (vars: SetValues & { setId: string; sessionExerciseId: string }) =>
+      updateSet(vars.setId, { weightKg: vars.weightKg, reps: vars.reps, isWarmup: vars.isWarmup }),
     onSuccess: (result, vars) => {
       setExercises((prev) =>
         prev.map((ex) =>
@@ -192,77 +178,27 @@ export function LoggingClient({
             : ex
         )
       );
-      if (result.isPr) {
-        const exercise = exercises.find((ex) => ex.sessionExerciseId === vars.sessionExerciseId);
-        setPrBanner(`New PR on ${exercise?.exerciseName}: ${vars.weightKg}kg!`);
-      }
-      setEditingSetId(null);
-    },
-    onError: (err) => {
-      setEditError(err instanceof Error ? err.message : "Failed to save that set");
-      setEditingSetId(null);
+      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg);
     },
   });
 
-  function stepInput(sessionExerciseId: string, field: "weight" | "reps", delta: number, step: number) {
-    setInputs((prev) => {
-      const current = prev[sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
-      return {
-        ...prev,
-        [sessionExerciseId]: { ...current, [field]: applyStep(current[field], delta, step) },
-      };
-    });
+  function handleAddSet(sessionExerciseId: string, values: SetValues) {
+    logSetMutation.mutate({ sessionExerciseId, ...values });
   }
 
-  function stepEditInput(setId: string, field: "weight" | "reps", delta: number, step: number) {
-    setEditInputs((prev) => {
-      const current = prev[setId] ?? { weight: "", reps: "", warmup: false };
-      return {
-        ...prev,
-        [setId]: { ...current, [field]: applyStep(current[field], delta, step) },
-      };
-    });
-  }
-
-  function handleAddSet(sessionExerciseId: string) {
-    const input = inputs[sessionExerciseId];
-    if (!input?.weight || !input?.reps) return;
-    logSetMutation.mutate({
-      sessionExerciseId,
-      weightKg: Number(input.weight),
-      reps: Number(input.reps),
-      isWarmup: input.warmup ?? false,
-      tempId: `temp-${Date.now()}-${Math.random()}`,
-    });
-    setInputs((prev) => ({
-      ...prev,
-      [sessionExerciseId]: { weight: input.weight, reps: input.reps, warmup: false },
-    }));
-  }
-
-  function startEdit(set: SetEntry) {
-    setConfirmDeleteSetId(null);
-    setEditingSetId(set.id);
-    setEditInputs((prev) => ({
-      ...prev,
-      [set.id]: { weight: String(set.weight_kg), reps: String(set.reps), warmup: set.is_warmup },
-    }));
-  }
-
-  function confirmEdit(sessionExerciseId: string, setId: string) {
-    const input = editInputs[setId];
-    if (!input?.weight || !input?.reps) return;
-    setEditError(null);
-    updateSetMutation.mutate({
-      setId,
-      sessionExerciseId,
-      weightKg: Number(input.weight),
-      reps: Number(input.reps),
-      isWarmup: input.warmup,
-    });
+  async function handleUpdateSet(sessionExerciseId: string, set: SetEntry, values: SetValues) {
+    setError(sessionExerciseId, null);
+    try {
+      await updateSetMutation.mutateAsync({ setId: set.id, sessionExerciseId, ...values });
+      return true;
+    } catch (err) {
+      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to save that set");
+      return false;
+    }
   }
 
   async function handleDeleteSet(sessionExerciseId: string, set: SetEntry) {
+    setError(sessionExerciseId, null);
     setExercises((prev) =>
       prev.map((ex) =>
         ex.sessionExerciseId === sessionExerciseId
@@ -270,8 +206,6 @@ export function LoggingClient({
           : ex
       )
     );
-    setConfirmDeleteSetId(null);
-    setDeleteError(null);
     try {
       await deleteSet(set.id);
     } catch (err) {
@@ -282,7 +216,7 @@ export function LoggingClient({
             : ex
         )
       );
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete set");
+      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to delete set");
     }
   }
 
@@ -292,19 +226,21 @@ export function LoggingClient({
     setAddExercisePending(true);
     setAddExerciseError(null);
     try {
-      const sessionExercise = await addExerciseToSession(sessionId, exerciseId);
-      const exerciseName =
-        availableExercises.find((e) => e.id === exerciseId)?.name ?? "Exercise";
+      const added = await addExerciseToSession(sessionId, exerciseId);
+      const exerciseName = availableExercises.find((e) => e.id === exerciseId)?.name ?? "Exercise";
       setExercises((prev) => [
         ...prev,
         {
-          sessionExerciseId: sessionExercise.id,
+          sessionExerciseId: added.id,
           exerciseId,
           exerciseName,
           sets: [],
-          prWeightKg: sessionExercise.prWeightKg,
+          prWeightKg: added.prWeightKg,
+          lastSession: added.lastSession,
+          targetSets: null,
         },
       ]);
+      setExpandedId(added.id);
     } catch (err) {
       setAddExerciseError(err instanceof Error ? err.message : "Failed to add exercise");
     } finally {
@@ -314,7 +250,7 @@ export function LoggingClient({
   }
 
   function requestRemoveExercise(exercise: ExerciseEntry) {
-    setRemoveExerciseError(null);
+    setError(exercise.sessionExerciseId, null);
     if (exercise.sets.length > 0) {
       setConfirmRemoveExerciseId(exercise.sessionExerciseId);
     } else {
@@ -327,7 +263,6 @@ export function LoggingClient({
     const removed = exercises[index];
     if (!removed) return;
     setRemoveExercisePending(true);
-    setRemoveExerciseError(null);
     setExercises((prev) => prev.filter((e) => e.sessionExerciseId !== sessionExerciseId));
     try {
       await removeExerciseFromSession(sessionExerciseId);
@@ -339,7 +274,8 @@ export function LoggingClient({
         next.splice(index, 0, removed);
         return next;
       });
-      setRemoveExerciseError(err instanceof Error ? err.message : "Failed to remove exercise");
+      setConfirmRemoveExerciseId(null);
+      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to remove exercise");
     } finally {
       setRemoveExercisePending(false);
     }
@@ -355,9 +291,7 @@ export function LoggingClient({
     if (emptyExercises.length > 0) {
       setFinishBlocked(true);
       setFinishError(
-        `Remove or add a set to ${emptyExercises
-          .map((e) => e.exerciseName)
-          .join(", ")} before finishing.`
+        `Remove or add a set to ${emptyExercises.map((e) => e.exerciseName).join(", ")} before finishing.`
       );
       return;
     }
@@ -389,227 +323,62 @@ export function LoggingClient({
     exercises.find((e) => e.sessionExerciseId === confirmRemoveExerciseId) ?? null;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{sessionName}</h1>
-      {prBanner && (
-        <div className="flex items-center gap-2 rounded-xl bg-success/15 p-3 font-medium text-success">
-          <Trophy className="h-5 w-5 shrink-0" />
-          {prBanner}
+    <div className="space-y-4">
+      <header className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold">{sessionName}</h1>
+          <p className="mt-0.5 text-sm text-muted tabular-nums">
+            {summary.exerciseCount} {summary.exerciseCount === 1 ? "exercise" : "exercises"} ·{" "}
+            {summary.setCount} {summary.setCount === 1 ? "set" : "sets"}
+            {summary.totalVolumeKg > 0 && ` · ${summary.totalVolumeKg.toLocaleString()} kg`}
+            {elapsedMinutes !== null &&
+              ` · ${elapsedMinutes > 0 ? formatDuration(elapsedMinutes) : "just started"}`}
+          </p>
         </div>
-      )}
-      {logSetMutation.isError && (
-        <div className="rounded-xl bg-danger/15 p-3 text-danger">
-          Failed to save that set — check your connection and try again.
-        </div>
-      )}
-      {deleteError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{deleteError}</div>}
-      {editError && <div className="rounded-xl bg-danger/15 p-3 text-danger">{editError}</div>}
-      {removeExerciseError && (
-        <div className="rounded-xl bg-danger/15 p-3 text-danger">{removeExerciseError}</div>
-      )}
-      {exercises.map((exercise) => {
-        const input = inputs[exercise.sessionExerciseId] ?? { weight: "", reps: "", warmup: false };
-        const hasPendingSet = exercise.sets.some((s) => s.pending);
-        const isEmptyAndBlocked = finishBlocked && exercise.sets.length === 0;
-        return (
-          <Card
+        <IconButton
+          icon={<Trash className="h-5 w-5" />}
+          aria-label="Discard workout"
+          variant="danger"
+          className="-mr-2 shrink-0"
+          onClick={() => {
+            setDiscardError(null);
+            setConfirmDiscard(true);
+          }}
+        />
+      </header>
+
+      <div className="space-y-3">
+        {exercises.map((exercise) => (
+          <ExerciseCard
             key={exercise.sessionExerciseId}
-            className={isEmptyAndBlocked ? "ring-2 ring-danger" : ""}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <h2 className="font-medium">{exercise.exerciseName}</h2>
-                {exercise.prWeightKg !== null && (
-                  <Badge tone="success" icon={<Trophy className="h-3 w-3" />}>
-                    PR {exercise.prWeightKg}kg
-                  </Badge>
-                )}
-              </div>
-              <IconButton
-                icon={<Trash className="h-4 w-4" />}
-                aria-label={`Remove ${exercise.exerciseName}`}
-                variant="danger"
-                onClick={() => requestRemoveExercise(exercise)}
-              />
-            </div>
-            {isEmptyAndBlocked && (
-              <p className="mt-1 text-sm text-danger">
-                Add a set or remove this exercise before finishing.
-              </p>
-            )}
-            <ul className="mt-3 space-y-1.5 text-sm">
-              {exercise.sets.map((set) => (
-                <li key={set.id} className={set.pending ? "opacity-50" : ""}>
-                  {editingSetId === set.id ? (
-                    <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <NumberField
-                          label="Weight (kg)"
-                          value={editInputs[set.id]?.weight ?? ""}
-                          onChange={(value) =>
-                            setEditInputs((prev) => ({
-                              ...prev,
-                              [set.id]: { ...prev[set.id], weight: value },
-                            }))
-                          }
-                          onStep={(delta) => stepEditInput(set.id, "weight", delta, WEIGHT_STEP)}
-                          step={WEIGHT_STEP}
-                          inputMode="decimal"
-                        />
-                        <NumberField
-                          label="Reps"
-                          value={editInputs[set.id]?.reps ?? ""}
-                          onChange={(value) =>
-                            setEditInputs((prev) => ({
-                              ...prev,
-                              [set.id]: { ...prev[set.id], reps: value },
-                            }))
-                          }
-                          onStep={(delta) => stepEditInput(set.id, "reps", delta, REPS_STEP)}
-                          step={REPS_STEP}
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <WarmupToggle
-                          checked={editInputs[set.id]?.warmup ?? false}
-                          onChange={(value) =>
-                            setEditInputs((prev) => ({
-                              ...prev,
-                              [set.id]: { ...prev[set.id], warmup: value },
-                            }))
-                          }
-                        />
-                        <div className="flex items-center gap-1">
-                          <IconButton
-                            icon={<Check className="h-4 w-4" />}
-                            aria-label="Save set"
-                            loading={updateSetMutation.isPending}
-                            onClick={() => confirmEdit(exercise.sessionExerciseId, set.id)}
-                          />
-                          <IconButton
-                            icon={<X className="h-4 w-4" />}
-                            aria-label="Cancel edit"
-                            onClick={() => setEditingSetId(null)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className={`flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors duration-700 ${
-                        flashSetId === set.id ? "bg-success/15" : "bg-transparent"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 font-mono">
-                        Set {set.set_number}: {set.weight_kg}kg × {set.reps}
-                        {set.is_warmup && (
-                          <Badge tone="neutral" className="font-sans">
-                            Warmup
-                          </Badge>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {confirmDeleteSetId === set.id ? (
-                          <>
-                            <IconButton
-                              icon={<Check className="h-4 w-4" />}
-                              aria-label="Confirm delete set"
-                              variant="danger"
-                              onClick={() => handleDeleteSet(exercise.sessionExerciseId, set)}
-                            />
-                            <IconButton
-                              icon={<X className="h-4 w-4" />}
-                              aria-label="Cancel delete"
-                              onClick={() => setConfirmDeleteSetId(null)}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <IconButton
-                              icon={<PencilSimple className="h-4 w-4" />}
-                              aria-label="Edit set"
-                              disabled={set.pending}
-                              onClick={() => startEdit(set)}
-                            />
-                            <IconButton
-                              icon={<Trash className="h-4 w-4" />}
-                              aria-label="Delete set"
-                              variant="danger"
-                              disabled={set.pending}
-                              onClick={() => setConfirmDeleteSetId(set.id)}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField
-                  label="Weight (kg)"
-                  value={input.weight}
-                  onChange={(value) =>
-                    setInputs((prev) => ({
-                      ...prev,
-                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], weight: value },
-                    }))
-                  }
-                  onStep={(delta) => stepInput(exercise.sessionExerciseId, "weight", delta, WEIGHT_STEP)}
-                  step={WEIGHT_STEP}
-                  inputMode="decimal"
-                />
-                <NumberField
-                  label="Reps"
-                  value={input.reps}
-                  onChange={(value) =>
-                    setInputs((prev) => ({
-                      ...prev,
-                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], reps: value },
-                    }))
-                  }
-                  onStep={(delta) => stepInput(exercise.sessionExerciseId, "reps", delta, REPS_STEP)}
-                  step={REPS_STEP}
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <WarmupToggle
-                  checked={input.warmup}
-                  onChange={(value) =>
-                    setInputs((prev) => ({
-                      ...prev,
-                      [exercise.sessionExerciseId]: { ...prev[exercise.sessionExerciseId], warmup: value },
-                    }))
-                  }
-                />
-                <Button
-                  variant="secondary"
-                  icon={<Plus className="h-4 w-4" />}
-                  loading={hasPendingSet}
-                  onClick={() => handleAddSet(exercise.sessionExerciseId)}
-                >
-                  Add Set
-                </Button>
-              </div>
-            </div>
-          </Card>
-        );
-      })}
+            exercise={exercise}
+            expanded={expandedId === exercise.sessionExerciseId}
+            blocked={finishBlocked && exercise.sets.length === 0}
+            error={errors[exercise.sessionExerciseId] ?? null}
+            flashSetId={flashSetId}
+            savingSetId={
+              updateSetMutation.isPending ? (updateSetMutation.variables?.setId ?? null) : null
+            }
+            onExpand={() => setExpandedId(exercise.sessionExerciseId)}
+            onAddSet={(values) => handleAddSet(exercise.sessionExerciseId, values)}
+            onUpdateSet={(set, values) => handleUpdateSet(exercise.sessionExerciseId, set, values)}
+            onDeleteSet={(set) => handleDeleteSet(exercise.sessionExerciseId, set)}
+            onRemove={() => requestRemoveExercise(exercise)}
+          />
+        ))}
+      </div>
+
       {exercises.length === 0 && (
         <p className="text-center text-sm text-muted">
           No exercises yet — add one below to start logging sets.
         </p>
       )}
+
       {availableExercises.length > 0 && (
         <Card>
-          <h2 className="font-medium">Add Exercise</h2>
-          <div className="mt-3 flex items-end gap-2">
+          <div className="flex items-end gap-2">
             <ExerciseCombobox
-              label="Exercise"
+              label="Add exercise"
               exercises={availableExercises}
               value={pickerExerciseId}
               onChange={handleAddExercise}
@@ -628,31 +397,33 @@ export function LoggingClient({
           {addExerciseError && <p className="mt-2 text-sm text-danger">{addExerciseError}</p>}
         </Card>
       )}
-      <div className="space-y-3">
-        <Button
-          variant="success"
-          size="lg"
-          icon={<CheckCircle className="h-5 w-5" />}
-          loading={finishPending}
-          onClick={handleFinish}
-          className="w-full"
-        >
-          Finish Workout
-        </Button>
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              setDiscardError(null);
-              setConfirmDiscard(true);
-            }}
-            className="flex min-h-11 items-center gap-1.5 px-2 text-sm text-danger [touch-action:manipulation] hover:underline"
+
+      <SessionNotes sessionId={sessionId} initialNotes={initialNotes} />
+
+      {/* Sticky action bar: rest timer + Finish, kept in reach however long the workout gets.
+          Sits just above the mobile BottomNav (whose log FAB is hidden on this screen). */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 lg:bottom-4">
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
+          <RestTimer startedAt={restStartedAt} onClear={() => setRestStartedAt(null)} />
+          <Button
+            variant="success"
+            size="lg"
+            icon={<CheckCircle className="h-5 w-5" />}
+            loading={finishPending}
+            onClick={handleFinish}
+            className="min-w-0 flex-1"
           >
-            <Trash className="h-4 w-4" />
-            Discard workout
-          </button>
+            Finish
+          </Button>
         </div>
       </div>
+
+      <Toast
+        message={toast}
+        tone="success"
+        icon={<Trophy className="h-5 w-5" weight="fill" />}
+        onDismiss={dismissToast}
+      />
       <ConfirmDialog
         open={confirmDiscard}
         title="Discard this workout?"
@@ -684,9 +455,8 @@ export function LoggingClient({
         description={
           removeTarget && (
             <>
-              &ldquo;{removeTarget.exerciseName}&rdquo; and its {removeTarget.sets.length}{" "}
-              logged {removeTarget.sets.length === 1 ? "set" : "sets"} will be removed from this
-              workout.
+              &ldquo;{removeTarget.exerciseName}&rdquo; and its {removeTarget.sets.length} logged{" "}
+              {removeTarget.sets.length === 1 ? "set" : "sets"} will be removed from this workout.
             </>
           )
         }

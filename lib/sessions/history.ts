@@ -1,12 +1,24 @@
 import type { PrismaClient } from "@prisma/client";
 import { type CompletedSession, toCompletedSession } from "./serialize";
+import { sessionDurationMinutes } from "./summary";
 
 export type { CompletedSession };
-export type CompletedSessionListItem = CompletedSession & { routineName: string | null };
+export type SessionListStats = {
+  exerciseCount: number;
+  setCount: number;
+  // Working sets only (warmups excluded), matching computeSessionSummary.
+  volumeKg: number;
+  durationMin: number | null;
+};
+export type CompletedSessionListItem = CompletedSession & {
+  routineName: string | null;
+  stats: SessionListStats;
+};
 
 export type SessionDetail = {
   session: CompletedSession & { routineName: string | null };
   exercises: {
+    exerciseId: string;
     exerciseName: string;
     sets: { weight_kg: number; reps: number; is_warmup: boolean; set_number: number }[];
   }[];
@@ -23,18 +35,54 @@ export function sessionDisplayName(session: {
 
 export async function listCompletedSessions(
   db: PrismaClient,
-  userId: string
+  userId: string,
+  options: { take?: number; skip?: number } = {}
 ): Promise<CompletedSessionListItem[]> {
   // RLS used to scope this to the caller; now the user_id filter does.
   const rows = await db.sessions.findMany({
     where: { user_id: userId, completed_at: { not: null } },
-    orderBy: { session_date: "desc" },
-    include: { routines: { select: { name: true } } },
+    orderBy: [{ session_date: "desc" }, { completed_at: "desc" }],
+    include: {
+      routines: { select: { name: true } },
+      _count: { select: { session_exercises: true } },
+    },
+    take: options.take,
+    skip: options.skip,
   });
-  return rows.map(({ routines, ...session }) => ({
-    ...toCompletedSession(session),
-    routineName: routines?.name ?? null,
-  }));
+  if (rows.length === 0) return [];
+
+  const sets = await db.sets.findMany({
+    where: { user_id: userId, session_exercises: { session_id: { in: rows.map((r) => r.id) } } },
+    select: {
+      weight_kg: true,
+      reps: true,
+      is_warmup: true,
+      session_exercises: { select: { session_id: true } },
+    },
+  });
+  const totals = new Map<string, { setCount: number; volumeKg: number }>();
+  for (const set of sets) {
+    const id = set.session_exercises.session_id;
+    const entry = totals.get(id) ?? { setCount: 0, volumeKg: 0 };
+    entry.setCount += 1;
+    if (!set.is_warmup) entry.volumeKg += Number(set.weight_kg) * set.reps;
+    totals.set(id, entry);
+  }
+
+  return rows.map(({ routines, _count, ...session }) => {
+    const serialized = toCompletedSession(session);
+    const total = totals.get(session.id) ?? { setCount: 0, volumeKg: 0 };
+    return {
+      ...serialized,
+      routineName: routines?.name ?? null,
+      stats: {
+        exerciseCount: _count.session_exercises,
+        setCount: total.setCount,
+        volumeKg: Math.round(total.volumeKg),
+        durationMin: sessionDurationMinutes(serialized.started_at, serialized.completed_at),
+      },
+    };
+  });
 }
 
 export async function getSessionDetail(
@@ -57,12 +105,13 @@ export async function getSessionDetail(
     where: { session_id: sessionId, user_id: userId },
     orderBy: { position: "asc" },
     include: {
-      exercises: { select: { name: true } },
+      exercises: { select: { id: true, name: true } },
       sets: { select: { weight_kg: true, reps: true, is_warmup: true, set_number: true } },
     },
   });
 
   const exercises = sessionExercises.map((se) => ({
+    exerciseId: se.exercises.id,
     exerciseName: se.exercises.name,
     sets: [...se.sets]
       .sort((a, b) => a.set_number - b.set_number)

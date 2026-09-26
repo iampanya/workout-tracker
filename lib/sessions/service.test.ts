@@ -14,6 +14,9 @@ import {
   finishSessionForUser,
   discardSessionForUser,
   getPriorMaxWeights,
+  getLastSessionSets,
+  updateSessionNotesForUser,
+  getSessionPrs,
 } from "./service";
 
 function uniqueExerciseName(label: string) {
@@ -493,5 +496,139 @@ describe("sessions service", () => {
       select: { weight_kg: true },
     });
     expect(Number(row!.weight_kg)).toBe(50);
+  });
+});
+
+// Logs the given sets for one exercise in a new session and optionally finishes it.
+async function seedSession(
+  userId: string,
+  exerciseId: string,
+  date: string,
+  sets: { weightKg: number; reps: number; isWarmup?: boolean }[],
+  finish = true
+) {
+  const session = await startSessionForUser(prisma, userId, { sessionDate: date });
+  const se = await addExerciseToSessionForUser(prisma, userId, session.id, exerciseId);
+  for (const set of sets) {
+    await logSetForUser(prisma, userId, {
+      sessionExerciseId: se.id,
+      weightKg: set.weightKg,
+      reps: set.reps,
+      isWarmup: set.isWarmup ?? false,
+    });
+  }
+  if (finish) await finishSessionForUser(prisma, userId, session.id);
+  return session;
+}
+
+describe("getLastSessionSets", () => {
+  it("returns the sets from the latest completed session, skipping the current and unfinished ones", async () => {
+    const { userId } = await createTestUser();
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Last Session Exercise"),
+      muscleGroup: "Back",
+    });
+    await seedSession(userId, exercise.id, "2026-03-01", [{ weightKg: 50, reps: 10 }]);
+    await seedSession(userId, exercise.id, "2026-03-08", [
+      { weightKg: 30, reps: 10, isWarmup: true },
+      { weightKg: 60, reps: 8 },
+    ]);
+    await seedSession(userId, exercise.id, "2026-03-10", [{ weightKg: 99, reps: 1 }], false);
+    const current = await seedSession(userId, exercise.id, "2026-03-15", [{ weightKg: 70, reps: 5 }], false);
+
+    const result = await getLastSessionSets(prisma, userId, [exercise.id], current.id);
+    expect(result[exercise.id]).toEqual({
+      sessionDate: "2026-03-08",
+      sets: [
+        { weight_kg: 30, reps: 10, is_warmup: true },
+        { weight_kg: 60, reps: 8, is_warmup: false },
+      ],
+    });
+  });
+
+  it("never returns another user's sets", async () => {
+    const owner = await createTestUser();
+    const other = await createTestUser();
+    const presets = await prisma.exercises.findMany({ where: { is_preset: true }, select: { id: true }, take: 1 });
+    const presetId = presets[0].id;
+    const ownerSession = await seedSession(owner.userId, presetId, "2026-03-01", [{ weightKg: 80, reps: 5 }]);
+
+    const result = await getLastSessionSets(prisma, other.userId, [presetId], ownerSession.id);
+    expect(result).toEqual({});
+  });
+});
+
+describe("updateSessionNotesForUser", () => {
+  it("saves trimmed notes and clears them when blank", async () => {
+    const { userId } = await createTestUser();
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-03-01" });
+
+    await updateSessionNotesForUser(prisma, userId, session.id, { notes: "  felt strong  " });
+    let row = await prisma.sessions.findUnique({ where: { id: session.id }, select: { notes: true } });
+    expect(row!.notes).toBe("felt strong");
+
+    await updateSessionNotesForUser(prisma, userId, session.id, { notes: "   " });
+    row = await prisma.sessions.findUnique({ where: { id: session.id }, select: { notes: true } });
+    expect(row!.notes).toBeNull();
+  });
+
+  it("rejects updating another user's session", async () => {
+    const owner = await createTestUser();
+    const attacker = await createTestUser();
+    const session = await startSessionForUser(prisma, owner.userId, { sessionDate: "2026-03-01" });
+
+    await expect(
+      updateSessionNotesForUser(prisma, attacker.userId, session.id, { notes: "hijacked" })
+    ).rejects.toThrow();
+    const row = await prisma.sessions.findUnique({ where: { id: session.id }, select: { notes: true } });
+    expect(row!.notes).toBeNull();
+  });
+});
+
+describe("getSessionPrs", () => {
+  it("reports only exercises whose best working set beat every earlier session", async () => {
+    const { userId } = await createTestUser();
+    const improved = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Improved"),
+      muscleGroup: "Legs",
+    });
+    await seedSession(userId, improved.id, "2026-04-01", [{ weightKg: 100, reps: 5 }]);
+
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-04-08" });
+    const se = await addExerciseToSessionForUser(prisma, userId, session.id, improved.id);
+    await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg: 105, reps: 3, isWarmup: false });
+    const tied = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Tied"),
+      muscleGroup: "Legs",
+    });
+    // A first-ever working set counts as a PR; a heavier warmup does not.
+    const se2 = await addExerciseToSessionForUser(prisma, userId, session.id, tied.id);
+    await logSetForUser(prisma, userId, { sessionExerciseId: se2.id, weightKg: 40, reps: 8, isWarmup: false });
+    await logSetForUser(prisma, userId, { sessionExerciseId: se2.id, weightKg: 200, reps: 1, isWarmup: true });
+
+    const prs = await getSessionPrs(prisma, userId, session.id);
+    expect(prs).toEqual([
+      { exerciseId: improved.id, exerciseName: improved.name, weightKg: 105 },
+      { exerciseId: tied.id, exerciseName: tied.name, weightKg: 40 },
+    ]);
+  });
+
+  it("returns nothing when no working set beat the previous best", async () => {
+    const { userId } = await createTestUser();
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Plateau"),
+      muscleGroup: "Arms",
+    });
+    await seedSession(userId, exercise.id, "2026-04-01", [{ weightKg: 30, reps: 10 }]);
+    const later = await seedSession(userId, exercise.id, "2026-04-08", [{ weightKg: 30, reps: 12 }]);
+    expect(await getSessionPrs(prisma, userId, later.id)).toEqual([]);
+  });
+
+  it("returns nothing for another user's session", async () => {
+    const owner = await createTestUser();
+    const attacker = await createTestUser();
+    const presets = await prisma.exercises.findMany({ where: { is_preset: true }, select: { id: true }, take: 1 });
+    const session = await seedSession(owner.userId, presets[0].id, "2026-04-01", [{ weightKg: 60, reps: 5 }]);
+    expect(await getSessionPrs(prisma, attacker.userId, session.id)).toEqual([]);
   });
 });

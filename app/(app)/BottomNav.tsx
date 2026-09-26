@@ -8,6 +8,9 @@ import { NAV_ITEMS } from "./nav-items";
 export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null }) {
   const pathname = usePathname();
   const fabHref = resumeSessionId ? `/log/${resumeSessionId}` : "/log";
+  // On the logging screen itself the FAB would point at the current page and cover the
+  // screen's own sticky action bar, so it's hidden there.
+  const onLoggingScreen = pathname.startsWith("/log/");
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -27,6 +30,7 @@ export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null 
             </Link>
           );
         })}
+        {!onLoggingScreen && (
         <Link
           href={fabHref}
           aria-label="Log a workout"
@@ -34,6 +38,7 @@ export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null 
         >
           <Plus className="h-6 w-6" weight="bold" />
         </Link>
+        )}
       </div>
     </nav>
   );

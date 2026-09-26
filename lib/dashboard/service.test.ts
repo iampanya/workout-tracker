@@ -85,7 +85,7 @@ describe("dashboard service", () => {
     await finishSessionForUser(prisma, userId, session.id);
 
     const prs = await listPrsFromLastCompletedSession(prisma, userId);
-    expect(prs).toContainEqual({ exerciseName: exercise.name, weightKg: 100 });
+    expect(prs).toContainEqual({ exerciseId: exercise.id, exerciseName: exercise.name, weightKg: 100 });
   });
 });
 
@@ -213,8 +213,8 @@ describe("listTopPrs", () => {
 
     const top = await listTopPrs(prisma, userId, 6);
     expect(top).toEqual([
-      { exerciseName: heavy.name, weightKg: 120 },
-      { exerciseName: light.name, weightKg: 80 },
+      { exerciseId: heavy.id, exerciseName: heavy.name, weightKg: 120 },
+      { exerciseId: light.id, exerciseName: light.name, weightKg: 80 },
     ]);
   });
 });

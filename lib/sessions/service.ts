@@ -1,6 +1,13 @@
 import { Prisma, type PrismaClient, type sessions, type session_exercises, type sets } from "@prisma/client";
-import { startSessionSchema, logSetSchema, updateSetSchema } from "@/lib/validation";
+import {
+  startSessionSchema,
+  logSetSchema,
+  updateSetSchema,
+  updateSessionNotesSchema,
+} from "@/lib/validation";
 import { isNewPr } from "@/lib/pr";
+import { toDateOnlyString } from "@/lib/date";
+import type { LastSession } from "./last-session";
 import { getRoutineWithExercises } from "@/lib/routines/service";
 
 export type Session = sessions;
@@ -229,4 +236,122 @@ export async function discardSessionForUser(
   sessionId: string
 ): Promise<void> {
   await db.sessions.deleteMany({ where: { id: sessionId, user_id: userId } });
+}
+
+// For each exercise, the sets the user logged in their most recent *completed* session that
+// included it (excluding `excludeSessionId`, i.e. the session being logged right now). Powers
+// the "Last" hint and the weight/reps prefill on the logging screen.
+export async function getLastSessionSets(
+  db: PrismaClient,
+  userId: string,
+  exerciseIds: string[],
+  excludeSessionId: string
+): Promise<Record<string, LastSession>> {
+  if (exerciseIds.length === 0) return {};
+  // DISTINCT ON picks one session_exercise per exercise: the latest by session date, then by
+  // completion time for two sessions on the same day.
+  const latest = await db.$queryRaw<
+    { id: string; exercise_id: string; session_date: Date }[]
+  >(Prisma.sql`
+    select distinct on (se.exercise_id) se.id::text as id, se.exercise_id::text as exercise_id,
+      s.session_date
+    from session_exercises se
+    join sessions s on s.id = se.session_id
+    where se.user_id::text = ${userId}
+      and s.user_id::text = ${userId}
+      and se.exercise_id::text in (${Prisma.join(exerciseIds)})
+      and s.completed_at is not null
+      and s.id::text <> ${excludeSessionId}
+    order by se.exercise_id, s.session_date desc, s.completed_at desc`);
+  if (latest.length === 0) return {};
+
+  const sets = await db.sets.findMany({
+    where: { user_id: userId, session_exercise_id: { in: latest.map((row) => row.id) } },
+    orderBy: { set_number: "asc" },
+    select: { session_exercise_id: true, weight_kg: true, reps: true, is_warmup: true },
+  });
+
+  const result: Record<string, LastSession> = {};
+  for (const row of latest) {
+    result[row.exercise_id] = {
+      sessionDate: toDateOnlyString(row.session_date),
+      sets: sets
+        .filter((set) => set.session_exercise_id === row.id)
+        .map((set) => ({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup })),
+    };
+  }
+  return result;
+}
+
+export async function updateSessionNotesForUser(
+  db: PrismaClient,
+  userId: string,
+  sessionId: string,
+  input: unknown
+): Promise<void> {
+  const parsed = updateSessionNotesSchema.parse(input);
+  const notes = parsed.notes.trim();
+  const result = await db.sessions.updateMany({
+    where: { id: sessionId, user_id: userId },
+    data: { notes: notes.length > 0 ? notes : null },
+  });
+  if (result.count === 0) throw new Error("Session not found or not owned by user");
+}
+
+export type SessionPr = { exerciseId: string; exerciseName: string; weightKg: number };
+
+// Exercises where this session's heaviest working set beat every working set the user logged in
+// earlier sessions (or where there was no earlier set at all) — i.e. PRs *set* in this session.
+export async function getSessionPrs(
+  db: PrismaClient,
+  userId: string,
+  sessionId: string
+): Promise<SessionPr[]> {
+  const session = await db.sessions.findFirst({
+    where: { id: sessionId, user_id: userId },
+    select: { started_at: true },
+  });
+  if (!session) return [];
+
+  const sessionMaxes = await db.sets.groupBy({
+    by: ["exercise_id"],
+    where: { user_id: userId, is_warmup: false, session_exercises: { session_id: sessionId } },
+    _max: { weight_kg: true },
+  });
+  if (sessionMaxes.length === 0) return [];
+
+  const exerciseIds = sessionMaxes.map((row) => row.exercise_id);
+  const [priorMaxes, exercises] = await Promise.all([
+    db.sets.groupBy({
+      by: ["exercise_id"],
+      where: {
+        user_id: userId,
+        is_warmup: false,
+        exercise_id: { in: exerciseIds },
+        session_exercises: {
+          sessions: { id: { not: sessionId }, started_at: { lt: session.started_at } },
+        },
+      },
+      _max: { weight_kg: true },
+    }),
+    db.exercises.findMany({
+      where: { id: { in: exerciseIds } },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  const priorByExercise = new Map(
+    priorMaxes.map((row) => [row.exercise_id, Number(row._max.weight_kg)])
+  );
+  const nameById = new Map(exercises.map((e) => [e.id, e.name]));
+
+  return sessionMaxes
+    .filter((row) => row._max.weight_kg !== null && nameById.has(row.exercise_id))
+    .map((row) => ({
+      exerciseId: row.exercise_id,
+      exerciseName: nameById.get(row.exercise_id)!,
+      weightKg: Number(row._max.weight_kg),
+    }))
+    .filter((pr) => isNewPr(pr.weightKg, priorByExercise.get(pr.exerciseId) ?? null))
+    .sort((a, b) => b.weightKg - a.weightKg);
 }

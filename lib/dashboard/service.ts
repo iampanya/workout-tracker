@@ -1,10 +1,12 @@
 import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
 import { getLocalDateString, getWeekStart, getWeekEnd, toDateOnlyString } from "@/lib/date";
 import { type CompletedSession, toCompletedSession } from "@/lib/sessions/serialize";
+import { getSessionPrs, type SessionPr } from "@/lib/sessions/service";
 import { computeStreakDays } from "./streak";
 
+export type { SessionPr };
+
 export type InProgressSession = CompletedSession & { routineName: string | null };
-export type SessionPr = { exerciseName: string; weightKg: number };
 
 function serializeSession(s: sessions, routineName: string | null): InProgressSession {
   return { ...toCompletedSession(s), routineName };
@@ -131,7 +133,7 @@ export async function getWeeklyVolume(
   return buckets;
 }
 
-export type TopPr = { exerciseName: string; weightKg: number };
+export type TopPr = { exerciseId: string; exerciseName: string; weightKg: number };
 
 // All-time top lifts from the live exercise_prs view (read via raw SQL — it's a view, not a
 // Prisma model). Names are fetched in a second query.
@@ -156,9 +158,14 @@ export async function listTopPrs(
   const nameById = new Map(exercises.map((e) => [e.id, e.name]));
   return rows
     .filter((row) => nameById.has(row.exercise_id))
-    .map((row) => ({ exerciseName: nameById.get(row.exercise_id)!, weightKg: Number(row.pr_weight_kg) }));
+    .map((row) => ({
+      exerciseId: row.exercise_id,
+      exerciseName: nameById.get(row.exercise_id)!,
+      weightKg: Number(row.pr_weight_kg),
+    }));
 }
 
+// PRs set during the most recently finished session (see getSessionPrs for what counts).
 export async function listPrsFromLastCompletedSession(
   db: PrismaClient,
   userId: string
@@ -169,31 +176,5 @@ export async function listPrsFromLastCompletedSession(
     select: { id: true },
   });
   if (!lastSession) return [];
-
-  const [sets, prs] = await Promise.all([
-    db.sets.findMany({
-      where: {
-        user_id: userId,
-        is_warmup: false,
-        session_exercises: { session_id: lastSession.id },
-      },
-      select: { weight_kg: true, exercise_id: true, exercises: { select: { name: true } } },
-    }),
-    db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
-      select exercise_id, pr_weight_kg from exercise_prs where user_id::text = ${userId}`),
-  ]);
-
-  const prByExercise = new Map(prs.map((p) => [p.exercise_id, Number(p.pr_weight_kg)]));
-  const seen = new Set<string>();
-  const results: SessionPr[] = [];
-
-  for (const set of sets) {
-    const prWeight = prByExercise.get(set.exercise_id);
-    if (prWeight !== undefined && Number(set.weight_kg) === prWeight && !seen.has(set.exercise_id)) {
-      seen.add(set.exercise_id);
-      results.push({ exerciseName: set.exercises.name, weightKg: prWeight });
-    }
-  }
-
-  return results;
+  return getSessionPrs(db, userId, lastSession.id);
 }

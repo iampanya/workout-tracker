@@ -36,6 +36,14 @@ export const updateSetSchema = z.object({
   isWarmup: z.boolean(),
 });
 
+export const updateSessionNotesSchema = z.object({
+  notes: z.string().max(500, "Notes must be 500 characters or fewer"),
+});
+
+export const updateRoutineTargetSetsSchema = z.object({
+  targetSets: z.number().int().min(1).max(20).nullable(),
+});
+
 // --- Backup file (Export/Import) ---------------------------------------------
 // Shape of the JSON produced by the Export button and accepted by Import. Row
 // schemas stay permissive on the exact column set (extra keys are stripped by
