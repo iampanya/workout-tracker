@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Trophy } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -24,11 +25,14 @@ export default async function ExerciseProgressPage({
     getExerciseHistory(prisma, userId, exerciseId),
     getExercisePr(prisma, userId, exerciseId),
   ]);
+  if (!exercise) {
+    notFound();
+  }
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{exercise?.name}</h1>
+      <h1 className="text-2xl font-semibold">{exercise.name}</h1>
       {pr !== null && (
         <div className="flex items-center gap-2 rounded-xl bg-success/15 px-3 py-2 font-medium text-success">
           <Trophy className="h-5 w-5" />

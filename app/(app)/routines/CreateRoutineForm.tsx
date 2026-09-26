@@ -16,32 +16,45 @@ export function CreateRoutineForm() {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { isSubmitting, errors },
   } = useForm<FormValues>({ resolver: zodResolver(createRoutineSchema) });
 
   async function onSubmit(values: FormValues) {
-    await createRoutine(values);
-    reset();
+    try {
+      await createRoutine(values);
+      reset();
+    } catch (err) {
+      setError("root", {
+        message: err instanceof Error ? err.message : "Failed to create routine",
+      });
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <Input
-        label="Routine name"
-        {...register("name")}
-        placeholder="e.g. Push Day"
-        error={errors.name?.message}
-        wrapperClassName="sm:flex-1"
-      />
-      <Button
-        type="submit"
-        variant="primary"
-        icon={<Plus className="h-4 w-4" />}
-        loading={isSubmitting}
-        className="sm:shrink-0"
+    <div>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-3 sm:flex-row sm:items-end"
       >
-        Create
-      </Button>
-    </form>
+        <Input
+          label="Routine name"
+          {...register("name")}
+          placeholder="e.g. Push Day"
+          error={errors.name?.message}
+          wrapperClassName="sm:flex-1"
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          icon={<Plus className="h-4 w-4" />}
+          loading={isSubmitting}
+          className="sm:shrink-0"
+        >
+          Create
+        </Button>
+      </form>
+      {errors.root && <p className="mt-2 text-sm text-danger">{errors.root.message}</p>}
+    </div>
   );
 }

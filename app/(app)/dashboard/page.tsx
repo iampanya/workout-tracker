@@ -27,16 +27,20 @@ export default async function DashboardPage() {
   ]);
   const recentWorkouts = recentSessions.slice(0, 5);
   const hasWeeklyVolume = weeklyVolume.some((w) => w.volumeKg > 0);
+  // With a workout already open, the primary CTA resumes it instead of starting a second one.
+  const current = inProgress[0] ?? null;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <Link
-        href="/log"
+        href={current ? `/log/${current.id}` : "/log"}
         className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-base font-medium text-accent-foreground transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Play className="h-5 w-5" />
-        Start a Workout
+        <span className="truncate">
+          {current ? `Resume ${sessionDisplayName(current)}` : "Start a Workout"}
+        </span>
       </Link>
 
       {inProgress.length > 0 && (

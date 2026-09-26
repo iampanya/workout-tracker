@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Trash, PencilSimple, Check, X, CheckCircle, Trophy } from "@phosphor-icons/react/ssr";
+import { Plus, Trash, PencilSimple, Check, X, CheckCircle, Trophy, CircleNotch } from "@phosphor-icons/react/ssr";
 import {
   logSet,
   updateSet,
@@ -92,7 +92,8 @@ export function LoggingClient({
   const [inputs, setInputs] = useState<Record<string, SetFormInput>>(() =>
     buildInputsFromExercises(initialExercises)
   );
-  const [pickerExerciseId, setPickerExerciseId] = useState(availableExercises[0]?.id ?? "");
+  // Starts empty so nothing gets added by accident; picking an exercise adds it immediately.
+  const [pickerExerciseId, setPickerExerciseId] = useState("");
   const [addExercisePending, setAddExercisePending] = useState(false);
   const [addExerciseError, setAddExerciseError] = useState<string | null>(null);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
@@ -285,19 +286,20 @@ export function LoggingClient({
     }
   }
 
-  async function handleAddExercise() {
-    if (!pickerExerciseId) return;
+  async function handleAddExercise(exerciseId: string) {
+    if (!exerciseId || addExercisePending) return;
+    setPickerExerciseId(exerciseId);
     setAddExercisePending(true);
     setAddExerciseError(null);
     try {
-      const sessionExercise = await addExerciseToSession(sessionId, pickerExerciseId);
+      const sessionExercise = await addExerciseToSession(sessionId, exerciseId);
       const exerciseName =
-        availableExercises.find((e) => e.id === pickerExerciseId)?.name ?? "Exercise";
+        availableExercises.find((e) => e.id === exerciseId)?.name ?? "Exercise";
       setExercises((prev) => [
         ...prev,
         {
           sessionExerciseId: sessionExercise.id,
-          exerciseId: pickerExerciseId,
+          exerciseId,
           exerciseName,
           sets: [],
           prWeightKg: sessionExercise.prWeightKg,
@@ -307,6 +309,7 @@ export function LoggingClient({
       setAddExerciseError(err instanceof Error ? err.message : "Failed to add exercise");
     } finally {
       setAddExercisePending(false);
+      setPickerExerciseId("");
     }
   }
 
@@ -609,17 +612,18 @@ export function LoggingClient({
               label="Exercise"
               exercises={availableExercises}
               value={pickerExerciseId}
-              onChange={setPickerExerciseId}
+              onChange={handleAddExercise}
               wrapperClassName="flex-1"
             />
-            <Button
-              variant="secondary"
-              icon={<Plus className="h-4 w-4" />}
-              loading={addExercisePending}
-              onClick={handleAddExercise}
-            >
-              Add
-            </Button>
+            {addExercisePending && (
+              <span
+                role="status"
+                aria-label="Adding exercise"
+                className="flex h-11 w-11 items-center justify-center text-muted"
+              >
+                <CircleNotch className="h-5 w-5 animate-spin" />
+              </span>
+            )}
           </div>
           {addExerciseError && <p className="mt-2 text-sm text-danger">{addExerciseError}</p>}
         </Card>

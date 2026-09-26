@@ -20,6 +20,7 @@ export function AddExerciseForm() {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { isSubmitting, errors },
   } = useForm<FormValues>({
     resolver: zodResolver(createExerciseSchema),
@@ -27,8 +28,14 @@ export function AddExerciseForm() {
   });
 
   async function onSubmit(values: FormValues) {
-    await createCustomExercise(values);
-    reset({ name: "", muscleGroup: "Chest" });
+    try {
+      await createCustomExercise(values);
+      reset({ name: "", muscleGroup: "Chest" });
+    } catch (err) {
+      setError("root", {
+        message: err instanceof Error ? err.message : "Failed to add exercise",
+      });
+    }
   }
 
   return (
@@ -59,6 +66,7 @@ export function AddExerciseForm() {
         </Button>
       </form>
       {errors.muscleGroup && <p className="mt-2 text-sm text-danger">{errors.muscleGroup.message}</p>}
+      {errors.root && <p className="mt-2 text-sm text-danger">{errors.root.message}</p>}
     </Card>
   );
 }
