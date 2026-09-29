@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
 import { formatLastSets, prefillFromLast } from "@/lib/sessions/last-session";
-import { formatShortDate, topWorkingSet } from "@/lib/sessions/summary";
+import {
+  formatSetCount,
+  formatShortDate,
+  topWorkingSet,
+  workingSetNumbers,
+} from "@/lib/sessions/summary";
+import { formatPr } from "@/lib/pr";
 import { SetEditor } from "./SetEditor";
 import { WarmupToggle, WeightRepsFields, isValidSetInput } from "./SetForm";
 import type { ExerciseEntry, SetEntry, SetFormInput, SetValues } from "./types";
@@ -73,6 +79,7 @@ export function ExerciseCard({
   const workingSets = exercise.sets.filter((s) => !s.is_warmup).length;
   const hasPendingSet = exercise.sets.some((s) => s.pending);
   const top = topWorkingSet(exercise.sets);
+  const setNumbers = workingSetNumbers(exercise.sets);
   const ringClass = blocked ? "ring-2 ring-danger" : "";
 
   const progress =
@@ -98,7 +105,7 @@ export function ExerciseCard({
             </span>
             <span className="block truncate text-sm text-muted">
               {exercise.sets.length > 0
-                ? `${exercise.sets.length} ${exercise.sets.length === 1 ? "set" : "sets"}${
+                ? `${formatSetCount(exercise.sets)}${
                     top ? ` · top ${top.weight_kg}×${top.reps}` : ""
                   }`
                 : exercise.lastSession && exercise.lastSession.sets.length > 0
@@ -122,9 +129,9 @@ export function ExerciseCard({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-medium">{exercise.exerciseName}</h2>
             {progress}
-            {exercise.prWeightKg !== null && (
+            {exercise.pr !== null && (
               <Badge tone="success" icon={<Trophy className="h-3 w-3" />}>
-                PR {exercise.prWeightKg}kg
+                PR {formatPr(exercise.pr)}
               </Badge>
             )}
           </div>
@@ -159,11 +166,12 @@ export function ExerciseCard({
             <span aria-hidden />
           </div>
           <ul className="space-y-0.5">
-            {exercise.sets.map((set) => (
+            {exercise.sets.map((set, i) => (
               <li key={set.id} className={set.pending ? "opacity-50" : ""}>
                 {editingSetId === set.id ? (
                   <SetEditor
                     set={set}
+                    setNumber={setNumbers[i]}
                     saving={savingSetId === set.id}
                     onCancel={() => setEditingSetId(null)}
                     onDelete={() => {
@@ -179,15 +187,15 @@ export function ExerciseCard({
                     type="button"
                     disabled={set.pending}
                     onClick={() => setEditingSetId(set.id)}
-                    aria-label={`Edit set ${set.set_number}: ${set.weight_kg} kg × ${set.reps}${
-                      set.is_warmup ? ", warmup" : ""
-                    }`}
+                    aria-label={`Edit ${
+                      set.is_warmup ? "warmup set" : `set ${setNumbers[i]}`
+                    }: ${set.weight_kg} kg × ${set.reps}`}
                     className={`grid min-h-11 w-full grid-cols-[2.25rem_1fr_1fr_1.25rem] items-center gap-x-3 rounded-lg px-2 text-sm transition-colors duration-700 [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${
                       flashSetId === set.id ? "bg-success/15" : ""
                     } ${set.is_warmup ? "text-muted" : ""}`}
                   >
                     <span className="text-left tabular-nums text-muted">
-                      {set.is_warmup ? <Badge tone="neutral">W</Badge> : set.set_number}
+                      {set.is_warmup ? <Badge tone="neutral">W</Badge> : setNumbers[i]}
                     </span>
                     <span className="text-right font-mono tabular-nums">{set.weight_kg} kg</span>
                     <span className="text-right font-mono tabular-nums">{set.reps}</span>

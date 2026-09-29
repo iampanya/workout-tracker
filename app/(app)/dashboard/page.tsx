@@ -120,7 +120,7 @@ export default async function DashboardPage() {
                   href={`/exercises/${pr.exerciseId}`}
                   label={pr.exerciseName}
                   value={pr.weightKg}
-                  unit="kg"
+                  unit={`kg × ${pr.reps}`}
                   tone={isNew ? "success" : "neutral"}
                   badge={isNew ? <Badge tone="success">NEW</Badge> : undefined}
                   icon={<Trophy className="h-4 w-4" weight={isNew ? "fill" : "regular"} />}

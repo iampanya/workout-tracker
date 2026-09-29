@@ -1,18 +1,32 @@
 import { describe, it, expect } from "vitest";
-import { isNewPr, estimateOneRepMax } from "./pr";
+import { isNewPr, formatPr, estimateOneRepMax } from "./pr";
 
 describe("isNewPr", () => {
-  it("is a PR when there is no prior max", () => {
-    expect(isNewPr(60, null)).toBe(true);
+  const pr = (weightKg: number, reps: number) => ({ weightKg, reps });
+
+  it("is a PR when there is no prior record", () => {
+    expect(isNewPr(pr(60, 5), null)).toBe(true);
   });
-  it("is a PR when weight exceeds the prior max", () => {
-    expect(isNewPr(101, 100)).toBe(true);
+  it("is a PR when weight exceeds the prior record, regardless of reps", () => {
+    expect(isNewPr(pr(101, 1), pr(100, 8))).toBe(true);
   });
-  it("is not a PR when weight equals the prior max", () => {
-    expect(isNewPr(100, 100)).toBe(false);
+  it("is a PR at the same weight for more reps", () => {
+    expect(isNewPr(pr(100, 6), pr(100, 5))).toBe(true);
   });
-  it("is not a PR when weight is below the prior max", () => {
-    expect(isNewPr(90, 100)).toBe(false);
+  it("is not a PR on an exact tie", () => {
+    expect(isNewPr(pr(100, 5), pr(100, 5))).toBe(false);
+  });
+  it("is not a PR at the same weight for fewer reps", () => {
+    expect(isNewPr(pr(100, 4), pr(100, 5))).toBe(false);
+  });
+  it("is not a PR when lighter, even for more reps", () => {
+    expect(isNewPr(pr(90, 12), pr(100, 5))).toBe(false);
+  });
+});
+
+describe("formatPr", () => {
+  it("renders weight and reps", () => {
+    expect(formatPr({ weightKg: 102.5, reps: 6 })).toBe("102.5 kg × 6");
   });
 });
 

@@ -13,7 +13,7 @@ import {
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
-  getPriorMaxWeights,
+  getPriorPrs,
   getLastSessionSets,
   updateSessionNotesForUser,
   getSessionPrs,
@@ -139,6 +139,27 @@ describe("sessions service", () => {
 
     expect(isPr).toBe(false);
     expect(set.set_number).toBe(2);
+  });
+
+  it("marks more reps at the record weight as a PR, but not an exact tie", async () => {
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Rep PR Exercise"),
+      muscleGroup: "Chest",
+    });
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-01-08" });
+    const sessionExercise = await addExerciseToSessionForUser(prisma, userId, session.id, exercise.id);
+    const log = (weightKg: number, reps: number) =>
+      logSetForUser(prisma, userId, {
+        sessionExerciseId: sessionExercise.id,
+        weightKg,
+        reps,
+        isWarmup: false,
+      });
+
+    await log(100, 5);
+    expect((await log(100, 5)).isPr).toBe(false);
+    expect((await log(100, 6)).isPr).toBe(true);
+    expect((await log(95, 12)).isPr).toBe(false);
   });
 
   it("never counts a warmup set as a PR, nor toward future PR comparisons", async () => {
@@ -435,13 +456,13 @@ describe("sessions service", () => {
       isWarmup: false,
     });
 
-    const prs = await getPriorMaxWeights(prisma, userId, [benchedExercise.id, untouchedExercise.id]);
+    const prs = await getPriorPrs(prisma, userId, [benchedExercise.id, untouchedExercise.id]);
 
-    expect(prs).toEqual({ [benchedExercise.id]: 82.5 });
+    expect(prs).toEqual({ [benchedExercise.id]: { weightKg: 82.5, reps: 5 } });
   });
 
   it("returns an empty object when given no exercise ids", async () => {
-    const prs = await getPriorMaxWeights(prisma, userId, []);
+    const prs = await getPriorPrs(prisma, userId, []);
     expect(prs).toEqual({});
   });
 
@@ -463,7 +484,7 @@ describe("sessions service", () => {
       isWarmup: false,
     });
 
-    const prs = await getPriorMaxWeights(prisma, userId, [benchId]);
+    const prs = await getPriorPrs(prisma, userId, [benchId]);
 
     expect(prs).toEqual({});
   });
@@ -608,17 +629,38 @@ describe("getSessionPrs", () => {
     await logSetForUser(prisma, userId, { sessionExerciseId: se3.id, weightKg: 200, reps: 1, isWarmup: true });
 
     const prs = await getSessionPrs(prisma, userId, session.id);
-    expect(prs).toEqual([{ exerciseId: improved.id, exerciseName: improved.name, weightKg: 105 }]);
+    expect(prs).toEqual([
+      { exerciseId: improved.id, exerciseName: improved.name, weightKg: 105, reps: 3 },
+    ]);
   });
 
-  it("returns nothing when no working set beat the previous best", async () => {
+  it("counts more reps at the record weight as a PR", async () => {
+    const { userId } = await createTestUser();
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Rep PR"),
+      muscleGroup: "Arms",
+    });
+    await seedSession(userId, exercise.id, "2026-04-01", [{ weightKg: 30, reps: 10 }]);
+    const later = await seedSession(userId, exercise.id, "2026-04-08", [
+      { weightKg: 30, reps: 8 },
+      { weightKg: 30, reps: 12 },
+    ]);
+    expect(await getSessionPrs(prisma, userId, later.id)).toEqual([
+      { exerciseId: exercise.id, exerciseName: exercise.name, weightKg: 30, reps: 12 },
+    ]);
+  });
+
+  it("returns nothing when no working set beat the previous best (a tie is not a PR)", async () => {
     const { userId } = await createTestUser();
     const exercise = await createCustomExerciseForUser(prisma, userId, {
       name: uniqueExerciseName("Plateau"),
       muscleGroup: "Arms",
     });
     await seedSession(userId, exercise.id, "2026-04-01", [{ weightKg: 30, reps: 10 }]);
-    const later = await seedSession(userId, exercise.id, "2026-04-08", [{ weightKg: 30, reps: 12 }]);
+    const later = await seedSession(userId, exercise.id, "2026-04-08", [
+      { weightKg: 30, reps: 10 },
+      { weightKg: 25, reps: 15 },
+    ]);
     expect(await getSessionPrs(prisma, userId, later.id)).toEqual([]);
   });
 

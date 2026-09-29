@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient, type exercises } from "@prisma/client";
 import { toDateOnlyString } from "@/lib/date";
+import type { PrRecord } from "@/lib/pr";
 import { createExerciseSchema } from "@/lib/validation";
 
 export type Exercise = exercises;
@@ -57,7 +58,7 @@ export async function archiveExerciseForUser(
   }
 }
 
-export type ExerciseStats = { prKg: number | null; lastDate: string | null };
+export type ExerciseStats = { pr: PrRecord | null; lastDate: string | null };
 
 // Per-exercise PR (exercise_prs view) and the date it was last done in a completed session,
 // for the exercises list. Only exercises the user has logged appear in the result.
@@ -66,8 +67,8 @@ export async function listExerciseStats(
   userId: string
 ): Promise<Record<string, ExerciseStats>> {
   const [prs, lastDone] = await Promise.all([
-    db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
-      select exercise_id::text as exercise_id, pr_weight_kg from exercise_prs
+    db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number; pr_reps: number }[]>(Prisma.sql`
+      select exercise_id::text as exercise_id, pr_weight_kg, pr_reps from exercise_prs
       where user_id::text = ${userId}`),
     db.$queryRaw<{ exercise_id: string; last_date: Date }[]>(Prisma.sql`
       select se.exercise_id::text as exercise_id, max(s.session_date) as last_date
@@ -80,13 +81,13 @@ export async function listExerciseStats(
 
   const stats: Record<string, ExerciseStats> = {};
   for (const row of lastDone) {
-    stats[row.exercise_id] = { prKg: null, lastDate: toDateOnlyString(row.last_date) };
+    stats[row.exercise_id] = { pr: null, lastDate: toDateOnlyString(row.last_date) };
   }
   for (const row of prs) {
     if (row.exercise_id === null || row.pr_weight_kg === null) continue;
     stats[row.exercise_id] = {
       lastDate: stats[row.exercise_id]?.lastDate ?? null,
-      prKg: Number(row.pr_weight_kg),
+      pr: { weightKg: Number(row.pr_weight_kg), reps: row.pr_reps },
     };
   }
   return stats;

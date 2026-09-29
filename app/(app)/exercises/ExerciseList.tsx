@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CaretRight, MagnifyingGlass, Trophy } from "@phosphor-icons/react/ssr";
 import type { ExerciseStats } from "@/lib/exercises/service";
 import { formatRelativeDate } from "@/lib/sessions/summary";
+import { formatPr } from "@/lib/pr";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -122,13 +123,13 @@ export function ExerciseList({
                     </span>
                     {stat && (
                       <span className="mt-0.5 flex items-center gap-1 text-xs text-muted tabular-nums">
-                        {stat.prKg !== null && (
+                        {stat.pr !== null && (
                           <>
                             <Trophy className="h-3.5 w-3.5" aria-hidden />
-                            PR {stat.prKg} kg
+                            PR {formatPr(stat.pr)}
                           </>
                         )}
-                        {stat.prKg !== null && stat.lastDate && " · "}
+                        {stat.pr !== null && stat.lastDate && " · "}
                         {stat.lastDate && `Last ${formatRelativeDate(stat.lastDate, today)}`}
                       </span>
                     )}

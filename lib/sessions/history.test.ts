@@ -75,7 +75,7 @@ describe("session history", () => {
     ]);
   });
 
-  it("attaches per-session stats (warmups count as sets but not volume)", async () => {
+  it("attaches per-session stats (warmups count toward neither sets nor volume)", async () => {
     const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-02-01" });
     const preset = await prisma.exercises.findFirst({ where: { user_id: null }, select: { id: true } });
     const se = await addExerciseToSessionForUser(prisma, userId, session.id, preset!.id);
@@ -85,7 +85,7 @@ describe("session history", () => {
 
     const sessions = await listCompletedSessions(prisma, userId);
     const item = sessions.find((s) => s.id === session.id)!;
-    expect(item.stats).toMatchObject({ exerciseCount: 1, setCount: 2, volumeKg: 250 });
+    expect(item.stats).toMatchObject({ exerciseCount: 1, setCount: 1, volumeKg: 250 });
   });
 
   it("paginates with take/skip", async () => {

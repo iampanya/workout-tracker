@@ -65,8 +65,11 @@ export async function listCompletedSessions(
   for (const set of sets) {
     const id = set.session_exercises.session_id;
     const entry = totals.get(id) ?? { setCount: 0, volumeKg: 0 };
-    entry.setCount += 1;
-    if (!set.is_warmup) entry.volumeKg += Number(set.weight_kg) * set.reps;
+    // Working sets only, matching volume/PRs (and computeSessionSummary).
+    if (!set.is_warmup) {
+      entry.setCount += 1;
+      entry.volumeKg += Number(set.weight_kg) * set.reps;
+    }
     totals.set(id, entry);
   }
 

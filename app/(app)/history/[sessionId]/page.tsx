@@ -14,9 +14,12 @@ import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getSessionDetail, getPreviousRoutineSession, sessionDisplayName } from "@/lib/sessions/history";
 import { getSessionPrs } from "@/lib/sessions/service";
+import { formatPr } from "@/lib/pr";
 import {
   computeSessionSummary,
   topWorkingSet,
+  workingSetNumbers,
+  formatSetCount,
   formatSessionDate,
   sessionDurationMinutes,
   formatDuration,
@@ -144,7 +147,7 @@ export default async function SessionDetailPage({
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-success/15 px-4 text-sm font-medium text-success [touch-action:manipulation] hover:bg-success/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Trophy className="h-4 w-4" weight="fill" aria-hidden />
-                {pr.exerciseName} · {pr.weightKg} kg
+                {pr.exerciseName} · {formatPr(pr)}
               </Link>
             ))}
           </div>
@@ -163,6 +166,7 @@ export default async function SessionDetailPage({
         <div className="space-y-4">
           {exercises.map((exercise, i) => {
             const top = topWorkingSet(exercise.sets);
+            const setNumbers = workingSetNumbers(exercise.sets);
             const pr = prByExercise.get(exercise.exerciseId);
             return (
               <Card key={i} className="space-y-3">
@@ -180,7 +184,7 @@ export default async function SessionDetailPage({
                         PR
                       </Badge>
                     )}
-                    {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}
+                    {formatSetCount(exercise.sets)}
                   </span>
                 </div>
 
@@ -219,7 +223,7 @@ export default async function SessionDetailPage({
                               {set.is_warmup ? (
                                 <Badge tone="neutral">W</Badge>
                               ) : (
-                                set.set_number
+                                setNumbers[j]
                               )}
                             </span>
                             <span className={`text-right tabular-nums ${emphasis}`}>

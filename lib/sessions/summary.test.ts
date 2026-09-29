@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   computeSessionSummary,
   topWorkingSet,
+  workingSetNumbers,
+  formatSetCount,
   formatSessionDate,
   sessionDurationMinutes,
   formatDuration,
@@ -19,14 +21,14 @@ const set = (
 ) => ({ weight_kg, reps, is_warmup, set_number });
 
 describe("computeSessionSummary", () => {
-  it("counts exercises and every set, but excludes warmups from volume", () => {
+  it("counts exercises, and excludes warmups from both set count and volume", () => {
     const exercises: ExerciseSummary[] = [
       { exerciseName: "Bench", sets: [set(40, 10, true, 1), set(80, 8, false, 2), set(80, 6, false, 3)] },
       { exerciseName: "Row", sets: [set(60, 10, false, 1)] },
     ];
     expect(computeSessionSummary(exercises)).toEqual({
       exerciseCount: 2,
-      setCount: 4,
+      setCount: 3,
       totalVolumeKg: 80 * 8 + 80 * 6 + 60 * 10, // 640 + 480 + 600 = 1720
     });
   });
@@ -52,6 +54,39 @@ describe("topWorkingSet", () => {
   it("ignores warmups and returns null when there are no working sets", () => {
     expect(topWorkingSet([set(100, 5, true, 1)])).toBeNull();
     expect(topWorkingSet([])).toBeNull();
+  });
+});
+
+describe("workingSetNumbers", () => {
+  const w = { is_warmup: true };
+  const x = { is_warmup: false };
+
+  it("numbers working sets 1..n and skips warmups wherever they fall", () => {
+    expect(workingSetNumbers([w, w, x, x, w, x, x])).toEqual([null, null, 1, 2, null, 3, 4]);
+  });
+
+  it("ignores stored set_number gaps (numbering is positional)", () => {
+    const sets = [set(80, 5, false, 1), set(80, 5, false, 3), set(80, 5, false, 7)];
+    expect(workingSetNumbers(sets)).toEqual([1, 2, 3]);
+  });
+
+  it("handles empty and warmup-only lists", () => {
+    expect(workingSetNumbers([])).toEqual([]);
+    expect(workingSetNumbers([w, w])).toEqual([null, null]);
+  });
+});
+
+describe("formatSetCount", () => {
+  const w = { is_warmup: true };
+  const x = { is_warmup: false };
+
+  it("shows working sets, with warmups appended only when present", () => {
+    expect(formatSetCount([x, x, x])).toBe("3 sets");
+    expect(formatSetCount([x])).toBe("1 set");
+    expect(formatSetCount([w, w, x, x])).toBe("2 sets + 2W");
+    expect(formatSetCount([w, x])).toBe("1 set + 1W");
+    expect(formatSetCount([w, w, w])).toBe("0 sets + 3W");
+    expect(formatSetCount([])).toBe("0 sets");
   });
 });
 

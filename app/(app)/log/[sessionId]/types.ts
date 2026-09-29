@@ -1,4 +1,5 @@
 import type { LastSession } from "@/lib/sessions/last-session";
+import type { PrRecord } from "@/lib/pr";
 
 export type SetEntry = {
   id: string;
@@ -14,7 +15,7 @@ export type ExerciseEntry = {
   exerciseId: string;
   exerciseName: string;
   sets: SetEntry[];
-  prWeightKg: number | null;
+  pr: PrRecord | null;
   lastSession: LastSession | null;
   // Planned working sets when the session came from a routine that sets one (routine_exercises.target_sets).
   targetSets: number | null;

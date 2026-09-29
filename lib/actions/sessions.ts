@@ -12,7 +12,7 @@ import {
   deleteSetForUser,
   finishSessionForUser,
   discardSessionForUser,
-  getPriorMaxWeight,
+  getPriorPr,
   getLastSessionSets,
   updateSessionNotesForUser,
 } from "@/lib/sessions/service";
@@ -29,11 +29,11 @@ export async function startSession(input: unknown) {
 export async function addExerciseToSession(sessionId: string, exerciseId: string) {
   const userId = await requireUserId();
   const sessionExercise = await addExerciseToSessionForUser(prisma, userId, sessionId, exerciseId);
-  const [prWeightKg, lastSessions] = await Promise.all([
-    getPriorMaxWeight(prisma, userId, exerciseId),
+  const [pr, lastSessions] = await Promise.all([
+    getPriorPr(prisma, userId, exerciseId),
     getLastSessionSets(prisma, userId, [exerciseId], sessionId),
   ]);
-  return { ...sessionExercise, prWeightKg, lastSession: lastSessions[exerciseId] ?? null };
+  return { ...sessionExercise, pr, lastSession: lastSessions[exerciseId] ?? null };
 }
 
 export async function removeExerciseFromSession(sessionExerciseId: string) {

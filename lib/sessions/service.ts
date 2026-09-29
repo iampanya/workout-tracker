@@ -5,7 +5,7 @@ import {
   updateSetSchema,
   updateSessionNotesSchema,
 } from "@/lib/validation";
-import { isNewPr } from "@/lib/pr";
+import { isBetterSet, isNewPr, type PrRecord } from "@/lib/pr";
 import { toDateOnlyString } from "@/lib/date";
 import type { LastSession } from "./last-session";
 import { getRoutineWithExercises } from "@/lib/routines/service";
@@ -103,31 +103,35 @@ export async function removeExerciseFromSessionForUser(
 
 // exercise_prs is a view (not a Prisma model), so read it with raw SQL. Columns are compared as
 // text to avoid uuid-vs-text parameter casting quirks.
-export async function getPriorMaxWeight(
+export async function getPriorPr(
   db: PrismaClient,
   userId: string,
   exerciseId: string
-): Promise<number | null> {
-  const rows = await db.$queryRaw<{ pr_weight_kg: string | number }[]>`
-    select pr_weight_kg from exercise_prs
+): Promise<PrRecord | null> {
+  const rows = await db.$queryRaw<{ pr_weight_kg: string | number; pr_reps: number }[]>`
+    select pr_weight_kg, pr_reps from exercise_prs
     where user_id::text = ${userId} and exercise_id::text = ${exerciseId}
     limit 1`;
-  return rows.length > 0 ? Number(rows[0].pr_weight_kg) : null;
+  return rows.length > 0
+    ? { weightKg: Number(rows[0].pr_weight_kg), reps: rows[0].pr_reps }
+    : null;
 }
 
-export async function getPriorMaxWeights(
+export async function getPriorPrs(
   db: PrismaClient,
   userId: string,
   exerciseIds: string[]
-): Promise<Record<string, number>> {
+): Promise<Record<string, PrRecord>> {
   if (exerciseIds.length === 0) return {};
-  const rows = await db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
-    select exercise_id, pr_weight_kg from exercise_prs
+  const rows = await db.$queryRaw<
+    { exercise_id: string; pr_weight_kg: string | number; pr_reps: number }[]
+  >(Prisma.sql`
+    select exercise_id, pr_weight_kg, pr_reps from exercise_prs
     where user_id::text = ${userId} and exercise_id::text IN (${Prisma.join(exerciseIds)})`);
   return Object.fromEntries(
     rows
       .filter((row) => row.exercise_id !== null && row.pr_weight_kg !== null)
-      .map((row) => [row.exercise_id, Number(row.pr_weight_kg)])
+      .map((row) => [row.exercise_id, { weightKg: Number(row.pr_weight_kg), reps: row.pr_reps }])
   );
 }
 
@@ -145,7 +149,7 @@ export async function logSetForUser(
   if (!sessionExercise) throw new Error("Session exercise not found or not owned by user");
   const exerciseId = sessionExercise.exercise_id;
 
-  const priorMax = parsed.isWarmup ? null : await getPriorMaxWeight(db, userId, exerciseId);
+  const priorPr = parsed.isWarmup ? null : await getPriorPr(db, userId, exerciseId);
 
   // max(set_number) + 1, not count(*) + 1: a middle delete leaves a gap, so count(*) could collide
   // with unique(session_exercise_id, set_number).
@@ -168,7 +172,8 @@ export async function logSetForUser(
     },
   });
 
-  const isPr = !parsed.isWarmup && isNewPr(parsed.weightKg, priorMax);
+  const isPr =
+    !parsed.isWarmup && isNewPr({ weightKg: parsed.weightKg, reps: parsed.reps }, priorPr);
   return { set: toSetRow(set), isPr };
 }
 
@@ -186,16 +191,17 @@ export async function updateSetForUser(
   });
   if (!existing) throw new Error("Set not found or not owned by user");
 
-  const priorMax = parsed.isWarmup
-    ? null
-    : await getPriorMaxWeight(db, userId, existing.exercise_id);
+  // Read before the update, so the prior record still includes this set's old values — a save
+  // that doesn't improve on them (e.g. an unchanged edit of the record set) isn't a new PR.
+  const priorPr = parsed.isWarmup ? null : await getPriorPr(db, userId, existing.exercise_id);
 
   const set = await db.sets.update({
     where: { id: setId },
     data: { weight_kg: parsed.weightKg, reps: parsed.reps, is_warmup: parsed.isWarmup },
   });
 
-  const isPr = !parsed.isWarmup && isNewPr(parsed.weightKg, priorMax);
+  const isPr =
+    !parsed.isWarmup && isNewPr({ weightKg: parsed.weightKg, reps: parsed.reps }, priorPr);
   return { set: toSetRow(set), isPr };
 }
 
@@ -298,11 +304,14 @@ export async function updateSessionNotesForUser(
   if (result.count === 0) throw new Error("Session not found or not owned by user");
 }
 
-export type SessionPr = { exerciseId: string; exerciseName: string; weightKg: number };
+export type SessionPr = { exerciseId: string; exerciseName: string } & PrRecord;
 
-// Exercises where this session's heaviest working set beat the best working set the user logged
-// in earlier sessions — i.e. PRs *set* in this session. An exercise done for the first time has
-// no record to beat, so it isn't listed (otherwise a new user's every exercise is a "PR").
+type BestSetRow = { exercise_id: string; weight_kg: string | number; reps: number };
+
+// Exercises where this session's top working set (heaviest, then most reps) beat the best working
+// set the user logged in earlier sessions — i.e. PRs *set* in this session. An exercise done for
+// the first time has no record to beat, so it isn't listed (otherwise a new user's every exercise
+// is a "PR").
 export async function getSessionPrs(
   db: PrismaClient,
   userId: string,
@@ -314,48 +323,51 @@ export async function getSessionPrs(
   });
   if (!session) return [];
 
-  const sessionMaxes = await db.sets.groupBy({
-    by: ["exercise_id"],
-    where: { user_id: userId, is_warmup: false, session_exercises: { session_id: sessionId } },
-    _max: { weight_kg: true },
-  });
-  if (sessionMaxes.length === 0) return [];
+  // DISTINCT ON picks one row per exercise: the first in weight-desc, reps-desc order.
+  const sessionBest = await db.$queryRaw<BestSetRow[]>(Prisma.sql`
+    select distinct on (st.exercise_id) st.exercise_id::text as exercise_id, st.weight_kg, st.reps
+    from sets st
+    join session_exercises se on se.id = st.session_exercise_id
+    where st.user_id::text = ${userId} and se.session_id::text = ${sessionId}
+      and not st.is_warmup
+    order by st.exercise_id, st.weight_kg desc, st.reps desc`);
+  if (sessionBest.length === 0) return [];
 
-  const exerciseIds = sessionMaxes.map((row) => row.exercise_id);
-  const [priorMaxes, exercises] = await Promise.all([
-    db.sets.groupBy({
-      by: ["exercise_id"],
-      where: {
-        user_id: userId,
-        is_warmup: false,
-        exercise_id: { in: exerciseIds },
-        session_exercises: {
-          sessions: { id: { not: sessionId }, started_at: { lt: session.started_at } },
-        },
-      },
-      _max: { weight_kg: true },
-    }),
+  const exerciseIds = sessionBest.map((row) => row.exercise_id);
+  const [priorBest, exercises] = await Promise.all([
+    db.$queryRaw<BestSetRow[]>(Prisma.sql`
+      select distinct on (st.exercise_id) st.exercise_id::text as exercise_id, st.weight_kg, st.reps
+      from sets st
+      join session_exercises se on se.id = st.session_exercise_id
+      join sessions s on s.id = se.session_id
+      where st.user_id::text = ${userId} and s.user_id::text = ${userId}
+        and st.exercise_id::text in (${Prisma.join(exerciseIds)})
+        and s.id::text <> ${sessionId} and s.started_at < ${session.started_at}
+        and not st.is_warmup
+      order by st.exercise_id, st.weight_kg desc, st.reps desc`),
     db.exercises.findMany({
       where: { id: { in: exerciseIds } },
       select: { id: true, name: true },
     }),
   ]);
 
-  const priorByExercise = new Map(
-    priorMaxes.map((row) => [row.exercise_id, Number(row._max.weight_kg)])
-  );
+  const toRecord = (row: BestSetRow): PrRecord => ({
+    weightKg: Number(row.weight_kg),
+    reps: row.reps,
+  });
+  const priorByExercise = new Map(priorBest.map((row) => [row.exercise_id, toRecord(row)]));
   const nameById = new Map(exercises.map((e) => [e.id, e.name]));
 
-  return sessionMaxes
-    .filter((row) => row._max.weight_kg !== null && nameById.has(row.exercise_id))
+  return sessionBest
+    .filter((row) => nameById.has(row.exercise_id))
     .map((row) => ({
       exerciseId: row.exercise_id,
       exerciseName: nameById.get(row.exercise_id)!,
-      weightKg: Number(row._max.weight_kg),
+      ...toRecord(row),
     }))
     .filter((pr) => {
       const prior = priorByExercise.get(pr.exerciseId);
-      return prior !== undefined && pr.weightKg > prior;
+      return prior !== undefined && isBetterSet(pr, prior);
     })
-    .sort((a, b) => b.weightKg - a.weightKg);
+    .sort((a, b) => b.weightKg - a.weightKg || b.reps - a.reps);
 }

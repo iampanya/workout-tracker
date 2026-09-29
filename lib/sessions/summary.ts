@@ -1,6 +1,8 @@
 // Pure, DB-free helpers for the session-detail (history) view. Kept separate from
 // history.ts (which pulls in the Supabase client) so these can run under plain `npm test`.
 
+import { isBetterSet, type PrRecord } from "@/lib/pr";
+
 export type SetSummary = {
   weight_kg: number;
   reps: number;
@@ -15,7 +17,7 @@ export type ExerciseSummary = {
 
 export type SessionSummary = {
   exerciseCount: number;
-  // Every logged set, warmups included — the honest count of what happened.
+  // Working sets only — warmups are excluded here just as they are from volume and PRs.
   setCount: number;
   // Volume load = weight × reps summed over working sets only (warmups excluded, matching
   // how PRs are computed elsewhere).
@@ -27,8 +29,8 @@ export function computeSessionSummary(exercises: ExerciseSummary[]): SessionSumm
   let totalVolumeKg = 0;
   for (const exercise of exercises) {
     for (const set of exercise.sets) {
-      setCount += 1;
       if (!set.is_warmup) {
+        setCount += 1;
         totalVolumeKg += set.weight_kg * set.reps;
       }
     }
@@ -46,15 +48,29 @@ export function topWorkingSet(sets: SetSummary[]): SetSummary | null {
   let best: SetSummary | null = null;
   for (const set of sets) {
     if (set.is_warmup) continue;
-    if (
-      best === null ||
-      set.weight_kg > best.weight_kg ||
-      (set.weight_kg === best.weight_kg && set.reps > best.reps)
-    ) {
-      best = set;
-    }
+    if (best === null || isBetterSet(toRecord(set), toRecord(best))) best = set;
   }
   return best;
+}
+
+function toRecord(set: SetSummary): PrRecord {
+  return { weightKg: set.weight_kg, reps: set.reps };
+}
+
+// Display set numbers: each working set's position among the working sets, in the given (logged)
+// order; warmups get null and are shown as "W". Never the stored set_number, which counts warmups
+// and keeps gaps after a delete. e.g. [W, W, work, work, W, work] -> [null, null, 1, 2, null, 3].
+export function workingSetNumbers(sets: { is_warmup: boolean }[]): (number | null)[] {
+  let n = 0;
+  return sets.map((set) => (set.is_warmup ? null : ++n));
+}
+
+// Per-exercise count: "3 sets", "1 set + 2W", "0 sets + 3W".
+export function formatSetCount(sets: { is_warmup: boolean }[]): string {
+  const warmups = sets.filter((s) => s.is_warmup).length;
+  const working = sets.length - warmups;
+  const base = `${working} ${working === 1 ? "set" : "sets"}`;
+  return warmups > 0 ? `${base} + ${warmups}W` : base;
 }
 
 const MONTHS = [

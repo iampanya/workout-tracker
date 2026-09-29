@@ -89,7 +89,12 @@ describe("dashboard service", () => {
     await finishSessionForUser(prisma, userId, session.id);
 
     const prs = await listPrsFromLastCompletedSession(prisma, userId);
-    expect(prs).toContainEqual({ exerciseId: exercise.id, exerciseName: exercise.name, weightKg: 100 });
+    expect(prs).toContainEqual({
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      weightKg: 100,
+      reps: 5,
+    });
   });
 });
 
@@ -207,6 +212,13 @@ describe("listTopPrs", () => {
       reps: 3,
       isWarmup: false,
     });
+    // Fewer reps at the same weight doesn't displace the record's reps.
+    await logSetForUser(prisma, userId, {
+      sessionExerciseId: heavySe.id,
+      weightKg: 120,
+      reps: 2,
+      isWarmup: false,
+    });
     const lightSe = await addExerciseToSessionForUser(prisma, userId, session.id, light.id);
     await logSetForUser(prisma, userId, {
       sessionExerciseId: lightSe.id,
@@ -217,8 +229,8 @@ describe("listTopPrs", () => {
 
     const top = await listTopPrs(prisma, userId, 6);
     expect(top).toEqual([
-      { exerciseId: heavy.id, exerciseName: heavy.name, weightKg: 120 },
-      { exerciseId: light.id, exerciseName: light.name, weightKg: 80 },
+      { exerciseId: heavy.id, exerciseName: heavy.name, weightKg: 120, reps: 3 },
+      { exerciseId: light.id, exerciseName: light.name, weightKg: 80, reps: 5 },
     ]);
   });
 });

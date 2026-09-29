@@ -43,7 +43,7 @@ describe("exercise progress", () => {
     ]);
 
     const pr = await getExercisePr(prisma, userId, exercise.id);
-    expect(pr).toBe(110);
+    expect(pr).toEqual({ weightKg: 110, reps: 5 });
   });
 
   it("returns null PR for an exercise with no logged sets", async () => {

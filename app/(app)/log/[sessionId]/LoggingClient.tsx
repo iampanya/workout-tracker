@@ -14,6 +14,7 @@ import {
   removeExerciseFromSession,
 } from "@/lib/actions/sessions";
 import { computeSessionSummary, formatDuration } from "@/lib/sessions/summary";
+import { formatPr, type PrRecord } from "@/lib/pr";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
@@ -101,14 +102,14 @@ export function LoggingClient({
 
   // Toast only when an earlier record was actually beaten — the first set ever logged for an
   // exercise is technically a "PR" but celebrating it is just noise.
-  function announcePr(sessionExerciseId: string, weightKg: number, hadPriorPr: boolean) {
+  function announcePr(sessionExerciseId: string, pr: PrRecord, hadPriorPr: boolean) {
     if (!hadPriorPr) return;
     const exercise = exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId);
-    setToast(`New PR on ${exercise?.exerciseName ?? "this exercise"}: ${weightKg} kg!`);
+    setToast(`New PR on ${exercise?.exerciseName ?? "this exercise"}: ${formatPr(pr)}!`);
   }
 
   function hasPriorPr(sessionExerciseId: string): boolean {
-    return exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId)?.prWeightKg != null;
+    return exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId)?.pr != null;
   }
 
   const logSetMutation = useMutation({
@@ -149,12 +150,18 @@ export function LoggingClient({
                 sets: ex.sets.map((s) =>
                   s.id === context.tempId ? { ...result.set, pending: false } : s
                 ),
-                prWeightKg: result.isPr ? vars.weightKg : ex.prWeightKg,
+                pr: result.isPr ? { weightKg: vars.weightKg, reps: vars.reps } : ex.pr,
               }
             : ex
         )
       );
-      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg, context.hadPriorPr);
+      if (result.isPr) {
+        announcePr(
+          vars.sessionExerciseId,
+          { weightKg: vars.weightKg, reps: vars.reps },
+          context.hadPriorPr
+        );
+      }
       setRestStartedAt(Date.now());
       setFlashSetId(result.set.id);
       setTimeout(() => setFlashSetId((id) => (id === result.set.id ? null : id)), 900);
@@ -185,12 +192,18 @@ export function LoggingClient({
             ? {
                 ...ex,
                 sets: ex.sets.map((s) => (s.id === vars.setId ? { ...result.set } : s)),
-                prWeightKg: result.isPr ? vars.weightKg : ex.prWeightKg,
+                pr: result.isPr ? { weightKg: vars.weightKg, reps: vars.reps } : ex.pr,
               }
             : ex
         )
       );
-      if (result.isPr) announcePr(vars.sessionExerciseId, vars.weightKg, context.hadPriorPr);
+      if (result.isPr) {
+        announcePr(
+          vars.sessionExerciseId,
+          { weightKg: vars.weightKg, reps: vars.reps },
+          context.hadPriorPr
+        );
+      }
     },
   });
 
@@ -247,7 +260,7 @@ export function LoggingClient({
           exerciseId,
           exerciseName,
           sets: [],
-          prWeightKg: added.prWeightKg,
+          pr: added.pr,
           lastSession: added.lastSession,
           targetSets: null,
         },

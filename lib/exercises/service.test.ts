@@ -92,7 +92,7 @@ describe("listExerciseStats", () => {
     }
 
     expect((await listExerciseStats(prisma, userId))[preset.id]).toEqual({
-      prKg: 70,
+      pr: { weightKg: 70, reps: 5 },
       lastDate: "2026-06-08",
     });
     expect(await listExerciseStats(prisma, other.userId)).toEqual({});

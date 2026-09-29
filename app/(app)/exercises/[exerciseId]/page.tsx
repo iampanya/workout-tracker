@@ -80,8 +80,8 @@ export default async function ExerciseProgressPage({
           <div className="grid grid-cols-3 gap-2">
             <StatCard
               label="PR"
-              value={pr ?? "—"}
-              unit={pr !== null ? "kg" : undefined}
+              value={pr?.weightKg ?? "—"}
+              unit={pr !== null ? `kg × ${pr.reps}` : undefined}
               tone="success"
               icon={<Trophy className="h-4 w-4" />}
             />
@@ -132,7 +132,12 @@ export default async function ExerciseProgressPage({
                     </div>
                     <ul className="flex flex-wrap gap-1.5">
                       {session.sets.map((set) => {
-                        const isPr = !set.is_warmup && pr !== null && set.weight_kg === pr;
+                        // Only the record set itself (weight and reps), not every set at that weight.
+                        const isPr =
+                          !set.is_warmup &&
+                          pr !== null &&
+                          set.weight_kg === pr.weightKg &&
+                          set.reps === pr.reps;
                         const isBest = set === best;
                         return (
                           <li

@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { toDateOnlyString } from "@/lib/date";
+import type { PrRecord } from "@/lib/pr";
 
 export type ExerciseHistorySet = {
   id: string;
@@ -51,10 +52,12 @@ export async function getExercisePr(
   db: PrismaClient,
   userId: string,
   exerciseId: string
-): Promise<number | null> {
-  const rows = await db.$queryRaw<{ pr_weight_kg: string | number }[]>(Prisma.sql`
-    select pr_weight_kg from exercise_prs
+): Promise<PrRecord | null> {
+  const rows = await db.$queryRaw<{ pr_weight_kg: string | number; pr_reps: number }[]>(Prisma.sql`
+    select pr_weight_kg, pr_reps from exercise_prs
     where user_id::text = ${userId} and exercise_id::text = ${exerciseId}
     limit 1`);
-  return rows.length > 0 ? Number(rows[0].pr_weight_kg) : null;
+  return rows.length > 0
+    ? { weightKg: Number(rows[0].pr_weight_kg), reps: rows[0].pr_reps }
+    : null;
 }

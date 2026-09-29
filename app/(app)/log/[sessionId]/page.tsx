@@ -3,7 +3,7 @@ import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises } from "@/lib/exercises/service";
 import { getRoutineTargetSets } from "@/lib/routines/service";
-import { getPriorMaxWeights, getLastSessionSets } from "@/lib/sessions/service";
+import { getPriorPrs, getLastSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
 import { QueryProvider } from "./QueryProvider";
 import { LoggingClient } from "./LoggingClient";
@@ -41,7 +41,7 @@ export default async function LogSessionPage({
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
   const [prMap, lastSessions, targetSets] = await Promise.all([
-    getPriorMaxWeights(prisma, userId, exerciseIds),
+    getPriorPrs(prisma, userId, exerciseIds),
     getLastSessionSets(prisma, userId, exerciseIds, sessionId),
     session.routine_id
       ? getRoutineTargetSets(prisma, userId, session.routine_id)
@@ -55,7 +55,7 @@ export default async function LogSessionPage({
     sets: [...se.sets]
       .sort((a, b) => a.set_number - b.set_number)
       .map((s) => ({ ...s, weight_kg: Number(s.weight_kg) })),
-    prWeightKg: prMap[se.exercise_id] ?? null,
+    pr: prMap[se.exercise_id] ?? null,
     lastSession: lastSessions[se.exercise_id] ?? null,
     targetSets: targetSets[se.exercise_id] ?? null,
   }));

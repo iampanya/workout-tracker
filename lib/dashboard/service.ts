@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
 import { getLocalDateString, getWeekStart, getWeekEnd, toDateOnlyString } from "@/lib/date";
+import type { PrRecord } from "@/lib/pr";
 import { type CompletedSession, toCompletedSession } from "@/lib/sessions/serialize";
 import { getSessionPrs, type SessionPr } from "@/lib/sessions/service";
 import { computeStreakDays } from "./streak";
@@ -133,7 +134,7 @@ export async function getWeeklyVolume(
   return buckets;
 }
 
-export type TopPr = { exerciseId: string; exerciseName: string; weightKg: number };
+export type TopPr = { exerciseId: string; exerciseName: string } & PrRecord;
 
 // All-time top lifts from the live exercise_prs view (read via raw SQL — it's a view, not a
 // Prisma model). Names are fetched in a second query.
@@ -142,10 +143,12 @@ export async function listTopPrs(
   userId: string,
   limit = 6
 ): Promise<TopPr[]> {
-  const prs = await db.$queryRaw<{ exercise_id: string; pr_weight_kg: string | number }[]>(Prisma.sql`
-    select exercise_id, pr_weight_kg from exercise_prs
+  const prs = await db.$queryRaw<
+    { exercise_id: string; pr_weight_kg: string | number; pr_reps: number }[]
+  >(Prisma.sql`
+    select exercise_id, pr_weight_kg, pr_reps from exercise_prs
     where user_id::text = ${userId}
-    order by pr_weight_kg desc
+    order by pr_weight_kg desc, pr_reps desc
     limit ${limit}`);
 
   const rows = prs.filter((row) => row.exercise_id !== null && row.pr_weight_kg !== null);
@@ -162,6 +165,7 @@ export async function listTopPrs(
       exerciseId: row.exercise_id,
       exerciseName: nameById.get(row.exercise_id)!,
       weightKg: Number(row.pr_weight_kg),
+      reps: row.pr_reps,
     }));
 }
 

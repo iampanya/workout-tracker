@@ -46,3 +46,32 @@ _Avoid_: Reset, rotate, refresh.
 `profiles.referred_by` — retained column, but null for accounts created via Google sign-in (there is no
 signup-time referral capture anymore).
 _Avoid_: Inviter, sponsor, parent.
+
+### Training
+
+**Working set**:
+Any logged set that is not a warmup. Only working sets count toward PRs, volume, set counts, and set
+numbers.
+_Avoid_: Real set, main set.
+
+**Warmup set**:
+A set flagged as a warmup. Shown as `W`; it has no set number and is excluded from PRs, volume, and
+set counts (it may appear alongside them, e.g. "2 sets + 2W").
+_Avoid_: Prep set.
+
+**Set number**:
+A working set's position among that exercise's working sets within one workout, in logged order
+(1, 2, 3…). Warmups and deleted sets never leave a gap — e.g. `W, W, 1, 2, W, 3`. Not the stored
+sequence.
+_Avoid_: Set index.
+
+**PR (personal record)**:
+For an exercise, the heaviest working-set weight ever logged, together with the most reps done at that
+weight — written `100 kg × 6`. A **new PR** is heavier, or the same weight for more reps; an exact tie
+is not new.
+_Avoid_: Max, best (ambiguous with top set / e1RM).
+
+**Top set**:
+The best working set within one workout, by the same rule as a PR (heaviest, then most reps). A top set
+is per workout; a PR is all-time.
+_Avoid_: Best set.

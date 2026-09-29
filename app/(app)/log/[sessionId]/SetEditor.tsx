@@ -11,12 +11,15 @@ import type { SetEntry, SetFormInput, SetValues } from "./types";
 // to mis-tap mid-workout.
 export function SetEditor({
   set,
+  setNumber,
   saving,
   onSave,
   onDelete,
   onCancel,
 }: {
   set: SetEntry;
+  // Display number among the exercise's working sets; null for a warmup.
+  setNumber: number | null;
   saving: boolean;
   onSave: (values: SetValues) => void;
   onDelete: () => void;
@@ -32,7 +35,7 @@ export function SetEditor({
   return (
     <div className="-mx-2 flex flex-col gap-3 rounded-xl bg-surface-muted p-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
-        Edit set {set.set_number}
+        {setNumber === null ? "Edit warmup" : `Edit set ${setNumber}`}
       </p>
       <WeightRepsFields value={input} onChange={setInput} />
       <div>
