@@ -1,21 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #fff4ea;
+  --foreground: #1c1917;
   --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --muted: #64748b;
-  --accent: #d97706;
-  --accent-foreground: #0f172a;
+  --surface-muted: #ffe9d6;
+  --border: #f8d9be;
+  --muted: #6b625a;
+  --accent: #c2410c;
+  --accent-foreground: #ffffff;
   --accent-secondary: #7c3aed;
   --accent-secondary-foreground: #ffffff;
-  --success: #16a34a;
+  --success: #15803d;
   --success-foreground: #ffffff;
   --danger: #dc2626;
   --danger-foreground: #ffffff;
-  --ring: #d97706;
+  --ring: #c2410c;
+  --card-shadow: 0 1px 2px rgb(154 52 18 / 0.06), 0 4px 12px -4px rgb(154 52 18 / 0.1);
 
   --muscle-chest: #e11d48;
   --muscle-back: #2563eb;
@@ -49,6 +50,7 @@
   --color-muscle-arms: var(--muscle-arms);
   --color-muscle-core: var(--muscle-core);
   --color-chart-line: var(--chart-line);
+  --shadow-card: var(--card-shadow);
   --font-sans: var(--font-fira-sans);
   --font-mono: var(--font-fira-code);
 }
@@ -78,6 +80,7 @@
   --danger: #ef4444;
   --danger-foreground: #f8fafc;
   --ring: #f59e0b;
+  --card-shadow: none;
 
   --muscle-chest: #fb7185;
   --muscle-back: #60a5fa;
@@ -105,6 +108,7 @@
     --danger: #ef4444;
     --danger-foreground: #f8fafc;
     --ring: #f59e0b;
+    --card-shadow: none;
 
     --muscle-chest: #fb7185;
     --muscle-back: #60a5fa;

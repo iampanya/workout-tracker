@@ -7,7 +7,7 @@ export function Card({
 }: HTMLAttributes<HTMLDivElement> & { padding?: boolean }) {
   return (
     <div
-      className={`rounded-2xl border border-border bg-surface ${padding ? "p-4" : ""} ${className}`}
+      className={`rounded-2xl border border-border bg-surface shadow-card ${padding ? "p-4" : ""} ${className}`}
       {...rest}
     />
   );
