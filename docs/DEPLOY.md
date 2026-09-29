@@ -90,7 +90,7 @@ npx vercel env add AUTH_URL production           # https://<your-domain> (แน
 npx vercel --prod
 ```
 
-> build จะรัน `prisma generate` ให้เองผ่าน `postinstall`
+> build จะรัน `prisma generate` ให้เองผ่าน `postinstall` และ production build จะรัน `prisma migrate deploy` ก่อน `next build` ผ่าน script `vercel-build` (`scripts/vercel-build.sh`) — ต้องตั้ง `DIRECT_URL` ใน Production env ไม่งั้น build จะ fail
 
 ---
 
@@ -108,15 +108,16 @@ login ด้วย Google → **Log workout** → เลือกท่า + log
 
 ## ส่วน E — อัปเดต production ที่มี migration ใหม่
 
-**migrate DB ก่อน แล้วค่อย deploy Vercel เสมอ** — โค้ดใหม่ที่ query คอลัมน์/ฟังก์ชันที่ DB ยังไม่มีจะพัง
+**push เข้า `main` แล้ว Vercel production build จะ migrate ให้เอง** — script `vercel-build` (`scripts/vercel-build.sh`) รัน `prisma migrate deploy` ก่อน `next build` เฉพาะตอน `VERCEL_ENV=production` (preview deploy ไม่แตะ DB)
 
 ```bash
-DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate deploy   # apply migration ใหม่บน prod ก่อน
-npx vercel --prod
+git push origin main   # Vercel: prisma migrate deploy → next build → go live
 ```
 
-> **env vars ไม่ต้องเพิ่มใหม่** ถ้า migration แค่แก้ schema — ใช้ชุดเดิม
-> อย่าเอา `prisma migrate deploy` ไปใส่ Vercel build command — รันมือ/CI แยกก่อน promote
+> **กฎสำคัญ: migration ต้อง backward-compatible (expand/contract)** — ระหว่างที่ build ใหม่ยังไม่เสร็จ deployment เก่ายังรันอยู่บน DB ที่ migrate แล้ว และถ้า build พังหลัง migrate สำเร็จ DB จะนำหน้าโค้ด 1 ขั้น เพิ่มคอลัมน์/view column/ตารางใหม่ = ปลอดภัย, drop/rename = แยกเป็น 2 รอบ (รอบแรกเพิ่มของใหม่ + deploy โค้ดที่เลิกใช้ของเก่า, รอบถัดไปค่อยลบ)
+> ต้องมี `DIRECT_URL` (direct :5432) ใน Vercel **Production** env — ถ้าไม่มี build จะ fail แทนที่จะพยายาม migrate ผ่าน pooler
+> ถ้าตั้ง **Build Command** แบบ override ไว้ใน Vercel Project Settings ต้องลบออก (ปล่อยเป็นค่า default) ไม่งั้น Vercel จะไม่เรียก `vercel-build`
+> ยัง migrate มือได้เหมือนเดิมถ้าต้องการ: `DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate deploy` (รันซ้ำตอน build ก็ไม่เป็นไร — apply เฉพาะที่ยังไม่ได้ apply)
 
 ---
 
@@ -124,7 +125,7 @@ npx vercel --prod
 
 - **ถ้าใช้ Supabase free tier เป็น Postgres host:** auto-pause หลังไม่มี activity ~7 วัน → แอปต่อ DB ไม่ติด แก้: กด Resume ใน dashboard; ป้องกัน: อัป Pro plan หรือตั้ง cron ยิง query เบาๆ keep-alive
 - **ย้าย Postgres ไปเจ้าอื่นเมื่อไรก็ได้:** dump ข้อมูลจากที่เดิม → restore ที่ใหม่ → เปลี่ยน `DATABASE_URL`/`DIRECT_URL` บน Vercel → redeploy (ไม่ต้องแก้โค้ด) นี่คือจุดประสงค์หลักของการย้ายมา Prisma
-- **เพิ่ม/แก้ schema:** `prisma migrate dev --name <x>` (local สร้าง+apply) → `DIRECT_URL=<prod> npx prisma migrate deploy` (prod) — อย่าแก้ไฟล์ migration เดิมที่ deploy ไปแล้ว ถ้าแก้ view/function/trigger ต้องเขียน SQL เพิ่มเองในไฟล์ migration ที่ `migrate dev` สร้าง แล้ว `prisma db pull` ให้ schema.prisma sync
+- **เพิ่ม/แก้ schema:** `prisma migrate dev --name <x>` (local สร้าง+apply) → commit + push `main` (Vercel production build รัน `migrate deploy` ให้ — migration ต้อง backward-compatible) — อย่าแก้ไฟล์ migration เดิมที่ deploy ไปแล้ว ถ้าแก้ view/function/trigger ต้องเขียน SQL เพิ่มเองในไฟล์ migration ที่ `migrate dev` สร้าง แล้ว `prisma db pull` ให้ schema.prisma sync
 - **ปิด service ที่ไม่ใช้บน Supabase host:** แอปไม่ใช้ Supabase Auth/PostgREST แล้ว — ถ้า host Postgres บน Supabase จะปล่อย service พวกนั้นทิ้งไว้ก็ได้ (ไม่กระทบ)
 
 ---
