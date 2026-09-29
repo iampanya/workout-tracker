@@ -22,7 +22,8 @@ Implemented phases B1–B4: username login, invite-gated `/signup`, `profiles`/`
 
 **Deferred:** B5 (password reset by email).
 
-## Follow-up (separate, unrelated task)
+## Done — Stray test users in the local DB (2026-09-29)
 
-Clean up the ~stray `test-*@test.local` users and their orphaned sessions/sets in the local DB
-(leftover from `test:db` runs not tearing down).
+Removed 316 leftover `test-*@test.local` users (and their data) from the local DB. `test:db` now
+tears them down itself: `vitest.db.config.ts` adds `lib/test-global-setup.ts`, whose teardown deletes
+every test user after the run (local hosts only).
