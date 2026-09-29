@@ -61,15 +61,19 @@ See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any 
 
 ## Notes
 
-- `/` is a public landing page for logged-out visitors (hero + feature overview + Log in). Logged-in
-  users are redirected to `/dashboard`. Everything else is auth-gated by `proxy.ts` (Auth.js middleware).
+- `/` is a public landing page (hero + feature overview + Log in). Logged-in users can still open it;
+  its CTAs point back into the app instead of to login. Everything else is auth-gated by `proxy.ts`
+  (Auth.js middleware).
 - Auth callback lives at `/api/auth/callback/google` (Auth.js). The Google Cloud OAuth client must list
   this exact URI (per environment).
 - Data isolation is enforced in the service layer (`user_id` scoping), **not** RLS — a query that forgets
   to scope by `user_id` would leak data, so every service function takes a `userId` and filters by it, and
   there are cross-user isolation tests (e.g. `lib/exercises/service.test.ts`).
 - All weights are stored and displayed in kilograms.
-- The `exercise_prs` view and the `import_backup` / `gen_referral_code` / `handle_new_user` functions are
-  defined as raw SQL in the squashed `prisma/migrations/0001_init` (Prisma is the client only; the view is
-  read via `$queryRaw`). This migration is the schema baseline for both local and production.
+- The `import_backup` / `gen_referral_code` / `handle_new_user` functions are defined as raw SQL in the
+  squashed `prisma/migrations/0001_init`, the schema baseline for both local and production. The
+  `exercise_prs` view (per-exercise PR = heaviest working set + most reps at that weight) was redefined in
+  `0002_exercise_prs_reps`. Prisma is the client only; the view is read via `$queryRaw`.
+- Pushing to `main` deploys: the Vercel production build applies pending migrations
+  (`prisma migrate deploy`) before `next build`, so migrations must be backward-compatible.
 - Full implementation history and design rationale: `docs/superpowers/specs/…` and `docs/superpowers/plans/…`.

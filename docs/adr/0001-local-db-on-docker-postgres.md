@@ -51,6 +51,8 @@ provision ให้ — `auth.users` (สร้างโดย GoTrue), role `au
 - ✅ Baseline สะอาด (ไม่มี auth/role/RLS) สะท้อนสิ่งที่ runtime ใช้จริง (Prisma + isolation ที่ service layer)
 - ✅ **Prisma Migrate เป็น single source ทั้ง local + prod** (baseline prod เสร็จ 2026-09-15) — แก้ schema
   ที่เดียว: `prisma migrate dev` (local) → `prisma migrate deploy` (prod)
+  - _อัปเดต 2026-09-29:_ `migrate deploy` บน prod ย้ายไปรันอัตโนมัติใน Vercel production build
+    (`scripts/vercel-build.sh`) แทนการรันมือ → migration ต้อง backward-compatible (ดู `docs/DEPLOY.md` ส่วน E)
 - ⚠️ `prisma migrate reset` ต้องรันด้วย role ที่เป็น owner ของ database/schema `public` (workout_tracker เป็น
   owner จึงผ่าน)
 

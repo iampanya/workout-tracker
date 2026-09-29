@@ -111,7 +111,7 @@ npx vercel --prod
 > **ผู้ใช้เดิม (ย้ายมาจาก GoTrue):** ข้อมูลจะกลับมาก็ต่อเมื่อ **email Google = email บัญชีเดิม** ที่ 0010 migrate มา (Auth.js link by email ให้ ผ่าน `allowDangerousEmailAccountLinking`) ถ้า email ไม่ตรง จะได้บัญชีใหม่ว่างเปล่า
 
 ### D2. Verify (ให้ครบ loop)
-login ด้วย Google → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี **"New PR" banner** ตอนทำน้ำหนักเกินสถิติเดิม → **Finish** → เช็ค **dashboard** ขึ้น session นั้น → ลองทั้งมือถือและ desktop
+login ด้วย Google → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี toast **"New PR … xx kg × N"** ตอนทำได้เกินสถิติเดิม (หนักกว่า หรือน้ำหนักเท่าเดิมแต่ reps มากกว่า) → **Finish** → เช็ค **dashboard** ขึ้น session นั้น → ลองทั้งมือถือและ desktop
 
 ---
 

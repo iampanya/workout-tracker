@@ -1,11 +1,10 @@
-// Typed client for the app's own (public-schema) tables. DB objects — tables, the
-// exercise_prs view, functions (referral_count/import_backup/gen_referral_code),
-// triggers — remain owned by the raw SQL migrations in supabase/migrations/*. Prisma is
-// the client only; regenerate with `prisma db pull` against a public-only introspection.
+// Typed client for the app's own (public-schema) tables. Non-model DB objects — the
+// exercise_prs view, functions (import_backup/gen_referral_code/handle_new_user), triggers —
+// are raw SQL inside prisma/migrations/*. Prisma is the client only; regenerate with
+// `prisma db pull` against a public-only introspection.
 //
-// user_id columns are kept as plain scalars (no relation to auth.users): in phase 1 users
-// still live in GoTrue's auth.users, and the app never joins to them from Prisma. Per-user
-// isolation is enforced in the service layer (every query filters by user_id), replacing RLS.
+// Data tables keep user_id as a plain scalar (no Prisma relation to the Auth.js `User` model).
+// Per-user isolation is enforced in the service layer (every query filters by user_id), not RLS.
 // The exercise_prs view is read via $queryRaw (see lib/dashboard/service.ts), so it is not
 // modeled here.
 generator client {

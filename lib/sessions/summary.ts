@@ -1,5 +1,5 @@
 // Pure, DB-free helpers for the session-detail (history) view. Kept separate from
-// history.ts (which pulls in the Supabase client) so these can run under plain `npm test`.
+// history.ts (which pulls in the Prisma client) so these can run under plain `npm test`.
 
 import { isBetterSet, type PrRecord } from "@/lib/pr";
 
