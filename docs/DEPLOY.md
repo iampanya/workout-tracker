@@ -27,6 +27,15 @@ Stack ใหม่: **Next.js + Prisma (ต่อ Postgres ตรง) + Auth.js 
 - pooled: Supavisor พอร์ต **6543** ต่อท้าย `?pgbouncer=true&connection_limit=1` → ใส่ `DATABASE_URL`
 - direct: พอร์ต **5432** → ใส่ `DIRECT_URL`
 
+> **⚠️ `DIRECT_URL` บน Vercel ต้องเป็น Session pooler ไม่ใช่ direct host:** host direct ของ Supabase (`db.<ref>.supabase.co`) เป็น **IPv6 อย่างเดียว** (ไม่มี A record) แต่ build machine ของ Vercel มีแค่ IPv4 → `prisma migrate deploy` ใน `vercel-build` จะ fail ด้วย `P1001: Can't reach database server at db.<ref>.supabase.co:5432` ให้ใช้ **Connect → Session pooler** แทน:
+> ```
+> postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+> ```
+> - user คือ `postgres.<ref>` (มี ref ต่อท้าย) และ host ให้ copy จาก dashboard (อย่าเดา region)
+> - ต้องเป็นพอร์ต **5432 (session mode)** — พอร์ต 6543 (transaction mode) ใช้ migrate ไม่ได้
+> - เช็คว่า host มี IPv4 ไหม: `dig +short A <host>` ถ้าว่าง = IPv6-only
+> - ในเครื่อง local ใช้ direct host ต่อได้ถ้าเน็ตรองรับ IPv6 — ปัญหานี้เกิดเฉพาะบน Vercel (หรือ CI/เครือข่ายที่ไม่มี IPv6)
+
 > **ทำไมต้อง pooled บน Vercel:** serverless เปิด connection เยอะมาก ถ้าต่อ direct 5432 จะเปิด connection ทะลักจน Postgres ปฏิเสธ — pooler (transaction mode) แก้ปัญหานี้
 
 ### A2. Apply migrations (โครงสร้าง)
@@ -74,7 +83,7 @@ npx vercel link
 ### C2. ใส่ environment variables (production)
 ```bash
 npx vercel env add DATABASE_URL production      # pooled (:6543, ?pgbouncer=true&connection_limit=1)
-npx vercel env add DIRECT_URL production        # direct (:5432)
+npx vercel env add DIRECT_URL production        # Supabase: Session pooler (:5432) — direct host เป็น IPv6-only, Vercel ต่อไม่ได้ (ดู A1)
 npx vercel env add AUTH_SECRET production        # openssl rand -base64 32
 npx vercel env add GOOGLE_CLIENT_ID production
 npx vercel env add GOOGLE_SECRET production
@@ -115,7 +124,7 @@ git push origin main   # Vercel: prisma migrate deploy → next build → go liv
 ```
 
 > **กฎสำคัญ: migration ต้อง backward-compatible (expand/contract)** — ระหว่างที่ build ใหม่ยังไม่เสร็จ deployment เก่ายังรันอยู่บน DB ที่ migrate แล้ว และถ้า build พังหลัง migrate สำเร็จ DB จะนำหน้าโค้ด 1 ขั้น เพิ่มคอลัมน์/view column/ตารางใหม่ = ปลอดภัย, drop/rename = แยกเป็น 2 รอบ (รอบแรกเพิ่มของใหม่ + deploy โค้ดที่เลิกใช้ของเก่า, รอบถัดไปค่อยลบ)
-> ต้องมี `DIRECT_URL` (direct :5432) ใน Vercel **Production** env — ถ้าไม่มี build จะ fail แทนที่จะพยายาม migrate ผ่าน pooler
+> ต้องมี `DIRECT_URL` ใน Vercel **Production** env — ถ้าไม่มี build จะ fail แทนที่จะพยายาม migrate ผ่าน pooler แบบ transaction (:6543) และสำหรับ Supabase ต้องเป็น **Session pooler :5432** ไม่ใช่ `db.<ref>.supabase.co` (IPv6-only → `P1001` บน Vercel, ดู A1)
 > ถ้าตั้ง **Build Command** แบบ override ไว้ใน Vercel Project Settings ต้องลบออก (ปล่อยเป็นค่า default) ไม่งั้น Vercel จะไม่เรียก `vercel-build`
 > ยัง migrate มือได้เหมือนเดิมถ้าต้องการ: `DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate deploy` (รันซ้ำตอน build ก็ไม่เป็นไร — apply เฉพาะที่ยังไม่ได้ apply)
 
