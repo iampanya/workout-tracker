@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff4ea;
-  --foreground: #1c1917;
+  --background: #eef8f5;
+  --foreground: #0f1f1a;
   --surface: #ffffff;
-  --surface-muted: #ffe9d6;
-  --border: #f8d9be;
-  --muted: #6b625a;
-  --accent: #c2410c;
+  --surface-muted: #ddf1ea;
+  --border: #c8e6db;
+  --muted: #51655e;
+  --accent: #0f766e;
   --accent-foreground: #ffffff;
   --accent-secondary: #7c3aed;
   --accent-secondary-foreground: #ffffff;
@@ -15,16 +15,16 @@
   --success-foreground: #ffffff;
   --danger: #dc2626;
   --danger-foreground: #ffffff;
-  --ring: #c2410c;
-  --card-shadow: 0 1px 2px rgb(154 52 18 / 0.06), 0 4px 12px -4px rgb(154 52 18 / 0.1);
+  --ring: #0f766e;
+  --card-shadow: 0 1px 2px rgb(17 94 89 / 0.06), 0 4px 12px -4px rgb(17 94 89 / 0.1);
 
   --muscle-chest: #e11d48;
   --muscle-back: #2563eb;
   --muscle-legs: #b45309;
   --muscle-shoulders: #7c3aed;
   --muscle-arms: #0891b2;
-  --muscle-core: #059669;
-  --chart-line: #16a34a;
+  --muscle-core: #4d7c0f;
+  --chart-line: #0f766e;
 }
 
 @theme inline {
@@ -71,7 +71,7 @@
   --surface-muted: #272f42;
   --border: #334155;
   --muted: #94a3b8;
-  --accent: #f59e0b;
+  --accent: #2dd4bf;
   --accent-foreground: #0f172a;
   --accent-secondary: #8b5cf6;
   --accent-secondary-foreground: #f8fafc;
@@ -79,7 +79,7 @@
   --success-foreground: #0f172a;
   --danger: #ef4444;
   --danger-foreground: #f8fafc;
-  --ring: #f59e0b;
+  --ring: #2dd4bf;
   --card-shadow: none;
 
   --muscle-chest: #fb7185;
@@ -87,8 +87,8 @@
   --muscle-legs: #fbbf24;
   --muscle-shoulders: #a78bfa;
   --muscle-arms: #22d3ee;
-  --muscle-core: #34d399;
-  --chart-line: #22c55e;
+  --muscle-core: #a3e635;
+  --chart-line: #2dd4bf;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -99,7 +99,7 @@
     --surface-muted: #272f42;
     --border: #334155;
     --muted: #94a3b8;
-    --accent: #f59e0b;
+    --accent: #2dd4bf;
     --accent-foreground: #0f172a;
     --accent-secondary: #8b5cf6;
     --accent-secondary-foreground: #f8fafc;
@@ -107,7 +107,7 @@
     --success-foreground: #0f172a;
     --danger: #ef4444;
     --danger-foreground: #f8fafc;
-    --ring: #f59e0b;
+    --ring: #2dd4bf;
     --card-shadow: none;
 
     --muscle-chest: #fb7185;
@@ -115,8 +115,8 @@
     --muscle-legs: #fbbf24;
     --muscle-shoulders: #a78bfa;
     --muscle-arms: #22d3ee;
-    --muscle-core: #34d399;
-    --chart-line: #22c55e;
+    --muscle-core: #a3e635;
+    --chart-line: #2dd4bf;
   }
 }
 
