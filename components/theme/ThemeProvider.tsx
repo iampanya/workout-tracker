@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import {
+  ACCENT_STORAGE_KEY,
+  DEFAULT_ACCENT,
+  isThemeAccent,
+  type ThemeAccent,
+} from "./accents";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -60,6 +66,29 @@ function setStoredMode(mode: ThemeMode) {
   listeners.forEach((listener) => listener());
 }
 
+// The color theme (accent palette) is a second localStorage-backed value on the same
+// listeners, applied as <html data-accent> (see accents.ts / globals.css).
+function getAccentSnapshot(): ThemeAccent {
+  if (typeof window === "undefined") return DEFAULT_ACCENT;
+  const stored = window.localStorage.getItem(ACCENT_STORAGE_KEY);
+  return isThemeAccent(stored) ? stored : DEFAULT_ACCENT;
+}
+
+function getAccentServerSnapshot(): ThemeAccent {
+  return DEFAULT_ACCENT;
+}
+
+/** Persist an accent, repaint, and notify subscribers. Stable module-level fn. */
+function setStoredAccent(accent: ThemeAccent) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+  }
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.accent = accent;
+  }
+  listeners.forEach((listener) => listener());
+}
+
 /** Mounted once in the root layout: keeps "system" mode following live OS changes. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { mode } = useTheme();
@@ -75,7 +104,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function useTheme(): { mode: ThemeMode; setMode: (mode: ThemeMode) => void } {
+export function useTheme(): {
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
+  accent: ThemeAccent;
+  setAccent: (accent: ThemeAccent) => void;
+} {
   const mode = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  return { mode, setMode: setStoredMode };
+  const accent = useSyncExternalStore(subscribe, getAccentSnapshot, getAccentServerSnapshot);
+  return { mode, setMode: setStoredMode, accent, setAccent: setStoredAccent };
 }

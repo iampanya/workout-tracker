@@ -15,7 +15,7 @@
   --success-foreground: #ffffff;
   --danger: #dc2626;
   --danger-foreground: #ffffff;
-  --ring: #0f766e;
+  --ring: var(--accent);
   --card-shadow: 0 1px 2px rgb(17 94 89 / 0.06), 0 4px 12px -4px rgb(17 94 89 / 0.1);
 
   --muscle-chest: #e11d48;
@@ -24,7 +24,7 @@
   --muscle-shoulders: #7c3aed;
   --muscle-arms: #0891b2;
   --muscle-core: #4d7c0f;
-  --chart-line: #0f766e;
+  --chart-line: var(--accent);
 }
 
 @theme inline {
@@ -56,6 +56,49 @@
 }
 
 /*
+ * Color themes (user-selectable accent palettes, <html data-accent>; list lives in
+ * components/theme/accents.ts). Teal is the default and is the plain :root / dark
+ * values. Cascade order matters:
+ *   - Light overrides `:root[data-accent="x"]` sit HERE, above the dark blocks. They
+ *     have the same specificity as `:root[data-theme="dark"]`, so dark neutrals win.
+ *   - Dark overrides `:root[data-accent="x"][data-theme="dark"]` sit after the dark
+ *     blocks and out-rank both. The no-JS dark fallback has no data-accent, so it's teal.
+ * --ring and --chart-line are var(--accent) and follow automatically.
+ */
+:root[data-accent="orange"] {
+  --background: #fff4ea;
+  --foreground: #1c1917;
+  --surface-muted: #ffe9d6;
+  --border: #f8d9be;
+  --muted: #6b625a;
+  --accent: #c2410c;
+  --card-shadow: 0 1px 2px rgb(154 52 18 / 0.06), 0 4px 12px -4px rgb(154 52 18 / 0.1);
+}
+
+:root[data-accent="blue"] {
+  --background: #f2f6fd;
+  --foreground: #0f172a;
+  --surface-muted: #e6eefb;
+  --border: #d6e0f3;
+  --muted: #56607a;
+  --accent: #1d4ed8;
+  --card-shadow: 0 1px 2px rgb(30 64 175 / 0.06), 0 4px 12px -4px rgb(30 64 175 / 0.1);
+  --muscle-back: #0f766e;
+}
+
+:root[data-accent="violet"] {
+  --background: #f6f4fe;
+  --foreground: #1e1b2e;
+  --surface-muted: #ebe7fc;
+  --border: #ddd6f7;
+  --muted: #5f5a75;
+  --accent: #6d28d9;
+  --accent-secondary: #b45309;
+  --card-shadow: 0 1px 2px rgb(76 29 149 / 0.06), 0 4px 12px -4px rgb(76 29 149 / 0.1);
+  --muscle-shoulders: #0f766e;
+}
+
+/*
  * Dark palette. Applied in two ways:
  *   1. `:root[data-theme="dark"]` — an explicit user choice (or "system" resolved to
  *      dark by the pre-hydration script in app/layout.tsx). This is the primary path.
@@ -79,7 +122,7 @@
   --success-foreground: #0f172a;
   --danger: #ef4444;
   --danger-foreground: #f8fafc;
-  --ring: #2dd4bf;
+  --ring: var(--accent);
   --card-shadow: none;
 
   --muscle-chest: #fb7185;
@@ -88,7 +131,7 @@
   --muscle-shoulders: #a78bfa;
   --muscle-arms: #22d3ee;
   --muscle-core: #a3e635;
-  --chart-line: #2dd4bf;
+  --chart-line: var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -107,7 +150,7 @@
     --success-foreground: #0f172a;
     --danger: #ef4444;
     --danger-foreground: #f8fafc;
-    --ring: #2dd4bf;
+    --ring: var(--accent);
     --card-shadow: none;
 
     --muscle-chest: #fb7185;
@@ -116,8 +159,25 @@
     --muscle-shoulders: #a78bfa;
     --muscle-arms: #22d3ee;
     --muscle-core: #a3e635;
-    --chart-line: #2dd4bf;
+    --chart-line: var(--accent);
   }
+}
+
+/* Dark overrides per color theme — must stay after the dark blocks above. */
+:root[data-accent="orange"][data-theme="dark"] {
+  --accent: #fb923c;
+}
+
+:root[data-accent="blue"][data-theme="dark"] {
+  --accent: #60a5fa;
+  --muscle-back: #2dd4bf;
+}
+
+:root[data-accent="violet"][data-theme="dark"] {
+  --accent: #a78bfa;
+  --accent-secondary: #fbbf24;
+  --accent-secondary-foreground: #0f172a;
+  --muscle-shoulders: #2dd4bf;
 }
 
 body {

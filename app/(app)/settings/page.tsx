@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/session";
 import { Card } from "@/components/ui/Card";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
+import { AccentControl } from "@/components/theme/AccentControl";
 import { LogoutButton } from "../LogoutButton";
 import { BackupCard } from "./BackupCard";
 
@@ -20,7 +21,14 @@ export default async function SettingsPage() {
         <span className="text-xs font-medium uppercase tracking-wide text-muted">
           Appearance
         </span>
-        <ThemeModeControl />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm text-muted">Mode</span>
+          <ThemeModeControl />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm text-muted">Color</span>
+          <AccentControl />
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-3">
