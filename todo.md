@@ -1,5 +1,11 @@
 # TODO
 
+## Done — Exercise picker redesign (2026-10-03)
+
+Replaced the inline `ExerciseCombobox` dropdown with `ExercisePicker` (bottom sheet): search, muscle-group
+filter chips, sticky color-coded group headers, Recent section, "Added" marks, multi-add, and
+create-from-search. Used in the log + routine editor.
+
 ## Done — Dashboard overview + UX pass (2026-08-11)
 
 The dashboard "Overview" stats section (streak / sessions this week / volume this week) is **implemented**,
@@ -12,7 +18,7 @@ along with a broader UX pass:
   mid-workout exercise removal).
 - History/dashboard now show the routine name (snapshotted at start, `sessionDisplayName` fallback).
 - Delete a workout from History; remove an exercise mid-workout; finish-workout validation (no empty
-  exercises). Searchable `ExerciseCombobox` (filter by name or muscle group) in the log + routine pickers.
+  exercises). Searchable exercise picker (now `ExercisePicker`, see below) in the log + routine pickers.
 
 ## Done — Username login + multi-user signup (2026-08-11)
 

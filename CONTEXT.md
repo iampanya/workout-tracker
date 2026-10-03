@@ -75,3 +75,13 @@ _Avoid_: Max, best (ambiguous with top set / e1RM).
 The best working set within one workout, by the same rule as a PR (heaviest, then most reps). A top set
 is per workout; a PR is all-time.
 _Avoid_: Best set.
+
+**Muscle group**:
+The fixed body-area label on an exercise: Chest, Back, Legs, Shoulders, Arms, Core. Optional — an
+exercise without one is listed under "Other". Each group has its own color across the UI.
+_Avoid_: Body part, category.
+
+**Recent exercises**:
+The exercises a user did most recently in **completed** workouts, newest first (in-progress workouts
+and archived exercises don't count). Shown at the top of the exercise picker.
+_Avoid_: History (that's the list of workouts), favorites.
