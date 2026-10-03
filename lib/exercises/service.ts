@@ -92,3 +92,23 @@ export async function listExerciseStats(
   }
   return stats;
 }
+
+// The user's most recently done exercises (completed sessions only), newest first — the
+// picker's "Recent" section. Ties on session_date fall back to the session's completion time.
+export async function listRecentExerciseIds(
+  db: PrismaClient,
+  userId: string,
+  limit = 6
+): Promise<string[]> {
+  const rows = await db.$queryRaw<{ exercise_id: string }[]>(Prisma.sql`
+    select se.exercise_id::text as exercise_id
+    from session_exercises se
+    join sessions s on s.id = se.session_id
+    join exercises e on e.id = se.exercise_id
+    where se.user_id::text = ${userId} and s.user_id::text = ${userId}
+      and s.completed_at is not null and not e.is_archived
+    group by se.exercise_id
+    order by max(s.session_date) desc, max(s.completed_at) desc
+    limit ${limit}`);
+  return rows.map((row) => row.exercise_id);
+}

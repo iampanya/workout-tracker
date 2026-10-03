@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { listExercises } from "@/lib/exercises/service";
+import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
 import { getRoutineTargetSets } from "@/lib/routines/service";
 import { getPriorPrs, getLastSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
@@ -19,7 +19,7 @@ export default async function LogSessionPage({
   // The session header, its exercises, and the exercise catalog are all independent, so fetch
   // them together. The session/exercises queries are scoped by user_id (replacing RLS), so a
   // session that isn't the caller's returns null → notFound.
-  const [session, sessionExercises, availableExercises] = await Promise.all([
+  const [session, sessionExercises, availableExercises, recentExerciseIds] = await Promise.all([
     prisma.sessions.findFirst({
       where: { id: sessionId, user_id: userId },
       include: { routines: { select: { name: true } } },
@@ -30,6 +30,7 @@ export default async function LogSessionPage({
       include: { exercises: { select: { id: true, name: true } }, sets: true },
     }),
     listExercises(prisma, userId),
+    listRecentExerciseIds(prisma, userId),
   ]);
   if (!session) {
     notFound();
@@ -73,6 +74,7 @@ export default async function LogSessionPage({
           name: exercise.name,
           muscleGroup: exercise.muscle_group,
         }))}
+        recentExerciseIds={recentExerciseIds}
       />
     </QueryProvider>
   );

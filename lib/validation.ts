@@ -1,8 +1,11 @@
 import { z } from "zod";
 
+export const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"] as const;
+export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+
 export const createExerciseSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
-  muscleGroup: z.enum(["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"]),
+  muscleGroup: z.enum(MUSCLE_GROUPS),
 });
 
 export const createRoutineSchema = z.object({

@@ -2,7 +2,13 @@ import "dotenv/config";
 import { describe, it, expect, beforeAll } from "vitest";
 import { createTestUser } from "@/lib/test-helpers";
 import { prisma } from "@/lib/db";
-import { listExercises, createCustomExerciseForUser, archiveExerciseForUser, listExerciseStats } from "./service";
+import {
+  listExercises,
+  createCustomExerciseForUser,
+  archiveExerciseForUser,
+  listExerciseStats,
+  listRecentExerciseIds,
+} from "./service";
 import {
   startSessionForUser,
   addExerciseToSessionForUser,
@@ -96,5 +102,34 @@ describe("listExerciseStats", () => {
       lastDate: "2026-06-08",
     });
     expect(await listExerciseStats(prisma, other.userId)).toEqual({});
+  });
+});
+
+describe("listRecentExerciseIds", () => {
+  it("returns completed-session exercises newest first, skipping archived, scoped to the user", async () => {
+    const { userId } = await createTestUser();
+    const other = await createTestUser();
+    const [a, b, c] = await prisma.exercises.findMany({ where: { is_preset: true }, take: 3, orderBy: { name: "asc" } });
+    const archived = await createCustomExerciseForUser(prisma, userId, { name: "Gone Lift", muscleGroup: "Core" });
+
+    async function logSession(ownerId: string, date: string, exerciseIds: string[], finish = true) {
+      const session = await startSessionForUser(prisma, ownerId, { sessionDate: date });
+      for (const exerciseId of exerciseIds) {
+        const se = await addExerciseToSessionForUser(prisma, ownerId, session.id, exerciseId);
+        await logSetForUser(prisma, ownerId, { sessionExerciseId: se.id, weightKg: 20, reps: 5, isWarmup: false });
+      }
+      if (finish) await finishSessionForUser(prisma, ownerId, session.id);
+    }
+
+    await logSession(userId, "2026-06-01", [a.id, archived.id]);
+    await logSession(userId, "2026-06-08", [b.id]);
+    await logSession(userId, "2026-06-15", [c.id], false); // in progress → not "recent"
+    await archiveExerciseForUser(prisma, userId, archived.id);
+    await logSession(other.userId, "2026-06-20", [c.id]);
+
+    expect(await listRecentExerciseIds(prisma, userId)).toEqual([b.id, a.id]);
+    expect(await listRecentExerciseIds(prisma, userId, 1)).toEqual([b.id]);
+    // Isolation: the other user's history never shows up, and theirs has only their own.
+    expect(await listRecentExerciseIds(prisma, other.userId)).toEqual([c.id]);
   });
 });

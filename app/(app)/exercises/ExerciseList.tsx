@@ -6,21 +6,13 @@ import { CaretRight, MagnifyingGlass, Trophy } from "@phosphor-icons/react/ssr";
 import type { ExerciseStats } from "@/lib/exercises/service";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { formatPr } from "@/lib/pr";
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
+import { muscleTone } from "@/components/ui/muscle";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MUSCLE_GROUPS } from "@/lib/validation";
 import { ArchiveExerciseButton } from "./ArchiveExerciseButton";
 
-const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"] as const;
-
-const MUSCLE_GROUP_TONE: Record<string, BadgeTone> = {
-  Chest: "chest",
-  Back: "back",
-  Legs: "legs",
-  Shoulders: "shoulders",
-  Arms: "arms",
-  Core: "core",
-};
 
 type ExerciseRow = {
   id: string;
@@ -116,7 +108,7 @@ export function ExerciseList({
                     <span className="flex items-center gap-2">
                       <span className="truncate">{exercise.name}</span>
                       {exercise.muscle_group && (
-                        <Badge tone={MUSCLE_GROUP_TONE[exercise.muscle_group] ?? "neutral"}>
+                        <Badge tone={muscleTone(exercise.muscle_group)}>
                           {exercise.muscle_group}
                         </Badge>
                       )}

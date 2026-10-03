@@ -3,8 +3,7 @@ import { ListPlus } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getRoutineWithExercises } from "@/lib/routines/service";
-import { listExercises } from "@/lib/exercises/service";
-import { Card } from "@/components/ui/Card";
+import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoutineExerciseRow } from "./RoutineExerciseRow";
 import { AddExerciseToRoutine } from "./AddExerciseToRoutine";
@@ -17,10 +16,11 @@ export default async function RoutineEditorPage({
 }) {
   const { routineId } = await params;
   const userId = (await getAuthUser())!.id;
-  const [routineResult, allExercises] = await Promise.all([
+  const [routineResult, allExercises, recentExerciseIds] = await Promise.all([
     // getRoutineWithExercises throws for a missing / not-owned routine → 404 instead of a crash.
     getRoutineWithExercises(prisma, userId, routineId).catch(() => null),
     listExercises(prisma, userId),
+    listRecentExerciseIds(prisma, userId),
   ]);
   if (!routineResult) {
     notFound();
@@ -48,7 +48,7 @@ export default async function RoutineEditorPage({
         <EmptyState
           icon={<ListPlus className="h-6 w-6" />}
           title="No exercises in this routine"
-          description="Search below to add exercises in the order you'll do them."
+          description="Add exercises below in the order you'll do them."
         />
       ) : (
         <div className="space-y-2">
@@ -67,16 +67,16 @@ export default async function RoutineEditorPage({
         </div>
       )}
 
-      <Card>
-        <AddExerciseToRoutine
-          routineId={routineId}
-          availableExercises={allExercises.map((exercise) => ({
-            id: exercise.id,
-            name: exercise.name,
-            muscleGroup: exercise.muscle_group,
-          }))}
-        />
-      </Card>
+      <AddExerciseToRoutine
+        routineId={routineId}
+        availableExercises={allExercises.map((exercise) => ({
+          id: exercise.id,
+          name: exercise.name,
+          muscleGroup: exercise.muscle_group,
+        }))}
+        recentExerciseIds={recentExerciseIds}
+        addedExerciseIds={exercises.map((entry) => entry.exercise.id)}
+      />
     </div>
   );
 }

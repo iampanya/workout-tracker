@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { CheckCircle, CircleNotch, Trash, Trophy } from "@phosphor-icons/react/ssr";
+import { CheckCircle, Trash, Trophy } from "@phosphor-icons/react/ssr";
 import {
   logSet,
   updateSet,
@@ -16,17 +16,14 @@ import {
 import { computeSessionSummary, formatDuration } from "@/lib/sessions/summary";
 import { formatPr, type PrRecord } from "@/lib/pr";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { ExerciseCombobox } from "@/components/ui/ExerciseCombobox";
+import { ExercisePicker, type ExerciseOption } from "@/components/ui/ExercisePicker";
 import { Toast } from "@/components/ui/Toast";
 import { ExerciseCard } from "./ExerciseCard";
 import { RestTimer } from "./RestTimer";
 import { SessionNotes } from "./SessionNotes";
 import type { ExerciseEntry, SetEntry, SetValues } from "./types";
-
-type AvailableExercise = { id: string; name: string; muscleGroup: string | null };
 
 // The exercise to open first: the first one still short of its target (or with no sets),
 // else the last one.
@@ -59,13 +56,15 @@ export function LoggingClient({
   initialNotes,
   initialExercises,
   availableExercises,
+  recentExerciseIds,
 }: {
   sessionId: string;
   sessionName: string;
   startedAt: string;
   initialNotes: string | null;
   initialExercises: ExerciseEntry[];
-  availableExercises: AvailableExercise[];
+  availableExercises: ExerciseOption[];
+  recentExerciseIds: string[];
 }) {
   const router = useRouter();
   const [exercises, setExercises] = useState(initialExercises);
@@ -74,10 +73,6 @@ export function LoggingClient({
   const [toast, setToast] = useState<string | null>(null);
   const [flashSetId, setFlashSetId] = useState<string | null>(null);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
-  // Starts empty so nothing gets added by accident; picking an exercise adds it immediately.
-  const [pickerExerciseId, setPickerExerciseId] = useState("");
-  const [addExercisePending, setAddExercisePending] = useState(false);
-  const [addExerciseError, setAddExerciseError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [discardPending, setDiscardPending] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
@@ -245,33 +240,22 @@ export function LoggingClient({
     }
   }
 
-  async function handleAddExercise(exerciseId: string) {
-    if (!exerciseId || addExercisePending) return;
-    setPickerExerciseId(exerciseId);
-    setAddExercisePending(true);
-    setAddExerciseError(null);
-    try {
-      const added = await addExerciseToSession(sessionId, exerciseId);
-      const exerciseName = availableExercises.find((e) => e.id === exerciseId)?.name ?? "Exercise";
-      setExercises((prev) => [
-        ...prev,
-        {
-          sessionExerciseId: added.id,
-          exerciseId,
-          exerciseName,
-          sets: [],
-          pr: added.pr,
-          lastSession: added.lastSession,
-          targetSets: null,
-        },
-      ]);
-      setExpandedId(added.id);
-    } catch (err) {
-      setAddExerciseError(err instanceof Error ? err.message : "Failed to add exercise");
-    } finally {
-      setAddExercisePending(false);
-      setPickerExerciseId("");
-    }
+  // Errors propagate to ExercisePicker, which shows them in the sheet and serializes adds.
+  async function handleAddExercise(exercise: ExerciseOption) {
+    const added = await addExerciseToSession(sessionId, exercise.id);
+    setExercises((prev) => [
+      ...prev,
+      {
+        sessionExerciseId: added.id,
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        sets: [],
+        pr: added.pr,
+        lastSession: added.lastSession,
+        targetSets: null,
+      },
+    ]);
+    setExpandedId(added.id);
   }
 
   function requestRemoveExercise(exercise: ExerciseEntry) {
@@ -403,27 +387,12 @@ export function LoggingClient({
       )}
 
       {availableExercises.length > 0 && (
-        <Card>
-          <div className="flex items-end gap-2">
-            <ExerciseCombobox
-              label="Add exercise"
-              exercises={availableExercises}
-              value={pickerExerciseId}
-              onChange={handleAddExercise}
-              wrapperClassName="flex-1"
-            />
-            {addExercisePending && (
-              <span
-                role="status"
-                aria-label="Adding exercise"
-                className="flex h-11 w-11 items-center justify-center text-muted"
-              >
-                <CircleNotch className="h-5 w-5 animate-spin" />
-              </span>
-            )}
-          </div>
-          {addExerciseError && <p className="mt-2 text-sm text-danger">{addExerciseError}</p>}
-        </Card>
+        <ExercisePicker
+          exercises={availableExercises}
+          recentIds={recentExerciseIds}
+          addedIds={exercises.map((e) => e.exerciseId)}
+          onAdd={handleAddExercise}
+        />
       )}
 
       <SessionNotes sessionId={sessionId} initialNotes={initialNotes} />

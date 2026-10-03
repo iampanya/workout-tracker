@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { Plus, X } from "@phosphor-icons/react/ssr";
-import { createExerciseSchema } from "@/lib/validation";
+import { createExerciseSchema, MUSCLE_GROUPS } from "@/lib/validation";
 import { createCustomExercise } from "@/lib/actions/exercises";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -13,8 +13,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 
 type FormValues = z.infer<typeof createExerciseSchema>;
-
-const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"] as const;
 
 export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
   const {
