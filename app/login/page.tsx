@@ -3,16 +3,20 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Barbell, GoogleLogo } from "@phosphor-icons/react/ssr";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { LanguageToggleButton } from "@/components/theme/LanguageToggleButton";
 
 function LoginCard() {
+  const t = useTranslations("login");
+  const te = useTranslations("errors");
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
-    searchParams.get("error") ? "Sign-in failed. Please try again." : null
+    searchParams.get("error") ? te("signIn") : null
   );
 
   async function handleGoogleLogin() {
@@ -26,8 +30,8 @@ function LoginCard() {
     <Card className="w-full max-w-sm">
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Log in</h1>
-          <p className="text-sm text-muted">Continue with your Google account.</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted">{t("subtitle")}</p>
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button
@@ -38,7 +42,7 @@ function LoginCard() {
           onClick={handleGoogleLogin}
           className="w-full"
         >
-          Continue with Google
+          {t("continueWithGoogle")}
         </Button>
       </div>
     </Card>
@@ -46,8 +50,12 @@ function LoginCard() {
 }
 
 export default function LoginPage() {
+  const tc = useTranslations("common");
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6">
+      <div className="absolute right-4 top-4">
+        <LanguageToggleButton />
+      </div>
       <Link
         href="/"
         className="flex items-center gap-2 font-semibold text-foreground hover:opacity-90"
@@ -55,7 +63,7 @@ export default function LoginPage() {
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
           <Barbell className="h-5 w-5" weight="bold" />
         </span>
-        Weight Training Tracker
+        {tc("appName")}
       </Link>
       <Suspense>
         <LoginCard />

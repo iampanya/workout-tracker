@@ -133,5 +133,40 @@
       "notAuthenticated": "You're signed out — sign in again",
       "regenerateFailed": "Could not regenerate code"
     }
+  },
+  "landing": {
+    "goToApp": "Go to app",
+    "logIn": "Log in",
+    "goToDashboard": "Go to dashboard",
+    "badge": "Progressive overload, tracked",
+    "headline": "Lift more than last time.",
+    "subhead": "A no-nonsense weight-training log. Record every set, watch your PRs climb, and never lose track of what to beat.",
+    "previewThisWeek": "This week",
+    "previewWorkouts": "Workouts",
+    "previewVolume": "Volume",
+    "previewNewPrs": "New PRs",
+    "fastLoggingTitle": "Fast set logging",
+    "fastLoggingBody": "Log weight and reps with +/- steppers. No fiddly typing mid-set.",
+    "overloadTitle": "Progressive overload",
+    "overloadBody": "See last session's numbers inline, so you always know what to beat.",
+    "prsTitle": "Automatic PRs",
+    "prsBody": "Your best working set per exercise, tracked live. Warmups excluded.",
+    "chartsTitle": "Progress charts",
+    "chartsBody": "Weekly training volume and per-exercise trends at a glance.",
+    "howItWorks": "How it works",
+    "step1Title": "Pick a routine",
+    "step1Body": "Start from a saved routine or go freeform.",
+    "step2Title": "Log your sets",
+    "step2Body": "Tap through weight and reps as you lift.",
+    "step3Title": "Watch progress",
+    "step3Body": "PRs and volume update the moment you finish.",
+    "ctaTitle": "Ready to log your next session?",
+    "ctaBody": "Pick up where you left off and keep the streak going.",
+    "footer": "All weights in kg · © {year}"
+  },
+  "login": {
+    "title": "Log in",
+    "subtitle": "Continue with your Google account.",
+    "continueWithGoogle": "Continue with Google"
   }
 }
