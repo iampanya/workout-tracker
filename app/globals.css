@@ -51,7 +51,7 @@
   --color-muscle-core: var(--muscle-core);
   --color-chart-line: var(--chart-line);
   --shadow-card: var(--card-shadow);
-  --font-sans: var(--font-fira-sans);
+  --font-sans: var(--font-fira-sans), var(--font-thai);
   --font-mono: var(--font-fira-code);
 }
 

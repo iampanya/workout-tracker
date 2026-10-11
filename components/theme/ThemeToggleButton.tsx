@@ -1,6 +1,7 @@
 "use client";
 
 import { Desktop, Moon, Sun } from "@phosphor-icons/react/ssr";
+import { useTranslations } from "next-intl";
 import { IconButton } from "@/components/ui/IconButton";
 import { useTheme, type ThemeMode } from "./ThemeProvider";
 
@@ -16,19 +17,14 @@ const MODE_ICON: Record<ThemeMode, React.ReactNode> = {
   dark: <Moon className="h-5 w-5" />,
 };
 
-const MODE_LABEL: Record<ThemeMode, string> = {
-  system: "system",
-  light: "light",
-  dark: "dark",
-};
-
 export function ThemeToggleButton() {
+  const t = useTranslations("theme");
   const { mode, setMode } = useTheme();
 
   return (
     <IconButton
       icon={MODE_ICON[mode]}
-      aria-label={`Theme: ${MODE_LABEL[mode]} — switch to ${MODE_LABEL[NEXT_MODE[mode]]}`}
+      aria-label={t("toggle", { current: t(mode), next: t(NEXT_MODE[mode]) })}
       onClick={() => setMode(NEXT_MODE[mode])}
     />
   );

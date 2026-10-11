@@ -1,21 +1,23 @@
 "use client";
 
 import { Desktop, Moon, Sun } from "@phosphor-icons/react/ssr";
+import { useTranslations } from "next-intl";
 import { useTheme, type ThemeMode } from "./ThemeProvider";
 
-const OPTIONS: { mode: ThemeMode; label: string; icon: React.ReactNode }[] = [
-  { mode: "system", label: "System", icon: <Desktop className="h-4 w-4" /> },
-  { mode: "light", label: "Light", icon: <Sun className="h-4 w-4" /> },
-  { mode: "dark", label: "Dark", icon: <Moon className="h-4 w-4" /> },
+const OPTIONS: { mode: ThemeMode; icon: React.ReactNode }[] = [
+  { mode: "system", icon: <Desktop className="h-4 w-4" /> },
+  { mode: "light", icon: <Sun className="h-4 w-4" /> },
+  { mode: "dark", icon: <Moon className="h-4 w-4" /> },
 ];
 
 export function ThemeModeControl() {
+  const t = useTranslations("theme");
   const { mode, setMode } = useTheme();
 
   return (
     <div
       role="group"
-      aria-label="Theme"
+      aria-label={t("group")}
       className="flex gap-1 rounded-xl border border-border bg-surface-muted p-1"
     >
       {OPTIONS.map((option) => {
@@ -33,7 +35,7 @@ export function ThemeModeControl() {
             }`}
           >
             {option.icon}
-            {option.label}
+            {t(option.mode)}
           </button>
         );
       })}

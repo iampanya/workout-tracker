@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "Weight Training Tracker",
+    "description": "สมุดบันทึกเวทเทรนนิ่งส่วนตัว พร้อมติดตาม progressive overload"
+  },
+  "theme": {
+    "group": "ธีม",
+    "system": "ตามระบบ",
+    "light": "สว่าง",
+    "dark": "มืด",
+    "toggle": "ธีม: {current} — เปลี่ยนเป็น {next}",
+    "colorGroup": "สีธีม",
+    "accents": {
+      "teal": "เขียวหัวเป็ด",
+      "orange": "ส้ม",
+      "blue": "น้ำเงิน",
+      "violet": "ม่วง"
+    },
+    "language": "ภาษา",
+    "switchLanguage": "เปลี่ยนภาษาเป็น {language}"
+  },
+  "settings": {
+    "title": "ตั้งค่า",
+    "appearance": "การแสดงผล",
+    "mode": "โหมด",
+    "color": "สี",
+    "language": "ภาษา",
+    "backupRestore": "สำรองและกู้คืนข้อมูล",
+    "account": "บัญชี"
+  }
+}

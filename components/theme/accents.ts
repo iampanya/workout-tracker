@@ -16,9 +16,9 @@ export function isThemeAccent(value: unknown): value is ThemeAccent {
 }
 
 /** Picker swatches — each palette's light-mode accent, shown regardless of current theme. */
-export const ACCENT_SWATCHES: Record<ThemeAccent, { label: string; color: string }> = {
-  teal: { label: "Teal", color: "#0f766e" },
-  orange: { label: "Orange", color: "#c2410c" },
-  blue: { label: "Blue", color: "#1d4ed8" },
-  violet: { label: "Violet", color: "#6d28d9" },
+export const ACCENT_SWATCHES: Record<ThemeAccent, string> = {
+  teal: "#0f766e",
+  orange: "#c2410c",
+  blue: "#1d4ed8",
+  violet: "#6d28d9",
 };

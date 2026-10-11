@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Fira_Sans, Fira_Code } from "next/font/google";
+import { Fira_Sans, Fira_Code, IBM_Plex_Sans_Thai } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, THEME_ACCENTS } from "@/components/theme/accents";
@@ -20,23 +22,33 @@ const firaCode = Fira_Code({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Weight Training Tracker",
-  description: "Personal weight-training log with progressive overload tracking.",
-};
+// Fira Sans has no Thai glyphs: Thai text falls through to Plex Thai (see --font-sans).
+const plexThai = IBM_Plex_Sans_Thai({
+  variable: "--font-thai",
+  weight: ["400", "500", "600", "700"],
+  subsets: ["thai"],
+});
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return { title: t("title"), description: t("description") };
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
-      className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}
+      className={`${firaSans.variable} ${firaCode.variable} ${plexThai.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>{children}</ThemeProvider>
+        <NextIntlClientProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

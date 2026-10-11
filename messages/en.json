@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "Weight Training Tracker",
+    "description": "Personal weight-training log with progressive overload tracking."
+  },
+  "theme": {
+    "group": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "toggle": "Theme: {current} — switch to {next}",
+    "colorGroup": "Color theme",
+    "accents": {
+      "teal": "Teal",
+      "orange": "Orange",
+      "blue": "Blue",
+      "violet": "Violet"
+    },
+    "language": "Language",
+    "switchLanguage": "Switch language to {language}"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "mode": "Mode",
+    "color": "Color",
+    "language": "Language",
+    "backupRestore": "Backup & Restore",
+    "account": "Account"
+  }
+}
