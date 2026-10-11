@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/Button";
 import { AddExerciseForm } from "./AddExerciseForm";
@@ -8,6 +9,7 @@ import { AddExerciseForm } from "./AddExerciseForm";
 // Page header with a "New exercise" button; the custom-exercise form stays folded away until
 // asked for, so the list is what you see first.
 export function NewExerciseHeader({ title }: { title: string }) {
+  const t = useTranslations("exercises");
   const [open, setOpen] = useState(false);
   return (
     <div className="space-y-3">
@@ -19,7 +21,7 @@ export function NewExerciseHeader({ title }: { title: string }) {
             icon={<Plus className="h-4 w-4" />}
             onClick={() => setOpen(true)}
           >
-            New exercise
+            {t("newExercise")}
           </Button>
         )}
       </div>

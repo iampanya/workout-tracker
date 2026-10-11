@@ -292,5 +292,30 @@
     "moreTarget": "More target sets for {name}",
     "removeTitle": "Remove from routine?",
     "removeDescription": "“{name}” will be removed from this routine. Past workouts aren't affected."
+  },
+  "exercises": {
+    "title": "Exercises",
+    "newExercise": "New exercise",
+    "closeForm": "Close new exercise form",
+    "nameLabel": "Exercise name",
+    "namePlaceholder": "e.g. Bicep Curl",
+    "muscleGroup": "Muscle group",
+    "add": "Add",
+    "archiveLabel": "Archive exercise",
+    "searchLabel": "Search exercises",
+    "searchPlaceholder": "Search exercises…",
+    "filterLabel": "Filter by muscle group",
+    "noMatchTitle": "No matching exercises",
+    "noMatchDescription": "Try another name or muscle group — or add it as a new exercise.",
+    "lastDone": "Last {when}",
+    "emptyTitle": "No sets logged yet",
+    "emptyDescription": "Log this exercise in a workout and your progress chart and history will show up here.",
+    "bestE1rm": "Best e1RM",
+    "sessions": "Sessions",
+    "history": "History",
+    "metricLabel": "Chart metric",
+    "maxWeight": "Max weight",
+    "e1rm": "Est. 1RM",
+    "volume": "Volume"
   }
 }

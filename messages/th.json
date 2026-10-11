@@ -292,5 +292,30 @@
     "moreTarget": "เพิ่มเซ็ตเป้าหมายของ {name}",
     "removeTitle": "เอาออกจากโปรแกรม?",
     "removeDescription": "“{name}” จะถูกเอาออกจากโปรแกรมนี้ การฝึกที่ผ่านมาไม่ได้รับผลกระทบ"
+  },
+  "exercises": {
+    "title": "ท่าออกกำลังกาย",
+    "newExercise": "เพิ่มท่าใหม่",
+    "closeForm": "ปิดฟอร์มเพิ่มท่าใหม่",
+    "nameLabel": "ชื่อท่า",
+    "namePlaceholder": "เช่น Bicep Curl",
+    "muscleGroup": "กลุ่มกล้ามเนื้อ",
+    "add": "เพิ่ม",
+    "archiveLabel": "เก็บท่านี้เข้าคลัง",
+    "searchLabel": "ค้นหาท่า",
+    "searchPlaceholder": "ค้นหาท่า…",
+    "filterLabel": "กรองตามกลุ่มกล้ามเนื้อ",
+    "noMatchTitle": "ไม่พบท่าที่ตรงกัน",
+    "noMatchDescription": "ลองชื่อหรือกลุ่มกล้ามเนื้ออื่น หรือเพิ่มเป็นท่าใหม่",
+    "lastDone": "ล่าสุด {when}",
+    "emptyTitle": "ยังไม่มีเซ็ตที่บันทึก",
+    "emptyDescription": "บันทึกท่านี้ในการฝึก แล้วกราฟความก้าวหน้าและประวัติจะแสดงที่นี่",
+    "bestE1rm": "e1RM สูงสุด",
+    "sessions": "จำนวนครั้งที่ฝึก",
+    "history": "ประวัติ",
+    "metricLabel": "ตัวชี้วัดของกราฟ",
+    "maxWeight": "น้ำหนักสูงสุด",
+    "e1rm": "1RM โดยประมาณ",
+    "volume": "ปริมาณรวม"
   }
 }

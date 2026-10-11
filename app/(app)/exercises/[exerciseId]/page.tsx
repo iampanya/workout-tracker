@@ -13,6 +13,7 @@ import {
 import { aggregateSessionSeries } from "@/lib/progress";
 import { estimateOneRepMax } from "@/lib/pr";
 import { formatRelativeDate } from "@/lib/sessions/summary";
+import { muscleLabel } from "@/components/ui/muscle";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
@@ -62,21 +63,26 @@ export default async function ExerciseProgressPage({
   const bestE1rm = series.reduce((best, point) => Math.max(best, point.e1rm), 0);
   const sessions = groupBySession(history);
   const today = getLocalDateString();
-  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const [locale, tc, t, tm] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("exercises"),
+    getTranslations("muscle"),
+  ]);
   const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{exercise.name}</h1>
-        {exercise.muscle_group && <p className="text-sm text-muted">{exercise.muscle_group}</p>}
+        {exercise.muscle_group && <p className="text-sm text-muted">{muscleLabel(tm, exercise.muscle_group)}</p>}
       </div>
 
       {history.length === 0 ? (
         <EmptyState
           icon={<ChartLine className="h-6 w-6" />}
-          title="No sets logged yet"
-          description="Log this exercise in a workout and your progress chart and history will show up here."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
         />
       ) : (
         <>
@@ -89,11 +95,11 @@ export default async function ExerciseProgressPage({
               icon={<Trophy className="h-4 w-4" />}
             />
             <StatCard
-              label="Best e1RM"
+              label={t("bestE1rm")}
               value={bestE1rm > 0 ? bestE1rm : "—"}
               unit={bestE1rm > 0 ? "kg" : undefined}
             />
-            <StatCard label="Sessions" value={sessions.length} />
+            <StatCard label={t("sessions")} value={sessions.length} />
           </div>
 
           {series.length > 0 && (
@@ -103,7 +109,7 @@ export default async function ExerciseProgressPage({
           )}
 
           <section className="space-y-2">
-            <h2 className="font-medium">History</h2>
+            <h2 className="font-medium">{t("history")}</h2>
             {sessions.map((session) => {
               const working = session.sets.filter((s) => !s.is_warmup);
               const best = working.reduce<ExerciseHistorySet | null>(

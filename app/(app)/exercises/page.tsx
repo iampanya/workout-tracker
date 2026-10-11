@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getLocalDateString } from "@/lib/date";
@@ -7,6 +8,7 @@ import { NewExerciseHeader } from "./NewExercise";
 
 export default async function ExercisesPage() {
   const user = await getAuthUser();
+  const t = await getTranslations("exercises");
   const [exercises, stats] = await Promise.all([
     listExercises(prisma, user!.id),
     listExerciseStats(prisma, user!.id),
@@ -14,7 +16,7 @@ export default async function ExercisesPage() {
 
   return (
     <div className="space-y-6">
-      <NewExerciseHeader title="Exercises" />
+      <NewExerciseHeader title={t("title")} />
       <ExerciseList exercises={exercises} stats={stats} today={getLocalDateString()} />
     </div>
   );

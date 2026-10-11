@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Archive } from "@phosphor-icons/react/ssr";
 import { archiveExercise } from "@/lib/actions/exercises";
 import { IconButton } from "@/components/ui/IconButton";
 
 export function ArchiveExerciseButton({ exerciseId }: { exerciseId: string }) {
+  const t = useTranslations("exercises");
+  const te = useTranslations("errors");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,7 +18,8 @@ export function ArchiveExerciseButton({ exerciseId }: { exerciseId: string }) {
     try {
       await archiveExercise(exerciseId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to archive exercise");
+      console.error(err);
+      setError(te("archiveExercise"));
     } finally {
       setPending(false);
     }
@@ -25,7 +29,7 @@ export function ArchiveExerciseButton({ exerciseId }: { exerciseId: string }) {
     <div>
       <IconButton
         icon={<Archive className="h-4 w-4" />}
-        aria-label="Archive exercise"
+        aria-label={t("archiveLabel")}
         loading={pending}
         onClick={handleArchive}
       />

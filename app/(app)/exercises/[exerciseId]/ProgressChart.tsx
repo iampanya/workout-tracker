@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import type { SessionSeriesPoint } from "@/lib/progress";
 
 // Defer the recharts bundle out of the route's initial JS (loads client-side, ssr:false,
@@ -14,23 +15,20 @@ const ProgressChartInner = dynamic(() => import("./ProgressChartInner"), {
 
 export type ProgressMetric = "maxWeight" | "e1rm" | "volume";
 
-const METRICS: { key: ProgressMetric; label: string }[] = [
-  { key: "maxWeight", label: "Max weight" },
-  { key: "e1rm", label: "Est. 1RM" },
-  { key: "volume", label: "Volume" },
-];
+const METRICS: ProgressMetric[] = ["maxWeight", "e1rm", "volume"];
 
 export function ProgressChart({ data }: { data: SessionSeriesPoint[] }) {
+  const t = useTranslations("exercises");
   const [metric, setMetric] = useState<ProgressMetric>("maxWeight");
 
   return (
     <div className="space-y-3">
       <div
         role="radiogroup"
-        aria-label="Chart metric"
+        aria-label={t("metricLabel")}
         className="flex gap-1 rounded-xl bg-surface-muted p-1"
       >
-        {METRICS.map(({ key, label }) => (
+        {METRICS.map((key) => (
           <button
             key={key}
             type="button"
@@ -43,7 +41,7 @@ export function ProgressChart({ data }: { data: SessionSeriesPoint[] }) {
                 : "text-muted hover:text-foreground"
             }`}
           >
-            {label}
+            {t(key)}
           </button>
         ))}
       </div>

@@ -9,16 +9,10 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { useLocale } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { SessionSeriesPoint } from "@/lib/progress";
 import { formatAxisDate, formatShortDate } from "@/lib/sessions/summary";
 import type { ProgressMetric } from "./ProgressChart";
-
-const METRIC_LABEL: Record<ProgressMetric, string> = {
-  maxWeight: "Max weight",
-  e1rm: "Est. 1RM",
-  volume: "Volume",
-};
 
 export default function ProgressChartInner({
   data,
@@ -28,6 +22,8 @@ export default function ProgressChartInner({
   metric: ProgressMetric;
 }) {
   const locale = useLocale();
+  const t = useTranslations("exercises");
+  const format = useFormatter();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -60,8 +56,8 @@ export default function ProgressChartInner({
             labelStyle={{ color: "var(--muted)" }}
             labelFormatter={(label) => formatShortDate(String(label), locale)}
             formatter={(value) => [
-              `${Math.round(Number(value) * 10) / 10} kg`,
-              METRIC_LABEL[metric],
+              `${format.number(Math.round(Number(value) * 10) / 10)} kg`,
+              t(metric),
             ]}
           />
           <Line
@@ -71,7 +67,7 @@ export default function ProgressChartInner({
             strokeWidth={2}
             dot={{ r: 3, fill: "var(--chart-line)" }}
             activeDot={{ r: 5 }}
-            name={METRIC_LABEL[metric]}
+            name={t(metric)}
             isAnimationActive={false}
           />
         </LineChart>

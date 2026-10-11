@@ -8,7 +8,7 @@ import type { ExerciseStats } from "@/lib/exercises/service";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { formatPr } from "@/lib/pr";
 import { Badge } from "@/components/ui/Badge";
-import { muscleTone } from "@/components/ui/muscle";
+import { muscleLabel, muscleTone } from "@/components/ui/muscle";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MUSCLE_GROUPS } from "@/lib/validation";
@@ -35,8 +35,12 @@ export function ExerciseList({
 }) {
   const locale = useLocale();
   const tc = useTranslations("common");
+  const t = useTranslations("exercises");
+  const tm = useTranslations("muscle");
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<string | null>(null);
+
+  const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,15 +59,15 @@ export function ExerciseList({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search exercises…"
-          aria-label="Search exercises"
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchLabel")}
           className="min-h-11 w-full rounded-lg border border-border bg-surface-muted py-2 pl-9 pr-3 text-base text-foreground placeholder:text-muted [touch-action:manipulation] focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
       <div
         role="radiogroup"
-        aria-label="Filter by muscle group"
+        aria-label={t("filterLabel")}
         className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {[null, ...MUSCLE_GROUPS].map((option) => {
@@ -81,7 +85,7 @@ export function ExerciseList({
                   : "border-border bg-surface text-muted hover:text-foreground"
               }`}
             >
-              {option ?? "All"}
+              {option === null ? tc("all") : muscleLabel(tm, option)}
             </button>
           );
         })}
@@ -90,8 +94,8 @@ export function ExerciseList({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<MagnifyingGlass className="h-6 w-6" />}
-          title="No matching exercises"
-          description="Try another name or muscle group — or add it as a new exercise."
+          title={t("noMatchTitle")}
+          description={t("noMatchDescription")}
         />
       ) : (
         <div className="space-y-2">
@@ -112,7 +116,7 @@ export function ExerciseList({
                       <span className="truncate">{exercise.name}</span>
                       {exercise.muscle_group && (
                         <Badge tone={muscleTone(exercise.muscle_group)}>
-                          {exercise.muscle_group}
+                          {muscleLabel(tm, exercise.muscle_group)}
                         </Badge>
                       )}
                     </span>
@@ -125,10 +129,10 @@ export function ExerciseList({
                           </>
                         )}
                         {stat.pr !== null && stat.lastDate && " · "}
-                        {stat.lastDate && `Last ${formatRelativeDate(stat.lastDate, today, locale, {
-                          today: tc("today"),
-                          yesterday: tc("yesterday"),
-                        })}`}
+                        {stat.lastDate &&
+                          t("lastDone", {
+                            when: formatRelativeDate(stat.lastDate, today, locale, relativeLabels),
+                          })}
                       </span>
                     )}
                   </span>

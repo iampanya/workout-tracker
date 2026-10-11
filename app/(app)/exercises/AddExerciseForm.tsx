@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -11,10 +12,16 @@ import { Card } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { muscleLabel } from "@/components/ui/muscle";
+import { useValidationMessage } from "@/i18n/useValidationMessage";
 
 type FormValues = z.infer<typeof createExerciseSchema>;
 
 export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
+  const t = useTranslations("exercises");
+  const tm = useTranslations("muscle");
+  const te = useTranslations("errors");
+  const validationMessage = useValidationMessage();
   const {
     register,
     handleSubmit,
@@ -32,20 +39,19 @@ export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
       reset({ name: "", muscleGroup: "Chest" });
       onDone?.();
     } catch (err) {
-      setError("root", {
-        message: err instanceof Error ? err.message : "Failed to add exercise",
-      });
+      console.error(err);
+      setError("root", { message: te("createExercise") });
     }
   }
 
   return (
     <Card>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-medium">New exercise</h2>
+        <h2 className="font-medium">{t("newExercise")}</h2>
         {onDone && (
           <IconButton
             icon={<X className="h-4 w-4" />}
-            aria-label="Close new exercise form"
+            aria-label={t("closeForm")}
             onClick={onDone}
             className="-mr-2"
           />
@@ -53,17 +59,17 @@ export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Input
-          label="Exercise name"
+          label={t("nameLabel")}
           {...register("name")}
-          placeholder="e.g. Bicep Curl"
+          placeholder={t("namePlaceholder")}
           autoFocus
-          error={errors.name?.message}
+          error={validationMessage(errors.name?.message)}
           wrapperClassName="sm:flex-1"
         />
-        <Select label="Muscle group" {...register("muscleGroup")} wrapperClassName="sm:w-40">
+        <Select label={t("muscleGroup")} {...register("muscleGroup")} wrapperClassName="sm:w-40">
           {MUSCLE_GROUPS.map((group) => (
             <option key={group} value={group}>
-              {group}
+              {muscleLabel(tm, group)}
             </option>
           ))}
         </Select>
@@ -74,10 +80,10 @@ export function AddExerciseForm({ onDone }: { onDone?: () => void }) {
           loading={isSubmitting}
           className="sm:shrink-0"
         >
-          Add
+          {t("add")}
         </Button>
       </form>
-      {errors.muscleGroup && <p className="mt-2 text-sm text-danger">{errors.muscleGroup.message}</p>}
+      {errors.muscleGroup && <p className="mt-2 text-sm text-danger">{validationMessage(errors.muscleGroup.message)}</p>}
       {errors.root && <p className="mt-2 text-sm text-danger">{errors.root.message}</p>}
     </Card>
   );
