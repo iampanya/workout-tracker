@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy, ArrowsClockwise, UsersThree } from "@phosphor-icons/react/ssr";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +16,8 @@ type ReferralCardProps = {
 };
 
 export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) {
+  const t = useTranslations("profile");
+  const te = useTranslations("errors");
   const [currentCode, setCurrentCode] = useState(code);
   const [copied, setCopied] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -29,7 +32,7 @@ export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Couldn't copy — copy the link manually");
+      setError(te("copyLink"));
     }
   }
 
@@ -40,7 +43,7 @@ export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) 
     setRegenerating(false);
     setConfirmOpen(false);
     if (result.error || !result.code) {
-      setError(result.error ?? "Could not regenerate code");
+      setError(te(`referral.${result.error ?? "regenerateFailed"}`));
       return;
     }
     setCurrentCode(result.code);
@@ -50,9 +53,9 @@ export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) 
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">Invite friends</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">{t("inviteFriends")}</span>
         <p className="text-sm text-muted">
-          Share this link so friends can create an account. It never expires and anyone with it can join.
+          {t("inviteDescription")}
         </p>
       </div>
 
@@ -65,36 +68,38 @@ export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) 
           icon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           onClick={handleCopy}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("copied") : t("copy")}
         </Button>
       </div>
 
       <div className="flex items-center gap-2 text-sm text-muted">
         <UsersThree className="h-4 w-4" weight="bold" />
         <span>
-          Invited <span className="font-semibold text-foreground">{invitedCount}</span>{" "}
-          {invitedCount === 1 ? "friend" : "friends"}
+          {t.rich("invited", {
+            count: invitedCount,
+            b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+          })}
         </span>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="text-sm text-muted">Link leaked or shared too widely?</span>
+        <span className="text-sm text-muted">{t("linkLeaked")}</span>
         <Button
           variant="danger"
           icon={<ArrowsClockwise className="h-4 w-4" />}
           onClick={() => setConfirmOpen(true)}
         >
-          Regenerate
+          {t("regenerate")}
         </Button>
       </div>
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Regenerate invite link?"
-        description="Your current link will stop working immediately. Anyone you've already sent it to won't be able to sign up with it."
-        confirmLabel="Regenerate"
+        title={t("regenerateTitle")}
+        description={t("regenerateDescription")}
+        confirmLabel={t("regenerate")}
         tone="danger"
         loading={regenerating}
         onConfirm={handleRegenerate}

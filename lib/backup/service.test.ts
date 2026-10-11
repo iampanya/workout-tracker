@@ -171,4 +171,22 @@ describe("backup service", () => {
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.sets).toHaveLength(2);
   });
+
+  it("tags a file that isn't a backup as invalidFile", async () => {
+    await expect(importUserData(prisma, userA, { format: "nope" }, "merge")).rejects.toMatchObject({
+      code: "invalidFile",
+    });
+  });
+
+  it("tags a backup from an unknown version as unsupportedVersion", async () => {
+    const future = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION + 1,
+      exported_at: new Date().toISOString(),
+      data: { exercises: [], routines: [], routine_exercises: [], sessions: [], session_exercises: [], sets: [] },
+    };
+    await expect(importUserData(prisma, userA, future, "merge")).rejects.toMatchObject({
+      code: "unsupportedVersion",
+    });
+  });
 });

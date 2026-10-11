@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import { exportUserData, importUserData, type ImportMode, type ImportSummary } from "@/lib/backup/service";
+import {
+  BackupImportError,
+  exportUserData,
+  importUserData,
+  type BackupImportErrorCode,
+  type ImportMode,
+  type ImportSummary,
+} from "@/lib/backup/service";
 import type { BackupFile } from "@/lib/validation";
 
 export async function exportBackup(): Promise<BackupFile> {
@@ -11,7 +18,8 @@ export async function exportBackup(): Promise<BackupFile> {
   return exportUserData(prisma, userId);
 }
 
-export type ImportResult = { error: string | null; summary: ImportSummary | null };
+export type ImportErrorCode = BackupImportErrorCode | "importFailed";
+export type ImportResult = { error: ImportErrorCode | null; summary: ImportSummary | null };
 
 export async function importBackup(rawFile: unknown, mode: ImportMode): Promise<ImportResult> {
   const userId = await requireUserId();
@@ -20,7 +28,9 @@ export async function importBackup(rawFile: unknown, mode: ImportMode): Promise<
   try {
     summary = await importUserData(prisma, userId, rawFile, mode);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Could not import backup", summary: null };
+    if (err instanceof BackupImportError) return { error: err.code, summary: null };
+    console.error(err);
+    return { error: "importFailed", summary: null };
   }
 
   // A restore/merge can touch every list in the app.

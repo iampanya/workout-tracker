@@ -103,6 +103,20 @@ export async function exportUserData(db: PrismaClient, userId: string): Promise<
   };
 }
 
+export type BackupImportErrorCode = "invalidFile" | "unsupportedVersion";
+
+// A rejected backup file. `code` is what the UI translates (errors.backup.*); `message` stays
+// English for logs.
+export class BackupImportError extends Error {
+  constructor(
+    public readonly code: BackupImportErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "BackupImportError";
+  }
+}
+
 // Validates the raw file, then hands the whole payload to the atomic import_backup function
 // (one transaction — see 0009_import_backup_userid_param.sql). The user id is passed explicitly
 // since the direct connection has no auth.uid().
@@ -114,7 +128,9 @@ export async function importUserData(
 ): Promise<ImportSummary> {
   const parsed = backupFileSchema.safeParse(rawFile);
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid backup file");
+    const issue = parsed.error.issues[0];
+    const code = issue?.path[0] === "version" ? "unsupportedVersion" : "invalidFile";
+    throw new BackupImportError(code, issue?.message ?? "Invalid backup file");
   }
 
   const rows = await db.$queryRaw<{ import_backup: ImportSummary }[]>(Prisma.sql`

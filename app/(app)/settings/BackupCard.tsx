@@ -2,22 +2,18 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
 import { DownloadSimple, UploadSimple } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { exportBackup, importBackup } from "@/lib/actions/backup";
 import type { ImportMode, ImportSummary } from "@/lib/backup/service";
 
-function summaryLine(s: ImportSummary): string {
-  const parts: string[] = [];
-  if (s.exercises) parts.push(`${s.exercises} exercises`);
-  if (s.routines) parts.push(`${s.routines} routines`);
-  if (s.sessions) parts.push(`${s.sessions} workouts`);
-  if (s.sets) parts.push(`${s.sets} sets`);
-  return parts.length ? `Imported ${parts.join(", ")}.` : "Nothing new to import — your data already matches this file.";
-}
-
 export function BackupCard() {
+  const t = useTranslations("settings.backup");
+  const tc = useTranslations("common");
+  const te = useTranslations("errors");
+  const format = useFormatter();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingMode = useRef<ImportMode>("merge");
@@ -28,6 +24,15 @@ export function BackupCard() {
   const [message, setMessage] = useState<string | null>(null);
   // Parsed file waiting on the Replace confirmation dialog.
   const [pendingReplace, setPendingReplace] = useState<unknown | null>(null);
+
+  function summaryLine(s: ImportSummary): string {
+    const parts: string[] = [];
+    if (s.exercises) parts.push(tc("exercises", { count: s.exercises }));
+    if (s.routines) parts.push(tc("routines", { count: s.routines }));
+    if (s.sessions) parts.push(tc("workouts", { count: s.sessions }));
+    if (s.sets) parts.push(tc("sets", { count: s.sets }));
+    return parts.length ? t("imported", { parts: format.list(parts) }) : t("nothingNew");
+  }
 
   async function handleExport() {
     setError(null);
@@ -44,7 +49,8 @@ export function BackupCard() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not export your data");
+      console.error(err);
+      setError(te("exportBackup"));
     } finally {
       setExporting(false);
     }
@@ -64,13 +70,14 @@ export function BackupCard() {
     try {
       const result = await importBackup(rawFile, mode);
       if (result.error || !result.summary) {
-        setError(result.error ?? "Could not import backup");
+        setError(te(`backup.${result.error ?? "importFailed"}`));
         return;
       }
       setMessage(summaryLine(result.summary));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not import backup");
+      console.error(err);
+      setError(te("backup.importFailed"));
     } finally {
       setImporting(false);
     }
@@ -86,7 +93,7 @@ export function BackupCard() {
     try {
       parsed = JSON.parse(await file.text());
     } catch {
-      setError("That file isn't valid JSON.");
+      setError(te("invalidJson"));
       return;
     }
 
@@ -117,7 +124,7 @@ export function BackupCard() {
           loading={exporting}
           disabled={busy}
         >
-          Export backup
+          {t("export")}
         </Button>
         <Button
           variant="secondary"
@@ -125,7 +132,7 @@ export function BackupCard() {
           onClick={() => pickFile("merge")}
           disabled={busy}
         >
-          Import &amp; merge
+          {t("importMerge")}
         </Button>
         <Button
           variant="danger"
@@ -133,13 +140,12 @@ export function BackupCard() {
           onClick={() => pickFile("replace")}
           disabled={busy}
         >
-          Import &amp; replace all
+          {t("importReplace")}
         </Button>
       </div>
 
       <p className="text-xs text-muted">
-        Export downloads all your exercises, routines, and workout history as a JSON file.
-        Merge adds a backup&apos;s data to what you have now; replace wipes your current data first.
+        {t("help")}
       </p>
 
       {message && <p className="text-sm text-success">{message}</p>}
@@ -147,9 +153,9 @@ export function BackupCard() {
 
       <ConfirmDialog
         open={pendingReplace !== null}
-        title="Replace all data?"
-        description="This permanently deletes all your current exercises, routines, and workout history, then restores everything from the file. This can't be undone."
-        confirmLabel="Replace everything"
+        title={t("replaceTitle")}
+        description={t("replaceDescription")}
+        confirmLabel={t("replaceConfirm")}
         tone="danger"
         loading={importing}
         onConfirm={() => {

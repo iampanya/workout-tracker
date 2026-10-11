@@ -26,7 +26,18 @@
     "color": "Color",
     "language": "Language",
     "backupRestore": "Backup & Restore",
-    "account": "Account"
+    "account": "Account",
+    "backup": {
+      "export": "Export backup",
+      "importMerge": "Import & merge",
+      "importReplace": "Import & replace all",
+      "help": "Export downloads all your exercises, routines, and workout history as a JSON file. Merge adds a backup's data to what you have now; replace wipes your current data first.",
+      "imported": "Imported {parts}.",
+      "nothingNew": "Nothing new to import — your data already matches this file.",
+      "replaceTitle": "Replace all data?",
+      "replaceDescription": "This permanently deletes all your current exercises, routines, and workout history, then restores everything from the file. This can't be undone.",
+      "replaceConfirm": "Replace everything"
+    }
   },
   "common": {
     "today": "Today",
@@ -52,7 +63,9 @@
     "increase": "Increase {label}",
     "setColumn": "Set",
     "weightColumn": "Weight",
-    "repsColumn": "Reps"
+    "repsColumn": "Reps",
+    "routines": "{count, plural, one {# routine} other {# routines}}",
+    "workouts": "{count, plural, one {# workout} other {# workouts}}"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -317,5 +330,20 @@
     "maxWeight": "Max weight",
     "e1rm": "Est. 1RM",
     "volume": "Volume"
+  },
+  "profile": {
+    "title": "Profile",
+    "username": "Username",
+    "email": "Email",
+    "memberSince": "Member since",
+    "inviteFriends": "Invite friends",
+    "inviteDescription": "Share this link so friends can create an account. It never expires and anyone with it can join.",
+    "copied": "Copied",
+    "copy": "Copy",
+    "invited": "Invited <b>{count}</b> {count, plural, one {friend} other {friends}}",
+    "linkLeaked": "Link leaked or shared too widely?",
+    "regenerate": "Regenerate",
+    "regenerateTitle": "Regenerate invite link?",
+    "regenerateDescription": "Your current link will stop working immediately. Anyone you've already sent it to won't be able to sign up with it."
   }
 }
