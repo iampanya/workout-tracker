@@ -38,13 +38,14 @@ function initialInput(exercise: ExerciseEntry): SetFormInput {
 
 function LastTimeHint({ exercise }: { exercise: ExerciseEntry }) {
   const locale = useLocale();
+  const t = useTranslations("log");
   const last = exercise.lastSession;
   if (!last || last.sets.length === 0) return null;
   return (
     <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
       <ClockCounterClockwise className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="truncate">
-        Last · {formatShortDate(last.sessionDate, locale)}: {formatLastSets(last.sets)}
+        {t("lastTime", { date: formatShortDate(last.sessionDate, locale), sets: formatLastSets(last.sets) })}
       </span>
     </p>
   );
@@ -76,6 +77,7 @@ export function ExerciseCard({
   onRemove: () => void;
 }) {
   const tc = useTranslations("common");
+  const t = useTranslations("log");
   const [input, setInput] = useState<SetFormInput>(() => initialInput(exercise));
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
 
@@ -88,7 +90,7 @@ export function ExerciseCard({
   const progress =
     exercise.targetSets !== null ? (
       <Badge tone={workingSets >= exercise.targetSets ? "success" : "neutral"}>
-        {workingSets}/{exercise.targetSets} sets
+        {t("targetProgress", { done: workingSets, target: exercise.targetSets })}
       </Badge>
     ) : null;
 
@@ -109,14 +111,14 @@ export function ExerciseCard({
             <span className="block truncate text-sm text-muted">
               {exercise.sets.length > 0
                 ? `${tc("setCount", countSets(exercise.sets))}${
-                    top ? ` · top ${top.weight_kg}×${top.reps}` : ""
+                    top ? ` · ${t("topSet", { weight: top.weight_kg, reps: top.reps })}` : ""
                   }`
                 : exercise.lastSession && exercise.lastSession.sets.length > 0
-                  ? `Not started · last ${formatLastSets(exercise.lastSession.sets)}`
-                  : "Not started"}
+                  ? t("notStartedLast", { sets: formatLastSets(exercise.lastSession.sets) })
+                  : t("notStarted")}
             </span>
             {blocked && (
-              <span className="block text-sm text-danger">Add a set or remove this exercise.</span>
+              <span className="block text-sm text-danger">{t("blocked")}</span>
             )}
           </span>
           <CaretDown className="h-4 w-4 shrink-0 text-muted" />
@@ -142,7 +144,7 @@ export function ExerciseCard({
         </div>
         <IconButton
           icon={<Trash className="h-4 w-4" />}
-          aria-label={`Remove ${exercise.exerciseName}`}
+          aria-label={t("removeExerciseLabel", { name: exercise.exerciseName })}
           variant="danger"
           onClick={onRemove}
           className="-mr-2 -mt-2 shrink-0"
@@ -151,7 +153,7 @@ export function ExerciseCard({
 
       {blocked && (
         <p className="mt-1 text-sm text-danger">
-          Add a set or remove this exercise before finishing.
+          {t("blockedBeforeFinish")}
         </p>
       )}
       {error && (
@@ -163,9 +165,9 @@ export function ExerciseCard({
       {exercise.sets.length > 0 && (
         <div className="mt-3">
           <div className="grid grid-cols-[2.25rem_1fr_1fr_1.25rem] gap-x-3 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">
-            <span>Set</span>
-            <span className="text-right">Weight</span>
-            <span className="text-right">Reps</span>
+            <span>{tc("setColumn")}</span>
+            <span className="text-right">{tc("weightColumn")}</span>
+            <span className="text-right">{tc("repsColumn")}</span>
             <span aria-hidden />
           </div>
           <ul className="space-y-0.5">
@@ -190,9 +192,15 @@ export function ExerciseCard({
                     type="button"
                     disabled={set.pending}
                     onClick={() => setEditingSetId(set.id)}
-                    aria-label={`Edit ${
-                      set.is_warmup ? "warmup set" : `set ${setNumbers[i]}`
-                    }: ${set.weight_kg} kg × ${set.reps}`}
+                    aria-label={
+                      set.is_warmup
+                        ? t("editWarmupLabel", { weight: set.weight_kg, reps: set.reps })
+                        : t("editSetLabel", {
+                            number: setNumbers[i] ?? 0,
+                            weight: set.weight_kg,
+                            reps: set.reps,
+                          })
+                    }
                     className={`grid min-h-11 w-full grid-cols-[2.25rem_1fr_1fr_1.25rem] items-center gap-x-3 rounded-lg px-2 text-sm transition-colors duration-700 [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${
                       flashSetId === set.id ? "bg-success/15" : ""
                     } ${set.is_warmup ? "text-muted" : ""}`}
@@ -236,7 +244,7 @@ export function ExerciseCard({
               setInput((prev) => ({ ...prev, warmup: false }));
             }}
           >
-            Add Set
+            {t("addSet")}
           </Button>
         </div>
       </div>

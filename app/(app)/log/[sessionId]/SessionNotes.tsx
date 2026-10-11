@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useTranslations } from "next-intl";
 import { NotePencil } from "@phosphor-icons/react/ssr";
 import { updateSessionNotes } from "@/lib/actions/sessions";
 import { Card } from "@/components/ui/Card";
@@ -16,6 +17,7 @@ export function SessionNotes({
   sessionId: string;
   initialNotes: string | null;
 }) {
+  const t = useTranslations("log");
   const fieldId = useId();
   const [open, setOpen] = useState(Boolean(initialNotes));
   const [value, setValue] = useState(initialNotes ?? "");
@@ -42,7 +44,7 @@ export function SessionNotes({
         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-sm font-medium text-muted [touch-action:manipulation] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <NotePencil className="h-4 w-4" />
-        Add a note
+        {t("addNote")}
       </button>
     );
   }
@@ -51,13 +53,13 @@ export function SessionNotes({
     <Card className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label htmlFor={fieldId} className="text-sm font-medium text-foreground">
-          Notes
+          {t("notes")}
         </label>
         <span className="text-xs text-muted" aria-live="polite">
-          {status === "saving" && "Saving…"}
-          {status === "saved" && "Saved"}
+          {status === "saving" && t("saving")}
+          {status === "saved" && t("saved")}
           {status === "error" && (
-            <span className="text-danger">Couldn&apos;t save — try again</span>
+            <span className="text-danger">{t("saveNoteFailed")}</span>
           )}
         </span>
       </div>
@@ -67,7 +69,7 @@ export function SessionNotes({
         maxLength={MAX_NOTES}
         rows={3}
         autoFocus={!initialNotes}
-        placeholder="How did it feel? Seat height, grip, anything to remember…"
+        placeholder={t("notesPlaceholder")}
         onChange={(e) => {
           setValue(e.target.value);
           if (status !== "idle") setStatus("idle");

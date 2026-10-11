@@ -17,21 +17,25 @@ export default async function LogPage() {
     getInProgressSessions(),
   ]);
   const current = inProgress[0] ?? null;
-  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const [locale, tc, t] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("log"),
+  ]);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Start a Workout</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {current && (
         <Card className="flex flex-col gap-3 border-accent/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-medium">You have a workout in progress</p>
+            <p className="font-medium">{t("inProgress")}</p>
             <p className="text-sm text-muted">
               {sessionDisplayName(current, tc("freeformWorkout"))} · {formatSessionDate(current.session_date, locale)}
             </p>
           </div>
           <ButtonLink href={`/log/${current.id}`}>
-            Resume
+            {t("resume")}
             <ArrowRight className="h-4 w-4" />
           </ButtonLink>
         </Card>

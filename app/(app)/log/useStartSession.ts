@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getLocalDateString } from "@/lib/date";
 import { startSession } from "@/lib/actions/sessions";
 
@@ -11,6 +12,7 @@ import { startSession } from "@/lib/actions/sessions";
 // on success because we're navigating away.
 export function useStartSession() {
   const router = useRouter();
+  const te = useTranslations("errors");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // State updates land on the next render, so two clicks in the same tick would both see
@@ -30,7 +32,8 @@ export function useStartSession() {
       });
       router.push(`/log/${session.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start workout");
+      console.error(err);
+      setError(te("startWorkout"));
       setPendingKey(null);
       inFlight.current = false;
     }

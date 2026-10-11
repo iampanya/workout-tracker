@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
 import { Timer, X } from "@phosphor-icons/react/ssr";
 import {
   formatClock,
@@ -53,6 +54,7 @@ export function RestTimer({
   startedAt: number | null;
   onClear: () => void;
 }) {
+  const t = useTranslations("log");
   const duration = useSyncExternalStore(
     subscribeDuration,
     readStoredDuration,
@@ -96,11 +98,11 @@ export function RestTimer({
       <button
         type="button"
         onClick={cycleDuration}
-        aria-label={`Rest timer length ${duration} seconds, tap to change`}
+        aria-label={t("restLength", { seconds: duration })}
         className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted [touch-action:manipulation] hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Timer className="h-4 w-4" />
-        {duration}s
+        {t("restSeconds", { seconds: duration })}
       </button>
     );
   }
@@ -113,11 +115,11 @@ export function RestTimer({
     >
       <Timer className="h-4 w-4 shrink-0" weight={done ? "fill" : "regular"} />
       <span className="min-w-[3.25rem] font-mono text-lg font-semibold tabular-nums">
-        {done ? "Go!" : formatClock(remaining)}
+        {done ? t("restGo") : formatClock(remaining)}
       </span>
       {/* Announce only the end of the rest, not every tick. */}
       <span className="sr-only" aria-live="polite">
-        {done ? "Rest over" : ""}
+        {done ? t("restOver") : ""}
       </span>
       {!done && (
         <button
@@ -130,13 +132,13 @@ export function RestTimer({
           }
           className="min-h-11 rounded-lg px-2 text-sm font-medium [touch-action:manipulation] hover:bg-border/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          +30s
+          {t("restAdd")}
         </button>
       )}
       <button
         type="button"
         onClick={onClear}
-        aria-label={done ? "Dismiss rest timer" : "Skip rest"}
+        aria-label={done ? t("restDismiss") : t("restSkip")}
         className="flex h-11 w-11 items-center justify-center rounded-lg [touch-action:manipulation] hover:bg-border/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X className="h-4 w-4" />

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Trash, Trophy } from "@phosphor-icons/react/ssr";
 import {
@@ -69,6 +69,9 @@ export function LoggingClient({
 }) {
   const router = useRouter();
   const tc = useTranslations("common");
+  const t = useTranslations("log");
+  const te = useTranslations("errors");
+  const format = useFormatter();
   const [exercises, setExercises] = useState(initialExercises);
   const [expandedId, setExpandedId] = useState(() => initialExpandedId(initialExercises));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -102,7 +105,9 @@ export function LoggingClient({
   function announcePr(sessionExerciseId: string, pr: PrRecord, hadPriorPr: boolean) {
     if (!hadPriorPr) return;
     const exercise = exercises.find((ex) => ex.sessionExerciseId === sessionExerciseId);
-    setToast(`New PR on ${exercise?.exerciseName ?? "this exercise"}: ${formatPr(pr)}!`);
+    setToast(
+      t("prToast", { name: exercise?.exerciseName ?? t("thisExercise"), pr: formatPr(pr) })
+    );
   }
 
   function hasPriorPr(sessionExerciseId: string): boolean {
@@ -171,10 +176,7 @@ export function LoggingClient({
             : ex
         )
       );
-      setError(
-        vars.sessionExerciseId,
-        "Failed to save that set — check your connection and try again."
-      );
+      setError(vars.sessionExerciseId, te("saveSetOffline"));
     },
   });
 
@@ -214,7 +216,8 @@ export function LoggingClient({
       await updateSetMutation.mutateAsync({ setId: set.id, sessionExerciseId, ...values });
       return true;
     } catch (err) {
-      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to save that set");
+      console.error(err);
+      setError(sessionExerciseId, te("saveSet"));
       return false;
     }
   }
@@ -238,7 +241,8 @@ export function LoggingClient({
             : ex
         )
       );
-      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to delete set");
+      console.error(err);
+      setError(sessionExerciseId, te("deleteSet"));
     }
   }
 
@@ -286,7 +290,8 @@ export function LoggingClient({
         return next;
       });
       setConfirmRemoveExerciseId(null);
-      setError(sessionExerciseId, err instanceof Error ? err.message : "Failed to remove exercise");
+      console.error(err);
+      setError(sessionExerciseId, te("removeExercise"));
     } finally {
       setRemoveExercisePending(false);
     }
@@ -295,14 +300,14 @@ export function LoggingClient({
   async function handleFinish() {
     if (exercises.length === 0) {
       setFinishBlocked(true);
-      setFinishError("Add an exercise and log at least one set before finishing.");
+      setFinishError(t("finishNoExercises"));
       return;
     }
     const emptyExercises = exercises.filter((e) => e.sets.length === 0);
     if (emptyExercises.length > 0) {
       setFinishBlocked(true);
       setFinishError(
-        `Remove or add a set to ${emptyExercises.map((e) => e.exerciseName).join(", ")} before finishing.`
+        t("finishEmptyExercises", { names: emptyExercises.map((e) => e.exerciseName).join(", ") })
       );
       return;
     }
@@ -316,7 +321,8 @@ export function LoggingClient({
       window.scrollTo({ top: 0 });
       router.push(`/history/${sessionId}?finished=1`);
     } catch (err) {
-      setFinishError(err instanceof Error ? err.message : "Failed to finish workout");
+      console.error(err);
+      setFinishError(te("finishWorkout"));
       setFinishPending(false);
     }
   }
@@ -328,7 +334,8 @@ export function LoggingClient({
       await discardSession(sessionId);
       router.push("/dashboard");
     } catch (err) {
-      setDiscardError(err instanceof Error ? err.message : "Failed to discard workout");
+      console.error(err);
+      setDiscardError(te("discardWorkout"));
       setDiscardPending(false);
     }
   }
@@ -342,16 +349,16 @@ export function LoggingClient({
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold">{sessionName}</h1>
           <p className="mt-0.5 text-sm text-muted tabular-nums">
-            {summary.exerciseCount} {summary.exerciseCount === 1 ? "exercise" : "exercises"} ·{" "}
-            {summary.setCount} {summary.setCount === 1 ? "set" : "sets"}
-            {summary.totalVolumeKg > 0 && ` · ${summary.totalVolumeKg.toLocaleString()} kg`}
+            {tc("exercises", { count: summary.exerciseCount })} ·{" "}
+            {tc("sets", { count: summary.setCount })}
+            {summary.totalVolumeKg > 0 && ` · ${format.number(summary.totalVolumeKg)} kg`}
             {elapsedMinutes !== null &&
-              ` · ${elapsedMinutes > 0 ? tc("duration", splitDuration(elapsedMinutes)) : "just started"}`}
+              ` · ${elapsedMinutes > 0 ? tc("duration", splitDuration(elapsedMinutes)) : t("justStarted")}`}
           </p>
         </div>
         <IconButton
           icon={<Trash className="h-5 w-5" />}
-          aria-label="Discard workout"
+          aria-label={t("discardLabel")}
           variant="danger"
           className="-mr-2 shrink-0"
           onClick={() => {
@@ -384,7 +391,7 @@ export function LoggingClient({
 
       {exercises.length === 0 && (
         <p className="text-center text-sm text-muted">
-          No exercises yet — add one below to start logging sets.
+          {t("noExercises")}
         </p>
       )}
 
@@ -412,7 +419,7 @@ export function LoggingClient({
             onClick={handleFinish}
             className="min-w-0 flex-1"
           >
-            Finish
+            {t("finish")}
           </Button>
         </div>
       </div>
@@ -425,15 +432,15 @@ export function LoggingClient({
       />
       <ConfirmDialog
         open={confirmDiscard}
-        title="Discard this workout?"
+        title={t("discardTitle")}
         description={
           discardError ? (
             <span className="text-danger">{discardError}</span>
           ) : (
-            "This workout and any sets logged in it will be permanently deleted."
+            t("discardDescription")
           )
         }
-        confirmLabel="Discard"
+        confirmLabel={t("discard")}
         tone="danger"
         loading={discardPending}
         onConfirm={handleDiscard}
@@ -441,25 +448,21 @@ export function LoggingClient({
       />
       <ConfirmDialog
         open={finishError !== null}
-        title="Can't finish yet"
+        title={t("cantFinish")}
         description={finishError}
-        confirmLabel="Got it"
+        confirmLabel={t("gotIt")}
         hideCancel
         onConfirm={() => setFinishError(null)}
         onCancel={() => setFinishError(null)}
       />
       <ConfirmDialog
         open={removeTarget !== null}
-        title="Remove this exercise?"
+        title={t("removeTitle")}
         description={
-          removeTarget && (
-            <>
-              &ldquo;{removeTarget.exerciseName}&rdquo; and its {removeTarget.sets.length} logged{" "}
-              {removeTarget.sets.length === 1 ? "set" : "sets"} will be removed from this workout.
-            </>
-          )
+          removeTarget &&
+          t("removeDescription", { name: removeTarget.exerciseName, count: removeTarget.sets.length })
         }
-        confirmLabel="Remove"
+        confirmLabel={tc("remove")}
         tone="danger"
         loading={removeExercisePending}
         onConfirm={() => removeTarget && handleRemoveExercise(removeTarget.sessionExerciseId)}

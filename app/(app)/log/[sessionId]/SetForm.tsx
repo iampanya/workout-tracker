@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Check } from "@phosphor-icons/react/ssr";
 import { NumberField, applyStep } from "@/components/ui/NumberField";
 import { REPS_STEP, WEIGHT_STEP, type SetFormInput } from "./types";
@@ -11,6 +12,7 @@ export function WarmupToggle({
   checked: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const t = useTranslations("log");
   return (
     <button
       type="button"
@@ -23,7 +25,7 @@ export function WarmupToggle({
       }`}
     >
       {checked && <Check className="h-4 w-4" />}
-      Warmup
+      {t("warmup")}
     </button>
   );
 }
@@ -37,10 +39,11 @@ export function WeightRepsFields({
   value: SetFormInput;
   onChange: (update: (prev: SetFormInput) => SetFormInput) => void;
 }) {
+  const t = useTranslations("log");
   return (
     <div className="grid grid-cols-2 gap-3">
       <NumberField
-        label="Weight (kg)"
+        label={t("weightLabel")}
         value={value.weight}
         onChange={(weight) => onChange((prev) => ({ ...prev, weight }))}
         onStep={(delta) =>
@@ -50,7 +53,7 @@ export function WeightRepsFields({
         inputMode="decimal"
       />
       <NumberField
-        label="Reps"
+        label={t("repsLabel")}
         value={value.reps}
         onChange={(reps) => onChange((prev) => ({ ...prev, reps }))}
         onStep={(delta) =>

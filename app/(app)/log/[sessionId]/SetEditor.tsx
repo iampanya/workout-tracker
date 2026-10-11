@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Trash } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/Button";
 import { WarmupToggle, WeightRepsFields, isValidSetInput } from "./SetForm";
@@ -25,6 +26,8 @@ export function SetEditor({
   onDelete: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("log");
+  const tc = useTranslations("common");
   const [input, setInput] = useState<SetFormInput>({
     weight: String(set.weight_kg),
     reps: String(set.reps),
@@ -35,7 +38,7 @@ export function SetEditor({
   return (
     <div className="-mx-2 flex flex-col gap-3 rounded-xl bg-surface-muted p-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
-        {setNumber === null ? "Edit warmup" : `Edit set ${setNumber}`}
+        {setNumber === null ? t("editWarmup") : t("editSet", { number: setNumber })}
       </p>
       <WeightRepsFields value={input} onChange={setInput} />
       <div>
@@ -51,11 +54,11 @@ export function SetEditor({
           onClick={() => (confirmDelete ? onDelete() : setConfirmDelete(true))}
           className={confirmDelete ? "bg-danger/10" : ""}
         >
-          {confirmDelete ? "Tap to delete" : "Delete"}
+          {confirmDelete ? t("tapToDelete") : tc("delete")}
         </Button>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -69,7 +72,7 @@ export function SetEditor({
               })
             }
           >
-            Save
+            {tc("save")}
           </Button>
         </div>
       </div>

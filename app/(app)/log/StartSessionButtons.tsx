@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Play, Shuffle } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/Button";
 import { RoutinePreviewText } from "../routines/RoutinePreviewText";
@@ -10,6 +11,7 @@ export function StartSessionButtons({
 }: {
   routines: { id: string; name: string; exerciseCount: number; exerciseNames: string[] }[];
 }) {
+  const tc = useTranslations("common");
   const { start, pendingKey, error } = useStartSession();
 
   return (
@@ -40,7 +42,7 @@ export function StartSessionButtons({
         onClick={() => start()}
         className="w-full border-dashed"
       >
-        Freeform Workout
+        {tc("freeformWorkout")}
       </Button>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
