@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
 import { getRoutineTargetSets } from "@/lib/routines/service";
 import { getPriorPrs, getLastSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
+import { formatShortDate } from "@/lib/sessions/summary";
 import { QueryProvider } from "./QueryProvider";
 import { LoggingClient } from "./LoggingClient";
 
@@ -37,6 +38,7 @@ export default async function LogSessionPage({
     notFound();
   }
   const tc = await getTranslations("common");
+  const locale = await getLocale();
   const displayName = sessionDisplayName(
     {
       name: session.name,
@@ -54,17 +56,21 @@ export default async function LogSessionPage({
       : Promise.resolve({} as Record<string, number>),
   ]);
 
-  const exercises = sessionExercises.map((se) => ({
-    sessionExerciseId: se.id,
-    exerciseId: se.exercise_id,
-    exerciseName: se.exercises.name,
-    sets: [...se.sets]
-      .sort((a, b) => a.set_number - b.set_number)
-      .map((s) => ({ ...s, weight_kg: Number(s.weight_kg) })),
-    pr: prMap[se.exercise_id] ?? null,
-    lastSession: lastSessions[se.exercise_id] ?? null,
-    targetSets: targetSets[se.exercise_id] ?? null,
-  }));
+  const exercises = sessionExercises.map((se) => {
+    const ls = lastSessions[se.exercise_id];
+    return {
+      sessionExerciseId: se.id,
+      exerciseId: se.exercise_id,
+      exerciseName: se.exercises.name,
+      sets: [...se.sets]
+        .sort((a, b) => a.set_number - b.set_number)
+        .map((s) => ({ ...s, weight_kg: Number(s.weight_kg) })),
+      pr: prMap[se.exercise_id] ?? null,
+      // Formatted on the server: Node and the browser disagree on Thai short weekdays (hydration).
+      lastSession: ls ? { ...ls, dateLabel: formatShortDate(ls.sessionDate, locale) } : null,
+      targetSets: targetSets[se.exercise_id] ?? null,
+    };
+  });
 
   return (
     <QueryProvider>

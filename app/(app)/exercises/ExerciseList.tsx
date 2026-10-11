@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { CaretRight, MagnifyingGlass, Trophy } from "@phosphor-icons/react/ssr";
 import type { ExerciseStats } from "@/lib/exercises/service";
-import { formatRelativeDate } from "@/lib/sessions/summary";
 import { formatPr } from "@/lib/pr";
 import { Badge } from "@/components/ui/Badge";
 import { muscleLabel, muscleTone } from "@/components/ui/muscle";
@@ -27,20 +26,17 @@ type ExerciseRow = {
 export function ExerciseList({
   exercises,
   stats,
-  today,
+  lastDoneLabels,
 }: {
   exercises: ExerciseRow[];
   stats: Record<string, ExerciseStats>;
-  today: string;
+  lastDoneLabels: Record<string, string>;
 }) {
-  const locale = useLocale();
   const tc = useTranslations("common");
   const t = useTranslations("exercises");
   const tm = useTranslations("muscle");
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<string | null>(null);
-
-  const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -129,10 +125,7 @@ export function ExerciseList({
                           </>
                         )}
                         {stat.pr !== null && stat.lastDate && " · "}
-                        {stat.lastDate &&
-                          t("lastDone", {
-                            when: formatRelativeDate(stat.lastDate, today, locale, relativeLabels),
-                          })}
+                        {stat.lastDate && t("lastDone", { when: lastDoneLabels[exercise.id] })}
                       </span>
                     )}
                   </span>

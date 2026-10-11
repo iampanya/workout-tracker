@@ -16,7 +16,9 @@ export type ExerciseEntry = {
   exerciseName: string;
   sets: SetEntry[];
   pr: PrRecord | null;
-  lastSession: LastSession | null;
+  // dateLabel is formatted on the server (ICU differs between Node and the browser, which would
+  // break hydration); it is absent for exercises added client-side after load.
+  lastSession: (LastSession & { dateLabel?: string }) | null;
   // Planned working sets when the session came from a routine that sets one (routine_exercises.target_sets).
   targetSets: number | null;
 };

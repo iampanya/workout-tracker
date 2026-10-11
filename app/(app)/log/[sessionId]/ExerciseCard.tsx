@@ -45,7 +45,7 @@ function LastTimeHint({ exercise }: { exercise: ExerciseEntry }) {
     <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
       <ClockCounterClockwise className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="truncate">
-        {t("lastTime", { date: formatShortDate(last.sessionDate, locale), sets: formatLastSets(last.sets) })}
+        {t("lastTime", { date: last.dateLabel ?? formatShortDate(last.sessionDate, locale), sets: formatLastSets(last.sets) })}
       </span>
     </p>
   );
