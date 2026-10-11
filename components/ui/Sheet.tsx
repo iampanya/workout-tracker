@@ -7,6 +7,12 @@ import { createPortal } from "react-dom";
 // through a portal to document.body (an ancestor's backdrop-blur would trap position: fixed),
 // closes on Escape / overlay tap, locks page scroll, and returns focus to whatever had it
 // before opening (the trigger) when it closes.
+//
+// While open it also pushes a same-URL history entry, so the Android / browser Back button
+// closes the sheet instead of leaving the page. Closing any other way pops that entry again.
+// (Next's patched pushState copies its router state into the entry; popping back to the page's
+// own entry is a same-URL traverse that restores from cache — no reload, client state kept.)
+const SHEET_HISTORY_KEY = "__sheet";
 export function Sheet({
   open,
   onClose,
@@ -34,9 +40,24 @@ export function Sheet({
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    const token = crypto.randomUUID();
+    window.history.pushState({ [SHEET_HISTORY_KEY]: token }, "");
+    // Back popped our entry: just close (the entry is already gone).
+    function onPopState() {
+      onCloseRef.current();
+    }
+    window.addEventListener("popstate", onPopState);
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      // Remove before history.back() below, so our own pop doesn't call onClose again.
+      window.removeEventListener("popstate", onPopState);
       document.body.style.overflow = previousOverflow;
+      // Closed via the UI: pop our entry so the next Back leaves the page as expected. Skipped
+      // when Back already popped it, or when we're unmounting because the route changed (the
+      // current entry then belongs to the new page and must not be undone).
+      if (window.history.state?.[SHEET_HISTORY_KEY] === token) window.history.back();
       previouslyFocused?.focus();
     };
   }, [open]);
