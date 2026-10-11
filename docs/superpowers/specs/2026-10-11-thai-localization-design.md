@@ -127,3 +127,14 @@ The formatters stay pure and never import next-intl. Callers pass `locale` and a
   - Walk every page (landing, login, dashboard, start → log → rest timer → finish → summary, history, routines, exercises + picker, profile, settings).
   - Switch to English, confirm it persists across reload, then switch back.
   - No hydration warnings, Thai glyphs render in IBM Plex Sans Thai, no clipped tone marks, no overflow at 375px width, and dark mode looks right.
+
+## Refinements made while planning (2026-10-11)
+
+- **Error fallbacks:** production Next redacts messages thrown from server actions, so `err instanceof Error ? err.message : fallback` shows Next's English generic text, not the fallback. Client catch blocks therefore always show the translated `errors.*` text and `console.error(err)`.
+- **Chart axes** use `formatAxisDate(date, locale)` (`Intl`): "9/23" in English, "23/9" in Thai.
+- **Picker search** also matches translated muscle names (typing "ขา" finds Legs exercises).
+- **Bottom-nav label** for Exercises is "ท่าฝึก" (a 75px slot at 375px); page titles keep "ท่าออกกำลังกาย".
+- **Time zone** `Asia/Bangkok` is set in the next-intl request config, so server and client format dates identically.
+- **Parity test** parses messages with `@formatjs/icu-messageformat-parser` (dev dependency), comparing argument names and rich-text tags, and fails on invalid ICU.
+- **Lists** (backup import summary) use `format.list` (e.g. "1 exercise, 2 routines, and 3 sets" / "… และ …").
+- **Duration** is one ICU message with `{hours, minutes, mm}` from `splitDuration`; English keeps "2h 00m".
