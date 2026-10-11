@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const te = useTranslations("errors");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -41,6 +42,7 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
         title={t("discardTitle")}
         description={t("discardDescription")}
         confirmLabel={t("discard")}
+        cancelLabel={tc("keepGoing")}
         tone="danger"
         loading={pending}
         onConfirm={handleDiscard}

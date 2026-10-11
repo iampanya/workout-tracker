@@ -168,7 +168,8 @@ export function LoggingClient({
       setFlashSetId(result.set.id);
       setTimeout(() => setFlashSetId((id) => (id === result.set.id ? null : id)), 900);
     },
-    onError: (_err, vars, context) => {
+    onError: (err, vars, context) => {
+      console.error(err);
       setExercises((prev) =>
         prev.map((ex) =>
           ex.sessionExerciseId === vars.sessionExerciseId
@@ -441,6 +442,7 @@ export function LoggingClient({
           )
         }
         confirmLabel={t("discard")}
+        cancelLabel={tc("keepGoing")}
         tone="danger"
         loading={discardPending}
         onConfirm={handleDiscard}

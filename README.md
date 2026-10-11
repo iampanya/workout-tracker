@@ -57,7 +57,7 @@ self-hosted) and the app runs unchanged. Local development uses a plain Postgres
 
 ## Localization
 
-The UI is Thai by default and can be switched to English (Settings → Appearance → Language, or the TH/EN toggle on the landing and login pages). Strings live in `messages/th.json` and `messages/en.json`. Add a key to **both**: `npm test` checks they stay in sync.
+The UI is Thai by default and can be switched to English (Settings → Appearance → Language, or the ไทย/EN toggle on the landing and login pages). Strings live in `messages/th.json` and `messages/en.json`. Add a key to **both**: `npm test` checks they stay in sync.
 
 ## Deployment
 

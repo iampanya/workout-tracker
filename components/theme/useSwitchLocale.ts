@@ -15,8 +15,12 @@ export function useSwitchLocale() {
   function switchTo(next: Locale) {
     if (next === locale || pending) return;
     startTransition(async () => {
-      await setLocale(next);
-      router.refresh();
+      try {
+        await setLocale(next);
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+      }
     });
   }
 

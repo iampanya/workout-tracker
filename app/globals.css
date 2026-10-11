@@ -52,7 +52,7 @@
   --color-chart-line: var(--chart-line);
   --shadow-card: var(--card-shadow);
   --font-sans: var(--font-fira-sans), var(--font-thai);
-  --font-mono: var(--font-fira-code);
+  --font-mono: var(--font-fira-code), var(--font-thai);
 }
 
 /*

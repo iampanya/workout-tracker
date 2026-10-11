@@ -42,6 +42,7 @@
   "common": {
     "today": "Today",
     "yesterday": "Yesterday",
+    "keepGoing": "Keep going",
     "freeformWorkout": "Freeform Workout",
     "noExercisesYet": "No exercises yet",
     "exercises": "{count, plural, one {# exercise} other {# exercises}}",
