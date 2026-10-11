@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { User, CaretDown, Gear, SignOut } from "@phosphor-icons/react/ssr";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -11,6 +12,7 @@ const ITEM_CLASS =
   "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 export function AccountMenu({ username, email }: { username: string; email: string }) {
+  const t = useTranslations("account");
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -58,7 +60,7 @@ export function AccountMenu({ username, email }: { username: string; email: stri
       {open && (
         <div
           role="menu"
-          aria-label="Account menu"
+          aria-label={t("menu")}
           className="absolute right-0 top-full z-20 mt-1 w-72 max-w-[calc(100vw-1rem)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-lg"
         >
           <div className="px-2.5 py-2">
@@ -74,7 +76,7 @@ export function AccountMenu({ username, email }: { username: string; email: stri
             className={`${ITEM_CLASS} text-foreground hover:bg-surface-muted`}
           >
             <User className="h-4 w-4 text-muted" />
-            Profile
+            {t("profile")}
           </Link>
           <Link
             href="/settings"
@@ -83,13 +85,13 @@ export function AccountMenu({ username, email }: { username: string; email: stri
             className={`${ITEM_CLASS} text-foreground hover:bg-surface-muted`}
           >
             <Gear className="h-4 w-4 text-muted" />
-            Settings
+            {t("settings")}
           </Link>
 
           <div className="my-1 h-px bg-border" />
           <div className="px-2 py-1.5">
             <p className="mb-1.5 px-0.5 text-xs font-medium uppercase tracking-wide text-muted">
-              Theme
+              {t("theme")}
             </p>
             <ThemeModeControl />
           </div>
@@ -105,16 +107,16 @@ export function AccountMenu({ username, email }: { username: string; email: stri
             className={`${ITEM_CLASS} text-danger hover:bg-danger/10`}
           >
             <SignOut className="h-4 w-4" />
-            Log out
+            {t("logOut")}
           </button>
         </div>
       )}
 
       <ConfirmDialog
         open={confirmLogout}
-        title="Log out?"
-        description="You'll need to sign in with Google again to get back in."
-        confirmLabel="Log out"
+        title={t("logOutTitle")}
+        description={t("logOutDescription")}
+        confirmLabel={t("logOut")}
         tone="danger"
         loading={loggingOut}
         onConfirm={handleLogout}

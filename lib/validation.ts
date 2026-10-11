@@ -3,6 +3,10 @@ import { z } from "zod";
 export const MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"] as const;
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 
+export function isMuscleGroup(value: unknown): value is MuscleGroup {
+  return typeof value === "string" && (MUSCLE_GROUPS as readonly string[]).includes(value);
+}
+
 export const createExerciseSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
   muscleGroup: z.enum(MUSCLE_GROUPS),

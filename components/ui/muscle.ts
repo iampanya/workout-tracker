@@ -1,4 +1,5 @@
 import type { BadgeTone } from "./Badge";
+import { isMuscleGroup, type MuscleGroup } from "@/lib/validation";
 
 // Per-muscle-group Tailwind classes, spelled out in full so Tailwind's scanner sees them
 // (never build `bg-muscle-${x}` dynamically). Plain module: safe to import from server code.
@@ -64,4 +65,10 @@ export function muscleStyle(group: string | null | undefined): MuscleStyle {
 
 export function muscleTone(group: string | null | undefined): BadgeTone {
   return muscleStyle(group).tone;
+}
+
+// Display name for a stored muscle group (stored values stay English). Pass
+// useTranslations("muscle") / await getTranslations("muscle"). Unknown values show as stored.
+export function muscleLabel(t: (key: MuscleGroup) => string, group: string): string {
+  return isMuscleGroup(group) ? t(group) : group;
 }

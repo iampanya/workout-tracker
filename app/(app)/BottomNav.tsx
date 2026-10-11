@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Play, Plus } from "@phosphor-icons/react/ssr";
 import { NAV_ITEMS } from "./nav-items";
 
@@ -31,6 +32,7 @@ function NavLink({
 }
 
 export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null }) {
+  const t = useTranslations("nav");
   const pathname = usePathname();
   const resuming = resumeSessionId !== null;
   const fabHref = resuming ? `/log/${resumeSessionId}` : "/log";
@@ -47,14 +49,20 @@ export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null 
           label ever sits under the FAB. */}
       <div className="grid grid-cols-5">
         {left.map((item) => (
-          <NavLink key={item.href} {...item} active={isActive(item.href)} />
+          <NavLink
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={t(item.labelKey)}
+            active={isActive(item.href)}
+          />
         ))}
         <div className="relative flex min-h-14 flex-col items-center justify-end pb-2 text-xs">
           {!onLoggingScreen && (
             <>
               <Link
                 href={fabHref}
-                aria-label={resuming ? "Resume workout" : "Log a workout"}
+                aria-label={resuming ? t("resumeWorkout") : t("logAWorkout")}
                 className="absolute left-1/2 top-0 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg shadow-accent/30 transition [touch-action:manipulation] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {resuming ? (
@@ -70,13 +78,19 @@ export function BottomNav({ resumeSessionId }: { resumeSessionId: string | null 
                 )}
               </Link>
               <span aria-hidden className={resuming ? "font-medium text-accent" : "text-muted"}>
-                {resuming ? "Resume" : "Log"}
+                {resuming ? t("resume") : t("log")}
               </span>
             </>
           )}
         </div>
         {right.map((item) => (
-          <NavLink key={item.href} {...item} active={isActive(item.href)} />
+          <NavLink
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={t(item.labelKey)}
+            active={isActive(item.href)}
+          />
         ))}
       </div>
     </nav>

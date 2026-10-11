@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import { Minus, Plus } from "@phosphor-icons/react/ssr";
 
 function decimalPlaces(n: number) {
@@ -40,6 +41,7 @@ export function NumberField({
   name?: string;
   className?: string;
 }) {
+  const t = useTranslations("common");
   const generatedId = useId();
   const fieldId = id ?? generatedId;
 
@@ -51,7 +53,7 @@ export function NumberField({
       <div className="flex items-stretch gap-1.5">
         <button
           type="button"
-          aria-label={`Decrease ${label}`}
+          aria-label={t("decrease", { label })}
           onClick={() => onStep(-step)}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-muted text-foreground transition [touch-action:manipulation] hover:bg-border/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -70,7 +72,7 @@ export function NumberField({
         />
         <button
           type="button"
-          aria-label={`Increase ${label}`}
+          aria-label={t("increase", { label })}
           onClick={() => onStep(step)}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-muted text-foreground transition [touch-action:manipulation] hover:bg-border/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

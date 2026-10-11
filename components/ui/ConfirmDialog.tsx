@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Button } from "./Button";
 
 type ConfirmDialogProps = {
@@ -22,14 +23,15 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   tone = "default",
   loading = false,
   hideCancel = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useTranslations("common");
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -67,7 +69,7 @@ export function ConfirmDialog({
         <div className="mt-5 flex justify-end gap-2">
           {!hideCancel && (
             <Button variant="ghost" onClick={onCancel} disabled={loading}>
-              {cancelLabel}
+              {cancelLabel ?? t("cancel")}
             </Button>
           )}
           <Button
@@ -76,7 +78,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             loading={loading}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("confirm")}
           </Button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import {
   addRoutineExerciseSchema,
   startSessionSchema,
   logSetSchema,
+  isMuscleGroup,
 } from "./validation";
 
 describe("createExerciseSchema", () => {
@@ -90,5 +91,14 @@ describe("logSetSchema", () => {
       isWarmup: false,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("isMuscleGroup", () => {
+  it("accepts only the fixed muscle groups", () => {
+    expect(isMuscleGroup("Chest")).toBe(true);
+    expect(isMuscleGroup("Core")).toBe(true);
+    expect(isMuscleGroup("chest")).toBe(false);
+    expect(isMuscleGroup(null)).toBe(false);
   });
 });

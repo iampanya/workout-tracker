@@ -1,8 +1,9 @@
 import { House, ClipboardText, Barbell, ClockCounterClockwise } from "@phosphor-icons/react/ssr";
 
+// labelKey is a key in the `nav` message namespace.
 export const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: House },
-  { href: "/routines", label: "Routines", icon: ClipboardText },
-  { href: "/exercises", label: "Exercises", icon: Barbell },
-  { href: "/history", label: "History", icon: ClockCounterClockwise },
+  { href: "/dashboard", labelKey: "dashboard", icon: House },
+  { href: "/routines", labelKey: "routines", icon: ClipboardText },
+  { href: "/exercises", labelKey: "exercises", icon: Barbell },
+  { href: "/history", labelKey: "history", icon: ClockCounterClockwise },
 ] as const;

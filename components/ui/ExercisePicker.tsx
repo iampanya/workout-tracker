@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -9,6 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import {
   Check,
   CircleNotch,
@@ -30,7 +32,7 @@ import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
 import { Sheet } from "./Sheet";
-import { muscleStyle, muscleTone } from "./muscle";
+import { muscleLabel, muscleStyle, muscleTone } from "./muscle";
 
 export type { ExerciseOption };
 
@@ -46,7 +48,7 @@ export function ExercisePicker({
   recentIds,
   addedIds,
   onAdd,
-  triggerLabel = "Add exercise",
+  triggerLabel,
 }: {
   exercises: ExerciseOption[];
   /** Most recently done first. */
@@ -57,6 +59,12 @@ export function ExercisePicker({
   onAdd: (exercise: ExerciseOption) => Promise<void>;
   triggerLabel?: string;
 }) {
+  const t = useTranslations("picker");
+  const tc = useTranslations("common");
+  const tm = useTranslations("muscle");
+  const te = useTranslations("errors");
+  const groupLabel = useCallback((group: string) => muscleLabel(tm, group), [tm]);
+  const title = triggerLabel ?? t("addExercise");
   const titleId = useId();
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,9 +108,21 @@ export function ExercisePicker({
   }, [allExercises, recentIds]);
 
   const sections = useMemo(
-    () => buildPickerSections({ exercises: allExercises, query, filter, recentIds }),
-    [allExercises, query, filter, recentIds]
+    () =>
+      buildPickerSections({
+        exercises: allExercises,
+        query,
+        filter,
+        recentIds,
+        muscleLabel: groupLabel,
+      }),
+    [allExercises, query, filter, recentIds, groupLabel]
   );
+  function sectionLabel(section: PickerSection): string {
+    if (section.key === "recent") return t("recent");
+    return section.muscleGroup ? groupLabel(section.muscleGroup) : t("other");
+  }
+
   const options = useMemo(() => flattenOptions(sections), [sections]);
   const activeIndex = Math.min(highlight, options.length - 1);
 
@@ -154,7 +174,8 @@ export function ExercisePicker({
       await onAdd(exercise);
       setAddedThisOpen((prev) => [...prev, exercise.id]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add exercise");
+      console.error(err);
+      setError(te("addExercise"));
     } finally {
       pendingRef.current = false;
       setPendingKey(null);
@@ -182,7 +203,8 @@ export function ExercisePicker({
       await onAdd(option);
       setAddedThisOpen((prev) => [...prev, option.id]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create exercise");
+      console.error(err);
+      setError(te("createExercise"));
     } finally {
       pendingRef.current = false;
       setPendingKey(null);
@@ -217,7 +239,7 @@ export function ExercisePicker({
         onClick={openSheet}
         className="w-full border-dashed"
       >
-        {triggerLabel}
+        {title}
       </Button>
 
       <Sheet open={open} onClose={() => setOpen(false)} labelledBy={titleId}>
@@ -228,11 +250,11 @@ export function ExercisePicker({
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-2 sm:pt-4">
           <div className="flex items-baseline gap-2">
             <h2 id={titleId} className="text-lg font-semibold">
-              {triggerLabel}
+              {title}
             </h2>
             {addedThisOpen.length > 0 && (
               <span className="text-sm text-muted tabular-nums" aria-live="polite">
-                {addedThisOpen.length} added
+                {t("addedCount", { count: addedThisOpen.length })}
               </span>
             )}
           </div>
@@ -241,7 +263,7 @@ export function ExercisePicker({
             onClick={() => setOpen(false)}
             className="-mr-2"
           >
-            Done
+            {tc("done")}
           </Button>
         </div>
 
@@ -250,7 +272,7 @@ export function ExercisePicker({
           <input
             ref={inputRef}
             role="combobox"
-            aria-label="Search exercises"
+            aria-label={t("searchLabel")}
             aria-expanded="true"
             aria-controls={listId}
             aria-autocomplete="list"
@@ -259,7 +281,7 @@ export function ExercisePicker({
             }
             autoComplete="off"
             enterKeyHint="search"
-            placeholder="Search exercises…"
+            placeholder={t("searchPlaceholder")}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -274,7 +296,7 @@ export function ExercisePicker({
           {query && (
             <IconButton
               icon={<X className="h-4 w-4" />}
-              aria-label="Clear search"
+              aria-label={t("clearSearch")}
               onClick={() => {
                 setQuery("");
                 setCreateMode(false);
@@ -288,13 +310,13 @@ export function ExercisePicker({
 
         <div
           role="radiogroup"
-          aria-label="Filter by muscle group"
+          aria-label={t("filterLabel")}
           className="flex shrink-0 snap-x gap-1.5 overflow-x-auto px-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <FilterChip label="All" active={filter === "all"} onSelect={() => selectFilter("all")} />
+          <FilterChip label={tc("all")} active={filter === "all"} onSelect={() => selectFilter("all")} />
           {hasRecent && (
             <FilterChip
-              label="Recent"
+              label={t("recent")}
               icon={<ClockCounterClockwise className="h-3.5 w-3.5" />}
               active={filter === "recent"}
               onSelect={() => selectFilter("recent")}
@@ -303,7 +325,7 @@ export function ExercisePicker({
           {presentGroups.map((group) => (
             <FilterChip
               key={group}
-              label={group}
+              label={groupLabel(group)}
               dotClass={muscleStyle(group).dot}
               activeClass={muscleStyle(group).chipActive}
               active={filter === group}
@@ -322,12 +344,16 @@ export function ExercisePicker({
           ref={listRef}
           id={listId}
           role="listbox"
-          aria-label="Exercises"
+          aria-label={t("listLabel")}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border"
         >
           {sections.map((section) => (
             <div key={section.key} role="group" aria-labelledby={`${listId}-${section.key}`}>
-              <SectionHeader id={`${listId}-${section.key}`} section={section} />
+              <SectionHeader
+                id={`${listId}-${section.key}`}
+                section={section}
+                label={sectionLabel(section)}
+              />
               {section.items.map((exercise) => {
                 const rowKey = `${section.key}:${exercise.id}`;
                 const index = indexByRowKey.get(rowKey)!;
@@ -349,13 +375,13 @@ export function ExercisePicker({
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate">{exercise.name}</span>
                       {section.key === "recent" && exercise.muscleGroup && (
-                        <Badge tone={muscleTone(exercise.muscleGroup)}>{exercise.muscleGroup}</Badge>
+                        <Badge tone={muscleTone(exercise.muscleGroup)}>{groupLabel(exercise.muscleGroup)}</Badge>
                       )}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       {isAdded && (
                         <Badge tone="success" icon={<Check className="h-3 w-3" weight="bold" />}>
-                          Added
+                          {t("added")}
                         </Badge>
                       )}
                       <span
@@ -381,10 +407,15 @@ export function ExercisePicker({
             <div className="px-4 pt-6 pb-2 text-center text-sm text-muted">
               <p>
                 {trimmedQuery
-                  ? `No exercises match “${trimmedQuery}”${filter === "all" ? "" : ` in ${filter === "recent" ? "Recent" : filter}`}.`
+                  ? filter === "all"
+                    ? t("noMatch", { query: trimmedQuery })
+                    : t("noMatchIn", {
+                        query: trimmedQuery,
+                        group: filter === "recent" ? t("recent") : groupLabel(filter),
+                      })
                   : filter === "recent"
-                    ? "No recent exercises yet."
-                    : "No exercises yet."}
+                    ? t("noRecent")
+                    : t("noExercises")}
               </p>
               {trimmedQuery && filter !== "all" && (
                 <button
@@ -392,7 +423,7 @@ export function ExercisePicker({
                   onClick={() => selectFilter("all")}
                   className="mt-1 min-h-11 font-medium text-accent [touch-action:manipulation]"
                 >
-                  Search all groups
+                  {t("searchAllGroups")}
                 </button>
               )}
             </div>
@@ -403,13 +434,16 @@ export function ExercisePicker({
               {createMode ? (
                 <div className="space-y-3">
                   <p className="text-sm">
-                    Create <span className="font-semibold">“{trimmedQuery}”</span> — which muscle group?
+                    {t.rich("createPrompt", {
+                      name: trimmedQuery,
+                      b: (chunks) => <span className="font-semibold">{chunks}</span>,
+                    })}
                   </p>
-                  <div role="radiogroup" aria-label="Muscle group" className="flex flex-wrap gap-1.5">
+                  <div role="radiogroup" aria-label={t("muscleGroupLabel")} className="flex flex-wrap gap-1.5">
                     {MUSCLE_GROUPS.map((group) => (
                       <FilterChip
                         key={group}
-                        label={group}
+                        label={groupLabel(group)}
                         dotClass={muscleStyle(group).dot}
                         activeClass={muscleStyle(group).chipActive}
                         active={createGroup === group}
@@ -419,14 +453,14 @@ export function ExercisePicker({
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" onClick={() => setCreateMode(false)}>
-                      Cancel
+                      {tc("cancel")}
                     </Button>
                     <Button
                       onClick={createAndAdd}
                       disabled={!createGroup}
                       loading={pendingKey === "create"}
                     >
-                      Create &amp; add
+                      {t("createAndAdd")}
                     </Button>
                   </div>
                 </div>
@@ -438,7 +472,7 @@ export function ExercisePicker({
                   className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-sm font-medium text-accent [touch-action:manipulation] hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" weight="bold" />
-                  <span className="truncate">Create “{trimmedQuery}”</span>
+                  <span className="truncate">{t("create", { name: trimmedQuery })}</span>
                 </button>
               )}
             </div>
@@ -449,7 +483,15 @@ export function ExercisePicker({
   );
 }
 
-function SectionHeader({ id, section }: { id: string; section: PickerSection }) {
+function SectionHeader({
+  id,
+  section,
+  label,
+}: {
+  id: string;
+  section: PickerSection;
+  label: string;
+}) {
   const isRecent = section.key === "recent";
   const style = muscleStyle(section.muscleGroup);
   return (
@@ -472,7 +514,7 @@ function SectionHeader({ id, section }: { id: string; section: PickerSection }) 
         <span className={`relative h-2.5 w-2.5 rounded-full ${style.dot}`} aria-hidden="true" />
       )}
       <span className="relative text-sm font-semibold tracking-wide text-foreground uppercase">
-        {section.label}
+        {label}
       </span>
       <span className="relative ml-auto text-xs text-muted tabular-nums">
         {section.items.length}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CaretLeft, Barbell, Play, Plus } from "@phosphor-icons/react/ssr";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -19,6 +20,8 @@ export function TopBar({
   email: string;
   resumeSessionId: string | null;
 }) {
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const pathname = usePathname();
   const router = useRouter();
   const isTopLevel = TOP_LEVEL_ROUTES.has(pathname);
@@ -31,14 +34,14 @@ export function TopBar({
           {!isTopLevel && (
             <IconButton
               icon={<CaretLeft className="h-5 w-5" />}
-              aria-label="Go back"
+              aria-label={tc("goBack")}
               onClick={() => router.back()}
               className="lg:hidden"
             />
           )}
           <Link
             href="/"
-            aria-label="Weight Training Tracker landing page"
+            aria-label={t("landingPage")}
             className={`items-center gap-2 rounded-lg px-1 py-1 font-semibold text-foreground transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               isTopLevel ? "flex" : "hidden lg:flex"
             }`}
@@ -46,11 +49,11 @@ export function TopBar({
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
               <Barbell className="h-5 w-5" weight="bold" />
             </span>
-            <span className="hidden text-sm sm:inline">Weight Training Tracker</span>
+            <span className="hidden text-sm sm:inline">{tc("appName")}</span>
           </Link>
 
           <nav className="ml-2 hidden items-center gap-1 lg:flex">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
@@ -62,7 +65,7 @@ export function TopBar({
                   }`}
                 >
                   <Icon className="h-4 w-4" weight={active ? "fill" : "regular"} />
-                  {label}
+                  {t(labelKey)}
                 </Link>
               );
             })}
@@ -81,7 +84,7 @@ export function TopBar({
                 )
               }
             >
-              {resumeSessionId ? "Resume workout" : "Log workout"}
+              {resumeSessionId ? t("resumeWorkout") : t("logWorkout")}
             </ButtonLink>
           </div>
           <AccountMenu username={username} email={email} />

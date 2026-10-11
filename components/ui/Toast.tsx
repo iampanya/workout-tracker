@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { X } from "@phosphor-icons/react/ssr";
 
 type ToastTone = "success" | "danger" | "neutral";
@@ -29,6 +30,7 @@ export function Toast({
   duration?: number;
   onDismiss: () => void;
 }) {
+  const t = useTranslations("common");
   useEffect(() => {
     if (message === null) return;
     const timer = setTimeout(onDismiss, duration);
@@ -48,7 +50,7 @@ export function Toast({
         <span className="text-sm">{message}</span>
         <button
           type="button"
-          aria-label="Dismiss"
+          aria-label={t("dismiss")}
           onClick={onDismiss}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted [touch-action:manipulation] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
