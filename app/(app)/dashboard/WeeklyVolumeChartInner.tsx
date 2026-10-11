@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { useLocale } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { formatAxisDate } from "@/lib/sessions/summary";
 
 // 12400 -> "12.4k" so the axis stays narrow on phones.
@@ -26,8 +26,10 @@ export default function WeeklyVolumeChartInner({
   currentWeekStart: string;
 }) {
   const locale = useLocale();
+  const t = useTranslations("dashboard");
+  const format = useFormatter();
   const chartData = data.map((d) => ({
-    label: d.weekStart === currentWeekStart ? "This wk" : formatAxisDate(d.weekStart, locale),
+    label: d.weekStart === currentWeekStart ? t("chartThisWeek") : formatAxisDate(d.weekStart, locale),
     volume: Math.round(d.volumeKg),
     current: d.weekStart === currentWeekStart,
   }));
@@ -59,9 +61,9 @@ export default function WeeklyVolumeChartInner({
               color: "var(--foreground)",
             }}
             labelStyle={{ color: "var(--muted)" }}
-            formatter={(value) => [`${Number(value).toLocaleString()} kg`, "Volume"]}
+            formatter={(value) => [`${format.number(Number(value))} kg`, t("volume")]}
           />
-          <Bar dataKey="volume" radius={[4, 4, 0, 0]} name="Volume (kg)">
+          <Bar dataKey="volume" radius={[4, 4, 0, 0]} name={t("chartVolumeSeries")}>
             {chartData.map((point) => (
               <Cell
                 key={point.label}

@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Trash } from "@phosphor-icons/react/ssr";
 import { discardSession } from "@/lib/actions/sessions";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
+  const t = useTranslations("dashboard");
+  const te = useTranslations("errors");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +21,8 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
       await discardSession(sessionId);
       setConfirmOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to discard session");
+      console.error(err);
+      setError(te("discardWorkout"));
     } finally {
       setPending(false);
     }
@@ -28,15 +32,15 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
     <div>
       <IconButton
         icon={<Trash className="h-4 w-4" />}
-        aria-label="Discard session"
+        aria-label={t("discardLabel")}
         variant="danger"
         onClick={() => setConfirmOpen(true)}
       />
       <ConfirmDialog
         open={confirmOpen}
-        title="Discard this workout?"
-        description="This in-progress workout and any sets logged in it will be permanently deleted."
-        confirmLabel="Discard"
+        title={t("discardTitle")}
+        description={t("discardDescription")}
+        confirmLabel={t("discard")}
         tone="danger"
         loading={pending}
         onConfirm={handleDiscard}

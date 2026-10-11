@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -33,7 +33,12 @@ export default async function DashboardPage() {
     listCompletedSessions(prisma, user!.id, { take: 5 }),
   ]);
   const today = getLocalDateString();
-  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const [locale, tc, t, format] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("dashboard"),
+    getFormatter(),
+  ]);
   const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
   const freeform = tc("freeformWorkout");
   const hasWeeklyVolume = weeklyVolume.some((w) => w.volumeKg > 0);
@@ -47,7 +52,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <ButtonLink
         href={current ? `/log/${current.id}` : "/log"}
         size="lg"
@@ -55,20 +60,22 @@ export default async function DashboardPage() {
         className="w-full"
       >
         <span className="truncate">
-          {current ? `Resume ${sessionDisplayName(current, freeform)}` : "Start a Workout"}
+          {current ? t("resume", { name: sessionDisplayName(current, freeform) }) : t("start")}
         </span>
       </ButtonLink>
 
       {inProgress.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-medium">In Progress</h2>
+          <h2 className="font-medium">{t("inProgress")}</h2>
           <div className="space-y-2">
             {inProgress.map((session) => (
               <Card key={session.id} className="flex items-center justify-between">
                 <Link href={`/log/${session.id}`} className="flex-1 py-1">
                   <div className="font-medium">{sessionDisplayName(session, freeform)}</div>
                   <div className="text-sm text-muted">
-                    Started {formatRelativeDate(session.session_date, today, locale, relativeLabels).toLowerCase()}
+                    {t("started", {
+                      when: formatRelativeDate(session.session_date, today, locale, relativeLabels).toLowerCase(),
+                    })}
                   </div>
                 </Link>
                 <DiscardSessionButton sessionId={session.id} />
@@ -79,24 +86,24 @@ export default async function DashboardPage() {
       )}
 
       <section className="space-y-2">
-        <h2 className="font-medium">Overview</h2>
+        <h2 className="font-medium">{t("overview")}</h2>
         <div className="grid grid-cols-3 gap-2">
           <StatCard
-            label="Streak"
+            label={t("streak")}
             value={overview.streakDays}
-            unit={overview.streakDays === 1 ? "day" : "days"}
+            unit={t("days", { count: overview.streakDays })}
             icon={<Fire className="h-4 w-4" />}
             tone={overview.streakDays > 0 ? "success" : "neutral"}
           />
           <StatCard
-            label="This week"
+            label={t("thisWeek")}
             value={overview.sessionsThisWeek}
-            unit={overview.sessionsThisWeek === 1 ? "session" : "sessions"}
+            unit={t("sessions", { count: overview.sessionsThisWeek })}
             icon={<CalendarCheck className="h-4 w-4" />}
           />
           <StatCard
-            label="Volume"
-            value={Math.round(overview.volumeThisWeekKg).toLocaleString()}
+            label={t("volume")}
+            value={format.number(Math.round(overview.volumeThisWeekKg))}
             unit="kg"
             icon={<Barbell className="h-4 w-4" />}
           />
@@ -105,7 +112,7 @@ export default async function DashboardPage() {
 
       {hasWeeklyVolume && (
         <section className="space-y-2">
-          <h2 className="font-medium">Weekly volume</h2>
+          <h2 className="font-medium">{t("weeklyVolume")}</h2>
           <Card>
             <WeeklyVolumeChart data={weeklyVolume} currentWeekStart={getWeekStart()} />
           </Card>
@@ -114,7 +121,7 @@ export default async function DashboardPage() {
 
       {prs.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-medium">Personal records</h2>
+          <h2 className="font-medium">{t("personalRecords")}</h2>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {prs.map((pr) => {
               const isNew = newPrIds.has(pr.exerciseId);
@@ -126,7 +133,7 @@ export default async function DashboardPage() {
                   value={pr.weightKg}
                   unit={`kg × ${pr.reps}`}
                   tone={isNew ? "success" : "neutral"}
-                  badge={isNew ? <Badge tone="success">NEW</Badge> : undefined}
+                  badge={isNew ? <Badge tone="success">{t("newBadge")}</Badge> : undefined}
                   icon={<Trophy className="h-4 w-4" weight={isNew ? "fill" : "regular"} />}
                 />
               );
@@ -138,12 +145,12 @@ export default async function DashboardPage() {
       {recentWorkouts.length > 0 && (
         <section className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <h2 className="font-medium">Recent workouts</h2>
+            <h2 className="font-medium">{t("recentWorkouts")}</h2>
             <Link
               href="/history"
               className="rounded text-sm text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              See all
+              {t("seeAll")}
             </Link>
           </div>
           <div className="space-y-2">
@@ -158,8 +165,9 @@ export default async function DashboardPage() {
                       {sessionDisplayName(session, freeform)}
                     </span>
                     <span className="block truncate text-sm text-muted">
-                      {formatRelativeDate(session.session_date, today, locale, relativeLabels)} · {session.stats.setCount}{" "}
-                      sets · {session.stats.volumeKg.toLocaleString()} kg
+                      {formatRelativeDate(session.session_date, today, locale, relativeLabels)} ·{" "}
+                      {tc("sets", { count: session.stats.setCount })} ·{" "}
+                      {format.number(session.stats.volumeKg)} kg
                       {session.stats.durationMin !== null &&
                         ` · ${tc("duration", splitDuration(session.stats.durationMin))}`}
                     </span>
