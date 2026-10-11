@@ -55,6 +55,10 @@ self-hosted) and the app runs unchanged. Local development uses a plain Postgres
 > Schema is managed by **Prisma Migrate** on both local and production (prod baselined 2026-09-15);
 > `supabase/migrations/` is archived legacy. See `docs/DEPLOY.md`.
 
+## Localization
+
+The UI is Thai by default and can be switched to English (Settings → Appearance → Language, or the TH/EN toggle on the landing and login pages). Strings live in `messages/th.json` and `messages/en.json`. Add a key to **both**: `npm test` checks they stay in sync.
+
 ## Deployment
 
 See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any Postgres host + Vercel).
