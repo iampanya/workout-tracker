@@ -7,13 +7,22 @@ export function isMuscleGroup(value: unknown): value is MuscleGroup {
   return typeof value === "string" && (MUSCLE_GROUPS as readonly string[]).includes(value);
 }
 
+// Schema messages that reach the UI (via react-hook-form) are keys into the `validation`
+// message namespace, not display text — see i18n/useValidationMessage.ts.
+export const VALIDATION_KEYS = ["nameRequired", "nameTooLong", "notesTooLong"] as const;
+export type ValidationKey = (typeof VALIDATION_KEYS)[number];
+
+export function isValidationKey(value: unknown): value is ValidationKey {
+  return typeof value === "string" && (VALIDATION_KEYS as readonly string[]).includes(value);
+}
+
 export const createExerciseSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100),
+  name: z.string().trim().min(1, "nameRequired").max(100, "nameTooLong"),
   muscleGroup: z.enum(MUSCLE_GROUPS),
 });
 
 export const createRoutineSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100),
+  name: z.string().trim().min(1, "nameRequired").max(100, "nameTooLong"),
   notes: z.string().trim().max(500).optional(),
 });
 
@@ -44,7 +53,7 @@ export const updateSetSchema = z.object({
 });
 
 export const updateSessionNotesSchema = z.object({
-  notes: z.string().max(500, "Notes must be 500 characters or fewer"),
+  notes: z.string().max(500, "notesTooLong"),
 });
 
 export const updateRoutineTargetSetsSchema = z.object({

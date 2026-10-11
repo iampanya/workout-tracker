@@ -264,5 +264,33 @@
     "noExercises": "No exercises were logged in this workout.",
     "noSets": "No sets logged.",
     "topSet": "Top set {weight} kg × {reps}"
+  },
+  "validation": {
+    "nameRequired": "Name is required",
+    "nameTooLong": "Name must be 100 characters or fewer",
+    "notesTooLong": "Notes must be 500 characters or fewer"
+  },
+  "routines": {
+    "title": "Routines",
+    "emptyTitle": "No routines yet",
+    "emptyDescription": "Create one above to line up your exercises before a workout.",
+    "nameLabel": "Routine name",
+    "namePlaceholder": "e.g. Push Day",
+    "create": "Create",
+    "deleteLabel": "Delete routine",
+    "deleteTitle": "Delete this routine?",
+    "deleteDescription": "“{name}” will be permanently deleted. This cannot be undone.",
+    "start": "Start",
+    "startLabel": "Start {name}",
+    "editorEmptyTitle": "No exercises in this routine",
+    "editorEmptyDescription": "Add exercises below in the order you'll do them.",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "removeLabel": "Remove {name} from routine",
+    "targetSets": "Target sets",
+    "fewerTarget": "Fewer target sets for {name}",
+    "moreTarget": "More target sets for {name}",
+    "removeTitle": "Remove from routine?",
+    "removeDescription": "“{name}” will be removed from this routine. Past workouts aren't affected."
   }
 }

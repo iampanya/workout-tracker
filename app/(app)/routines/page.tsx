@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CaretRight, ListChecks } from "@phosphor-icons/react/ssr";
+import { getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
@@ -13,16 +14,17 @@ import { StartRoutineButton } from "./StartRoutineButton";
 export default async function RoutinesPage() {
   const user = await getAuthUser();
   const routines = await listRoutines(prisma, user!.id);
+  const t = await getTranslations("routines");
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Routines</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <CreateRoutineForm />
       {routines.length === 0 ? (
         <EmptyState
           icon={<ListChecks className="h-6 w-6" />}
-          title="No routines yet"
-          description="Create one above to line up your exercises before a workout."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
         />
       ) : (
         <div className="space-y-2">

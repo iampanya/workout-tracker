@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CaretUp, CaretDown, Minus, Plus, X } from "@phosphor-icons/react/ssr";
 import {
   removeRoutineExercise,
@@ -10,6 +11,7 @@ import {
 import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { muscleLabel } from "@/components/ui/muscle";
 
 type PendingAction = "up" | "down" | "remove" | "target" | null;
 
@@ -32,6 +34,10 @@ export function RoutineExerciseRow({
   isFirst: boolean;
   isLast: boolean;
 }) {
+  const t = useTranslations("routines");
+  const tc = useTranslations("common");
+  const tm = useTranslations("muscle");
+  const te = useTranslations("errors");
   const [pending, setPending] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -41,7 +47,7 @@ export function RoutineExerciseRow({
   async function run(
     action: Exclude<PendingAction, null>,
     fn: () => Promise<void>,
-    fallback: string
+    fallbackKey: "moveExercise" | "removeExercise" | "updateTargetSets"
   ) {
     setPending(action);
     setError(null);
@@ -49,7 +55,8 @@ export function RoutineExerciseRow({
       await fn();
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : fallback);
+      console.error(err);
+      setError(te(fallbackKey));
       return false;
     } finally {
       setPending(null);
@@ -72,7 +79,7 @@ export function RoutineExerciseRow({
     const ok = await run(
       "target",
       () => updateRoutineExerciseTargetSets(routineExerciseId, routineId, next),
-      "Failed to update target sets"
+      "updateTargetSets"
     );
     if (!ok) setTarget(previous);
   }
@@ -84,38 +91,38 @@ export function RoutineExerciseRow({
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-medium">{name}</p>
-          {muscleGroup && <p className="text-xs text-muted">{muscleGroup}</p>}
+          {muscleGroup && <p className="text-xs text-muted">{muscleLabel(tm, muscleGroup)}</p>}
         </div>
         <div className="flex shrink-0 items-center">
           <IconButton
             icon={<CaretUp className="h-4 w-4" />}
-            aria-label={`Move ${name} up`}
+            aria-label={t("moveUp", { name })}
             loading={pending === "up"}
             disabled={isFirst || busy}
             onClick={() =>
               run(
                 "up",
                 () => moveRoutineExercise(routineExerciseId, routineId, "up"),
-                "Failed to move exercise"
+                "moveExercise"
               )
             }
           />
           <IconButton
             icon={<CaretDown className="h-4 w-4" />}
-            aria-label={`Move ${name} down`}
+            aria-label={t("moveDown", { name })}
             loading={pending === "down"}
             disabled={isLast || busy}
             onClick={() =>
               run(
                 "down",
                 () => moveRoutineExercise(routineExerciseId, routineId, "down"),
-                "Failed to move exercise"
+                "moveExercise"
               )
             }
           />
           <IconButton
             icon={<X className="h-4 w-4" />}
-            aria-label={`Remove ${name} from routine`}
+            aria-label={t("removeLabel", { name })}
             variant="danger"
             disabled={busy}
             onClick={() => setConfirmRemove(true)}
@@ -124,11 +131,11 @@ export function RoutineExerciseRow({
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
-        <span className="text-sm text-muted">Target sets</span>
+        <span className="text-sm text-muted">{t("targetSets")}</span>
         <div className="flex items-center gap-1">
           <IconButton
             icon={<Minus className="h-4 w-4" />}
-            aria-label={`Fewer target sets for ${name}`}
+            aria-label={t("fewerTarget", { name })}
             disabled={target === null}
             onClick={() => changeTarget(-1)}
           />
@@ -137,7 +144,7 @@ export function RoutineExerciseRow({
           </span>
           <IconButton
             icon={<Plus className="h-4 w-4" />}
-            aria-label={`More target sets for ${name}`}
+            aria-label={t("moreTarget", { name })}
             disabled={target !== null && target >= MAX_TARGET_SETS}
             onClick={() => changeTarget(1)}
           />
@@ -147,16 +154,16 @@ export function RoutineExerciseRow({
 
       <ConfirmDialog
         open={confirmRemove}
-        title="Remove from routine?"
-        description={`"${name}" will be removed from this routine. Past workouts aren't affected.`}
-        confirmLabel="Remove"
+        title={t("removeTitle")}
+        description={t("removeDescription", { name })}
+        confirmLabel={tc("remove")}
         tone="danger"
         loading={pending === "remove"}
         onConfirm={async () => {
           const ok = await run(
             "remove",
             () => removeRoutineExercise(routineExerciseId, routineId),
-            "Failed to remove exercise"
+            "removeExercise"
           );
           if (ok) setConfirmRemove(false);
         }}

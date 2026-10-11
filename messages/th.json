@@ -264,5 +264,33 @@
     "noExercises": "ไม่มีท่าที่บันทึกไว้ในการฝึกนี้",
     "noSets": "ไม่มีเซ็ตที่บันทึกไว้",
     "topSet": "เซ็ตสูงสุด {weight} kg × {reps}"
+  },
+  "validation": {
+    "nameRequired": "กรุณาใส่ชื่อ",
+    "nameTooLong": "ชื่อต้องไม่เกิน 100 ตัวอักษร",
+    "notesTooLong": "โน้ตต้องไม่เกิน 500 ตัวอักษร"
+  },
+  "routines": {
+    "title": "โปรแกรม",
+    "emptyTitle": "ยังไม่มีโปรแกรม",
+    "emptyDescription": "สร้างโปรแกรมด้านบนเพื่อจัดลำดับท่าก่อนเริ่มฝึก",
+    "nameLabel": "ชื่อโปรแกรม",
+    "namePlaceholder": "เช่น Push Day",
+    "create": "สร้าง",
+    "deleteLabel": "ลบโปรแกรม",
+    "deleteTitle": "ลบโปรแกรมนี้?",
+    "deleteDescription": "“{name}” จะถูกลบถาวร ไม่สามารถย้อนกลับได้",
+    "start": "เริ่ม",
+    "startLabel": "เริ่ม {name}",
+    "editorEmptyTitle": "ยังไม่มีท่าในโปรแกรมนี้",
+    "editorEmptyDescription": "เพิ่มท่าด้านล่างตามลำดับที่จะฝึก",
+    "moveUp": "เลื่อน {name} ขึ้น",
+    "moveDown": "เลื่อน {name} ลง",
+    "removeLabel": "เอา {name} ออกจากโปรแกรม",
+    "targetSets": "เซ็ตเป้าหมาย",
+    "fewerTarget": "ลดเซ็ตเป้าหมายของ {name}",
+    "moreTarget": "เพิ่มเซ็ตเป้าหมายของ {name}",
+    "removeTitle": "เอาออกจากโปรแกรม?",
+    "removeDescription": "“{name}” จะถูกเอาออกจากโปรแกรมนี้ การฝึกที่ผ่านมาไม่ได้รับผลกระทบ"
   }
 }

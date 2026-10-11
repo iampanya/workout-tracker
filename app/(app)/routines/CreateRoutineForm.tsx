@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -9,11 +10,15 @@ import { createRoutineSchema } from "@/lib/validation";
 import { createRoutine } from "@/lib/actions/routines";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useValidationMessage } from "@/i18n/useValidationMessage";
 
 type FormValues = z.infer<typeof createRoutineSchema>;
 
 export function CreateRoutineForm() {
   const router = useRouter();
+  const t = useTranslations("routines");
+  const te = useTranslations("errors");
+  const validationMessage = useValidationMessage();
   const {
     register,
     handleSubmit,
@@ -29,9 +34,8 @@ export function CreateRoutineForm() {
       // Straight into the editor: a new routine is empty until exercises are added.
       router.push(`/routines/${routine.id}`);
     } catch (err) {
-      setError("root", {
-        message: err instanceof Error ? err.message : "Failed to create routine",
-      });
+      console.error(err);
+      setError("root", { message: te("createRoutine") });
     }
   }
 
@@ -42,10 +46,10 @@ export function CreateRoutineForm() {
         className="flex flex-col gap-3 sm:flex-row sm:items-end"
       >
         <Input
-          label="Routine name"
+          label={t("nameLabel")}
           {...register("name")}
-          placeholder="e.g. Push Day"
-          error={errors.name?.message}
+          placeholder={t("namePlaceholder")}
+          error={validationMessage(errors.name?.message)}
           wrapperClassName="sm:flex-1"
         />
         <Button
@@ -55,7 +59,7 @@ export function CreateRoutineForm() {
           loading={isSubmitting}
           className="sm:shrink-0"
         >
-          Create
+          {t("create")}
         </Button>
       </form>
       {errors.root && <p className="mt-2 text-sm text-danger">{errors.root.message}</p>}

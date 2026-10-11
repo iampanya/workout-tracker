@@ -6,6 +6,7 @@ import {
   startSessionSchema,
   logSetSchema,
   isMuscleGroup,
+  isValidationKey,
 } from "./validation";
 
 describe("createExerciseSchema", () => {
@@ -100,5 +101,19 @@ describe("isMuscleGroup", () => {
     expect(isMuscleGroup("Core")).toBe(true);
     expect(isMuscleGroup("chest")).toBe(false);
     expect(isMuscleGroup(null)).toBe(false);
+  });
+});
+
+describe("validation messages", () => {
+  it("are message keys, translated in the UI", () => {
+    const empty = createRoutineSchema.safeParse({ name: "" });
+    expect(empty.error?.issues[0].message).toBe("nameRequired");
+    const long = createExerciseSchema.safeParse({ name: "x".repeat(101), muscleGroup: "Chest" });
+    expect(long.error?.issues[0].message).toBe("nameTooLong");
+  });
+
+  it("recognizes only known keys", () => {
+    expect(isValidationKey("nameRequired")).toBe(true);
+    expect(isValidationKey("Name is required")).toBe(false);
   });
 });

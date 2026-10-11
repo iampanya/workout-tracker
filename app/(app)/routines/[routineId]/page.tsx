@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ListPlus } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -26,6 +27,7 @@ export default async function RoutineEditorPage({
     notFound();
   }
   const { routine, exercises } = routineResult;
+  const [t, tc] = await Promise.all([getTranslations("routines"), getTranslations("common")]);
 
   return (
     <div className="space-y-6">
@@ -33,7 +35,7 @@ export default async function RoutineEditorPage({
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-semibold">{routine.name}</h1>
           <p className="text-sm text-muted">
-            {exercises.length} {exercises.length === 1 ? "exercise" : "exercises"}
+            {tc("exercises", { count: exercises.length })}
           </p>
         </div>
         {exercises.length > 0 && (
@@ -47,8 +49,8 @@ export default async function RoutineEditorPage({
       {exercises.length === 0 ? (
         <EmptyState
           icon={<ListPlus className="h-6 w-6" />}
-          title="No exercises in this routine"
-          description="Add exercises below in the order you'll do them."
+          title={t("editorEmptyTitle")}
+          description={t("editorEmptyDescription")}
         />
       ) : (
         <div className="space-y-2">

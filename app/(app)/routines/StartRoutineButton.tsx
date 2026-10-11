@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Play } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/Button";
 import { useStartSession } from "../log/useStartSession";
@@ -17,6 +18,7 @@ export function StartRoutineButton({
   compact?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("routines");
   const { start, pendingKey, error } = useStartSession();
   return (
     <div className={className}>
@@ -26,10 +28,10 @@ export function StartRoutineButton({
         icon={<Play className="h-4 w-4" weight="fill" />}
         loading={pendingKey !== null}
         onClick={() => start(routine)}
-        aria-label={`Start ${routine.name}`}
+        aria-label={t("startLabel", { name: routine.name })}
         className={compact ? "w-full px-3 sm:px-4" : "w-full"}
       >
-        {compact ? <span className="hidden sm:inline">Start</span> : "Start"}
+        {compact ? <span className="hidden sm:inline">{t("start")}</span> : t("start")}
       </Button>
       {error && <p className="mt-1 text-sm text-danger">{error}</p>}
     </div>
