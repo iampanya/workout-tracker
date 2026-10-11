@@ -242,5 +242,27 @@
     "gotIt": "Got it",
     "removeTitle": "Remove this exercise?",
     "removeDescription": "“{name}” and its {count, plural, one {# logged set} other {# logged sets}} will be removed from this workout."
+  },
+  "history": {
+    "title": "History",
+    "emptyTitle": "No workouts logged yet",
+    "emptyDescription": "Finished sessions show up here so you can look back on your progress.",
+    "startWorkout": "Start a workout",
+    "showMore": "Show more",
+    "deleteLabel": "Delete workout",
+    "deleteTitle": "Delete this workout?",
+    "deleteDescription": "“{name}” and all its logged sets will be permanently deleted. This cannot be undone.",
+    "complete": "Workout complete",
+    "niceWorkPrs": "Nice work — {count, plural, one {# new PR} other {# new PRs}} today.",
+    "niceWorkSaved": "Nice work — it's saved to your history.",
+    "backToDashboard": "Back to dashboard",
+    "volumeChange": "{change}% volume vs last time ({date})",
+    "tileExercises": "exercises",
+    "tileSets": "sets",
+    "tileVolume": "kg volume",
+    "newPrs": "New personal records",
+    "noExercises": "No exercises were logged in this workout.",
+    "noSets": "No sets logged.",
+    "topSet": "Top set {weight} kg × {reps}"
   }
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useLocale } from "next-intl";
-import { getLocale, getTranslations } from "next-intl/server";
+import { useLocale, useTranslations } from "next-intl";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -48,6 +48,7 @@ function VolumeComparison({
   previous: { sessionDate: string; volumeKg: number };
 }) {
   const locale = useLocale();
+  const t = useTranslations("history");
   if (previous.volumeKg <= 0) return null;
   const change = Math.round(((volumeKg - previous.volumeKg) / previous.volumeKg) * 100);
   const up = change >= 0;
@@ -56,8 +57,10 @@ function VolumeComparison({
     <p className={`flex items-center gap-1 text-sm ${up ? "text-success" : "text-muted"}`}>
       <Icon className="h-4 w-4" aria-hidden />
       <span>
-        {up ? "+" : ""}
-        {change}% volume vs last time ({formatSessionDate(previous.sessionDate, locale)})
+        {t("volumeChange", {
+          change: `${up ? "+" : ""}${change}`,
+          date: formatSessionDate(previous.sessionDate, locale),
+        })}
       </span>
     </p>
   );
@@ -85,7 +88,12 @@ export default async function SessionDetailPage({
   const summary = computeSessionSummary(exercises);
   const duration = sessionDurationMinutes(session.started_at, session.completed_at);
   const prByExercise = new Map(prs.map((pr) => [pr.exerciseId, pr]));
-  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const [locale, tc, t, format] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("history"),
+    getFormatter(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -96,17 +104,17 @@ export default async function SessionDetailPage({
               <CheckCircle className="h-6 w-6" weight="fill" />
             </span>
             <div>
-              <p className="text-lg font-semibold">Workout complete</p>
+              <p className="text-lg font-semibold">{t("complete")}</p>
               <p className="text-sm text-muted">
                 {prs.length > 0
-                  ? `Nice work — ${prs.length} new ${prs.length === 1 ? "PR" : "PRs"} today.`
-                  : "Nice work — it's saved to your history."}
+                  ? t("niceWorkPrs", { count: prs.length })
+                  : t("niceWorkSaved")}
               </p>
             </div>
           </div>
           {previous && <VolumeComparison volumeKg={summary.totalVolumeKg} previous={previous} />}
           <ButtonLink href="/dashboard" variant="secondary" icon={<House className="h-4 w-4" />}>
-            Back to dashboard
+            {t("backToDashboard")}
           </ButtonLink>
         </Card>
       )}
@@ -134,15 +142,15 @@ export default async function SessionDetailPage({
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <SummaryTile value={summary.exerciseCount} label="exercises" />
-          <SummaryTile value={summary.setCount} label="sets" />
-          <SummaryTile value={summary.totalVolumeKg.toLocaleString()} label="kg volume" />
+          <SummaryTile value={summary.exerciseCount} label={t("tileExercises")} />
+          <SummaryTile value={summary.setCount} label={t("tileSets")} />
+          <SummaryTile value={format.number(summary.totalVolumeKg)} label={t("tileVolume")} />
         </div>
       </header>
 
       {prs.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-medium">New personal records</h2>
+          <h2 className="font-medium">{t("newPrs")}</h2>
           <div className="flex flex-wrap gap-2">
             {prs.map((pr) => (
               <Link
@@ -164,7 +172,7 @@ export default async function SessionDetailPage({
 
       {exercises.length === 0 ? (
         <Card className="text-center text-sm text-muted">
-          No exercises were logged in this workout.
+          {t("noExercises")}
         </Card>
       ) : (
         <div className="space-y-4">
@@ -193,13 +201,13 @@ export default async function SessionDetailPage({
                 </div>
 
                 {exercise.sets.length === 0 ? (
-                  <p className="text-sm text-muted">No sets logged.</p>
+                  <p className="text-sm text-muted">{t("noSets")}</p>
                 ) : (
                   <div>
                     <div className="grid grid-cols-[2.25rem_1fr_1fr] gap-x-3 px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">
-                      <span>Set</span>
-                      <span className="text-right">Weight</span>
-                      <span className="text-right">Reps</span>
+                      <span>{tc("setColumn")}</span>
+                      <span className="text-right">{tc("weightColumn")}</span>
+                      <span className="text-right">{tc("repsColumn")}</span>
                     </div>
                     <ul className="space-y-0.5">
                       {exercise.sets.map((set, j) => {
@@ -243,7 +251,7 @@ export default async function SessionDetailPage({
                     {top && (
                       <p className="mt-2 flex items-center gap-1.5 px-2 text-xs text-muted">
                         <Trophy className="h-3.5 w-3.5" aria-hidden />
-                        Top set {top.weight_kg} kg × {top.reps}
+                        {t("topSet", { weight: top.weight_kg, reps: top.reps })}
                       </p>
                     )}
                   </div>

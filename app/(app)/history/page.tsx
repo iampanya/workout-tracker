@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -41,21 +41,26 @@ export default async function HistoryPage({
   const hasMore = rows.length > show;
   const sessions = rows.slice(0, show);
   const today = getLocalDateString();
-  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const [locale, tc, t, format] = await Promise.all([
+    getLocale(),
+    getTranslations("common"),
+    getTranslations("history"),
+    getFormatter(),
+  ]);
   const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
   const freeform = tc("freeformWorkout");
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">History</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {sessions.length === 0 ? (
         <EmptyState
           icon={<ClockCounterClockwise className="h-6 w-6" />}
-          title="No workouts logged yet"
-          description="Finished sessions show up here so you can look back on your progress."
+          title={t("emptyTitle")}
+          description={t("emptyDescription")}
           action={
             <ButtonLink href="/log" icon={<Play className="h-4 w-4" weight="fill" />}>
-              Start a workout
+              {t("startWorkout")}
             </ButtonLink>
           }
         />
@@ -86,9 +91,9 @@ export default async function HistoryPage({
                           ` · ${tc("duration", splitDuration(session.stats.durationMin))}`}
                       </span>
                       <span className="block truncate text-sm text-muted tabular-nums">
-                        {session.stats.exerciseCount}{" "}
-                        {session.stats.exerciseCount === 1 ? "exercise" : "exercises"} ·{" "}
-                        {session.stats.setCount} sets · {session.stats.volumeKg.toLocaleString()} kg
+                        {tc("exercises", { count: session.stats.exerciseCount })} ·{" "}
+                        {tc("sets", { count: session.stats.setCount })} ·{" "}
+                        {format.number(session.stats.volumeKg)} kg
                       </span>
                     </span>
                     <CaretRight className="h-4 w-4 shrink-0 text-muted" />
@@ -110,7 +115,7 @@ export default async function HistoryPage({
               variant="secondary"
               className="w-full"
             >
-              Show more
+              {t("showMore")}
             </ButtonLink>
           )}
         </>

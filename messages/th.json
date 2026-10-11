@@ -242,5 +242,27 @@
     "gotIt": "เข้าใจแล้ว",
     "removeTitle": "เอาท่านี้ออก?",
     "removeDescription": "“{name}” และ {count, plural, other {# เซ็ต}}ที่บันทึกไว้จะถูกเอาออกจากการฝึกนี้"
+  },
+  "history": {
+    "title": "ประวัติ",
+    "emptyTitle": "ยังไม่มีการฝึกที่บันทึกไว้",
+    "emptyDescription": "การฝึกที่จบแล้วจะแสดงที่นี่ ให้คุณย้อนดูความก้าวหน้าได้",
+    "startWorkout": "เริ่มฝึก",
+    "showMore": "แสดงเพิ่ม",
+    "deleteLabel": "ลบการฝึก",
+    "deleteTitle": "ลบการฝึกนี้?",
+    "deleteDescription": "“{name}” และทุกเซ็ตที่บันทึกไว้จะถูกลบถาวร ไม่สามารถย้อนกลับได้",
+    "complete": "ฝึกเสร็จแล้ว",
+    "niceWorkPrs": "เยี่ยมมาก — วันนี้ทำ PR ใหม่ได้ {count, plural, other {# รายการ}}",
+    "niceWorkSaved": "เยี่ยมมาก — บันทึกลงประวัติแล้ว",
+    "backToDashboard": "กลับหน้าหลัก",
+    "volumeChange": "ปริมาณรวม {change}% เทียบกับครั้งก่อน ({date})",
+    "tileExercises": "ท่า",
+    "tileSets": "เซ็ต",
+    "tileVolume": "kg ปริมาณรวม",
+    "newPrs": "สถิติส่วนตัวใหม่",
+    "noExercises": "ไม่มีท่าที่บันทึกไว้ในการฝึกนี้",
+    "noSets": "ไม่มีเซ็ตที่บันทึกไว้",
+    "topSet": "เซ็ตสูงสุด {weight} kg × {reps}"
   }
 }
