@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   CaretDown,
   ClockCounterClockwise,
@@ -15,7 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { IconButton } from "@/components/ui/IconButton";
 import { formatLastSets, prefillFromLast } from "@/lib/sessions/last-session";
 import {
-  formatSetCount,
+  countSets,
   formatShortDate,
   topWorkingSet,
   workingSetNumbers,
@@ -36,13 +37,14 @@ function initialInput(exercise: ExerciseEntry): SetFormInput {
 }
 
 function LastTimeHint({ exercise }: { exercise: ExerciseEntry }) {
+  const locale = useLocale();
   const last = exercise.lastSession;
   if (!last || last.sets.length === 0) return null;
   return (
     <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
       <ClockCounterClockwise className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="truncate">
-        Last · {formatShortDate(last.sessionDate)}: {formatLastSets(last.sets)}
+        Last · {formatShortDate(last.sessionDate, locale)}: {formatLastSets(last.sets)}
       </span>
     </p>
   );
@@ -73,6 +75,7 @@ export function ExerciseCard({
   onDeleteSet: (set: SetEntry) => void;
   onRemove: () => void;
 }) {
+  const tc = useTranslations("common");
   const [input, setInput] = useState<SetFormInput>(() => initialInput(exercise));
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
 
@@ -105,7 +108,7 @@ export function ExerciseCard({
             </span>
             <span className="block truncate text-sm text-muted">
               {exercise.sets.length > 0
-                ? `${formatSetCount(exercise.sets)}${
+                ? `${tc("setCount", countSets(exercise.sets))}${
                     top ? ` · top ${top.weight_kg}×${top.reps}` : ""
                   }`
                 : exercise.lastSession && exercise.lastSession.sets.length > 0

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { useLocale } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -19,10 +21,10 @@ import {
   computeSessionSummary,
   topWorkingSet,
   workingSetNumbers,
-  formatSetCount,
+  countSets,
   formatSessionDate,
   sessionDurationMinutes,
-  formatDuration,
+  splitDuration,
 } from "@/lib/sessions/summary";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -45,6 +47,7 @@ function VolumeComparison({
   volumeKg: number;
   previous: { sessionDate: string; volumeKg: number };
 }) {
+  const locale = useLocale();
   if (previous.volumeKg <= 0) return null;
   const change = Math.round(((volumeKg - previous.volumeKg) / previous.volumeKg) * 100);
   const up = change >= 0;
@@ -54,7 +57,7 @@ function VolumeComparison({
       <Icon className="h-4 w-4" aria-hidden />
       <span>
         {up ? "+" : ""}
-        {change}% volume vs last time ({formatSessionDate(previous.sessionDate)})
+        {change}% volume vs last time ({formatSessionDate(previous.sessionDate, locale)})
       </span>
     </p>
   );
@@ -82,6 +85,7 @@ export default async function SessionDetailPage({
   const summary = computeSessionSummary(exercises);
   const duration = sessionDurationMinutes(session.started_at, session.completed_at);
   const prByExercise = new Map(prs.map((pr) => [pr.exerciseId, pr]));
+  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
 
   return (
     <div className="space-y-6">
@@ -109,16 +113,16 @@ export default async function SessionDetailPage({
 
       <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold">{sessionDisplayName(session)}</h1>
+          <h1 className="text-2xl font-semibold">{sessionDisplayName(session, tc("freeformWorkout"))}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
             <span className="inline-flex items-center gap-1.5">
               <CalendarBlank className="h-4 w-4" aria-hidden />
-              {formatSessionDate(session.session_date)}
+              {formatSessionDate(session.session_date, locale)}
             </span>
             {duration !== null && (
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-4 w-4" aria-hidden />
-                {formatDuration(duration)}
+                {tc("duration", splitDuration(duration))}
               </span>
             )}
           </div>
@@ -184,7 +188,7 @@ export default async function SessionDetailPage({
                         PR
                       </Badge>
                     )}
-                    {formatSetCount(exercise.sets)}
+                    {tc("setCount", countSets(exercise.sets))}
                   </span>
                 </div>
 

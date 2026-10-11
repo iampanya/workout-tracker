@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Trash, Trophy } from "@phosphor-icons/react/ssr";
 import {
@@ -13,7 +14,7 @@ import {
   addExerciseToSession,
   removeExerciseFromSession,
 } from "@/lib/actions/sessions";
-import { computeSessionSummary, formatDuration } from "@/lib/sessions/summary";
+import { computeSessionSummary, splitDuration } from "@/lib/sessions/summary";
 import { formatPr, type PrRecord } from "@/lib/pr";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -67,6 +68,7 @@ export function LoggingClient({
   recentExerciseIds: string[];
 }) {
   const router = useRouter();
+  const tc = useTranslations("common");
   const [exercises, setExercises] = useState(initialExercises);
   const [expandedId, setExpandedId] = useState(() => initialExpandedId(initialExercises));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -344,7 +346,7 @@ export function LoggingClient({
             {summary.setCount} {summary.setCount === 1 ? "set" : "sets"}
             {summary.totalVolumeKg > 0 && ` · ${summary.totalVolumeKg.toLocaleString()} kg`}
             {elapsedMinutes !== null &&
-              ` · ${elapsedMinutes > 0 ? formatDuration(elapsedMinutes) : "just started"}`}
+              ` · ${elapsedMinutes > 0 ? tc("duration", splitDuration(elapsedMinutes)) : "just started"}`}
           </p>
         </div>
         <IconButton

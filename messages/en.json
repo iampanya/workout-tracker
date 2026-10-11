@@ -27,5 +27,15 @@
     "language": "Language",
     "backupRestore": "Backup & Restore",
     "account": "Account"
+  },
+  "common": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "freeformWorkout": "Freeform Workout",
+    "noExercisesYet": "No exercises yet",
+    "exercises": "{count, plural, one {# exercise} other {# exercises}}",
+    "sets": "{count, plural, one {# set} other {# sets}}",
+    "setCount": "{working, plural, one {# set} other {# sets}}{warmups, plural, =0 {} other { + #W}}",
+    "duration": "{hours, plural, =0 {{minutes} min} other {{hours}h {mm}m}}"
   }
 }

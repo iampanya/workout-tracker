@@ -3,13 +3,14 @@ import {
   computeSessionSummary,
   topWorkingSet,
   workingSetNumbers,
-  formatSetCount,
+  countSets,
   formatSessionDate,
   sessionDurationMinutes,
-  formatDuration,
+  splitDuration,
   formatShortDate,
   formatRelativeDate,
   formatMonthHeading,
+  formatAxisDate,
   type ExerciseSummary,
 } from "./summary";
 
@@ -76,28 +77,31 @@ describe("workingSetNumbers", () => {
   });
 });
 
-describe("formatSetCount", () => {
+describe("countSets", () => {
   const w = { is_warmup: true };
   const x = { is_warmup: false };
 
-  it("shows working sets, with warmups appended only when present", () => {
-    expect(formatSetCount([x, x, x])).toBe("3 sets");
-    expect(formatSetCount([x])).toBe("1 set");
-    expect(formatSetCount([w, w, x, x])).toBe("2 sets + 2W");
-    expect(formatSetCount([w, x])).toBe("1 set + 1W");
-    expect(formatSetCount([w, w, w])).toBe("0 sets + 3W");
-    expect(formatSetCount([])).toBe("0 sets");
+  it("counts working sets and warmups separately", () => {
+    expect(countSets([x, x, x])).toEqual({ working: 3, warmups: 0 });
+    expect(countSets([w, w, x, x])).toEqual({ working: 2, warmups: 2 });
+    expect(countSets([w, w, w])).toEqual({ working: 0, warmups: 3 });
+    expect(countSets([])).toEqual({ working: 0, warmups: 0 });
   });
 });
 
 describe("formatSessionDate", () => {
   it("formats an ISO date without timezone shift", () => {
-    expect(formatSessionDate("2026-08-11")).toBe("Aug 11, 2026");
-    expect(formatSessionDate("2026-01-01")).toBe("Jan 1, 2026");
+    expect(formatSessionDate("2026-08-11", "en")).toBe("Aug 11, 2026");
+    expect(formatSessionDate("2026-01-01", "en")).toBe("Jan 1, 2026");
+  });
+
+  it("uses the Buddhist Era in Thai", () => {
+    expect(formatSessionDate("2026-08-11", "th")).toBe("11 ส.ค. 2569");
+    expect(formatSessionDate("2026-01-01", "th")).toBe("1 ม.ค. 2569");
   });
 
   it("returns the input unchanged when it isn't a parseable date", () => {
-    expect(formatSessionDate("not-a-date")).toBe("not-a-date");
+    expect(formatSessionDate("not-a-date", "en")).toBe("not-a-date");
   });
 });
 
@@ -117,43 +121,58 @@ describe("sessionDurationMinutes", () => {
   });
 });
 
-describe("formatDuration", () => {
-  it("shows minutes under an hour and h/m above", () => {
-    expect(formatDuration(45)).toBe("45 min");
-    expect(formatDuration(58)).toBe("58 min");
-    expect(formatDuration(75)).toBe("1h 15m");
-    expect(formatDuration(120)).toBe("2h 00m");
+describe("splitDuration", () => {
+  it("splits minutes into hours, minutes and zero-padded minutes", () => {
+    expect(splitDuration(45)).toEqual({ hours: 0, minutes: 45, mm: "45" });
+    expect(splitDuration(75)).toEqual({ hours: 1, minutes: 15, mm: "15" });
+    expect(splitDuration(120)).toEqual({ hours: 2, minutes: 0, mm: "00" });
+    expect(splitDuration(125)).toEqual({ hours: 2, minutes: 5, mm: "05" });
   });
 });
 
 describe("formatShortDate", () => {
   it("formats a date-only string with its weekday", () => {
-    expect(formatShortDate("2026-09-23")).toBe("Wed, Sep 23");
+    expect(formatShortDate("2026-09-23", "en")).toBe("Wed, Sep 23");
+    expect(formatShortDate("2026-09-23", "th")).toBe("พ. 23 ก.ย.");
   });
 
   it("returns unparseable input unchanged", () => {
-    expect(formatShortDate("nope")).toBe("nope");
+    expect(formatShortDate("nope", "en")).toBe("nope");
   });
 });
 
 describe("formatRelativeDate", () => {
-  it("says Today / Yesterday for the two most recent days", () => {
-    expect(formatRelativeDate("2026-09-26", "2026-09-26")).toBe("Today");
-    expect(formatRelativeDate("2026-09-25", "2026-09-26")).toBe("Yesterday");
+  const labels = { today: "Today", yesterday: "Yesterday" };
+
+  it("uses the given labels for the two most recent days", () => {
+    expect(formatRelativeDate("2026-09-26", "2026-09-26", "en", labels)).toBe("Today");
+    expect(formatRelativeDate("2026-09-25", "2026-09-26", "en", labels)).toBe("Yesterday");
+    expect(
+      formatRelativeDate("2026-09-26", "2026-09-26", "th", { today: "วันนี้", yesterday: "เมื่อวาน" })
+    ).toBe("วันนี้");
   });
 
   it("handles a month boundary for Yesterday", () => {
-    expect(formatRelativeDate("2026-08-31", "2026-09-01")).toBe("Yesterday");
+    expect(formatRelativeDate("2026-08-31", "2026-09-01", "en", labels)).toBe("Yesterday");
   });
 
   it("uses the short form within the year and the full form across years", () => {
-    expect(formatRelativeDate("2026-09-20", "2026-09-26")).toBe("Sun, Sep 20");
-    expect(formatRelativeDate("2025-12-30", "2026-01-02")).toBe("Dec 30, 2025");
+    expect(formatRelativeDate("2026-09-20", "2026-09-26", "en", labels)).toBe("Sun, Sep 20");
+    expect(formatRelativeDate("2025-12-30", "2026-01-02", "en", labels)).toBe("Dec 30, 2025");
+    expect(formatRelativeDate("2025-12-30", "2026-01-02", "th", labels)).toBe("30 ธ.ค. 2568");
   });
 });
 
 describe("formatMonthHeading", () => {
   it("names the month and year", () => {
-    expect(formatMonthHeading("2026-09-23")).toBe("September 2026");
+    expect(formatMonthHeading("2026-09-23", "en")).toBe("September 2026");
+    expect(formatMonthHeading("2026-09-23", "th")).toBe("กันยายน 2569");
+  });
+});
+
+describe("formatAxisDate", () => {
+  it("is month/day in English and day/month in Thai", () => {
+    expect(formatAxisDate("2026-09-23", "en")).toBe("9/23");
+    expect(formatAxisDate("2026-09-23", "th")).toBe("23/9");
   });
 });

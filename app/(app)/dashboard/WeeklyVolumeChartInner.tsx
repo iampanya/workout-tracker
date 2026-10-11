@@ -10,12 +10,8 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-
-// weekStart is a YYYY-MM-DD Monday; label it as M/D for a compact axis.
-function weekLabel(weekStart: string): string {
-  const [, month, day] = weekStart.split("-");
-  return `${Number(month)}/${Number(day)}`;
-}
+import { useLocale } from "next-intl";
+import { formatAxisDate } from "@/lib/sessions/summary";
 
 // 12400 -> "12.4k" so the axis stays narrow on phones.
 function compactKg(value: number): string {
@@ -29,8 +25,9 @@ export default function WeeklyVolumeChartInner({
   data: { weekStart: string; volumeKg: number }[];
   currentWeekStart: string;
 }) {
+  const locale = useLocale();
   const chartData = data.map((d) => ({
-    label: d.weekStart === currentWeekStart ? "This wk" : weekLabel(d.weekStart),
+    label: d.weekStart === currentWeekStart ? "This wk" : formatAxisDate(d.weekStart, locale),
     volume: Math.round(d.volumeKg),
     current: d.weekStart === currentWeekStart,
   }));

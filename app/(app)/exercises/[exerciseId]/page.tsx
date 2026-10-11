@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ChartLine, Trophy } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -61,6 +62,8 @@ export default async function ExerciseProgressPage({
   const bestE1rm = series.reduce((best, point) => Math.max(best, point.e1rm), 0);
   const sessions = groupBySession(history);
   const today = getLocalDateString();
+  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
 
   return (
     <div className="space-y-6">
@@ -123,7 +126,7 @@ export default async function ExerciseProgressPage({
                     className="block space-y-2 rounded-2xl p-4 [touch-action:manipulation] hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-medium">{formatRelativeDate(session.date, today)}</span>
+                      <span className="font-medium">{formatRelativeDate(session.date, today, locale, relativeLabels)}</span>
                       {sessionE1rm > 0 && (
                         <span className="text-xs text-muted tabular-nums">
                           e1RM {sessionE1rm} kg

@@ -27,5 +27,15 @@
     "language": "ภาษา",
     "backupRestore": "สำรองและกู้คืนข้อมูล",
     "account": "บัญชี"
+  },
+  "common": {
+    "today": "วันนี้",
+    "yesterday": "เมื่อวาน",
+    "freeformWorkout": "ฝึกอิสระ",
+    "noExercisesYet": "ยังไม่มีท่า",
+    "exercises": "{count, plural, other {# ท่า}}",
+    "sets": "{count, plural, other {# เซ็ต}}",
+    "setCount": "{working, plural, other {# เซ็ต}}{warmups, plural, =0 {} other { + #W}}",
+    "duration": "{hours, plural, =0 {{minutes} นาที} other {{hours} ชม. {mm} นาที}}"
   }
 }

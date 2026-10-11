@@ -9,8 +9,9 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
+import { useLocale } from "next-intl";
 import type { SessionSeriesPoint } from "@/lib/progress";
-import { formatShortDate } from "@/lib/sessions/summary";
+import { formatAxisDate, formatShortDate } from "@/lib/sessions/summary";
 import type { ProgressMetric } from "./ProgressChart";
 
 const METRIC_LABEL: Record<ProgressMetric, string> = {
@@ -19,12 +20,6 @@ const METRIC_LABEL: Record<ProgressMetric, string> = {
   volume: "Volume",
 };
 
-// "2026-09-23" -> "9/23" for a compact axis.
-function axisDate(date: string): string {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}/${Number(day)}`;
-}
-
 export default function ProgressChartInner({
   data,
   metric,
@@ -32,6 +27,7 @@ export default function ProgressChartInner({
   data: SessionSeriesPoint[];
   metric: ProgressMetric;
 }) {
+  const locale = useLocale();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -41,7 +37,7 @@ export default function ProgressChartInner({
             dataKey="date"
             stroke="var(--border)"
             tick={{ fill: "var(--muted)", fontSize: 12 }}
-            tickFormatter={axisDate}
+            tickFormatter={(date: string) => formatAxisDate(date, locale)}
             minTickGap={16}
           />
           <YAxis
@@ -62,7 +58,7 @@ export default function ProgressChartInner({
               color: "var(--foreground)",
             }}
             labelStyle={{ color: "var(--muted)" }}
-            labelFormatter={(label) => formatShortDate(String(label))}
+            labelFormatter={(label) => formatShortDate(String(label), locale)}
             formatter={(value) => [
               `${Math.round(Number(value) * 10) / 10} kg`,
               METRIC_LABEL[metric],

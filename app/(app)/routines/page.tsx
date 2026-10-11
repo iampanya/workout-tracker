@@ -3,11 +3,11 @@ import { CaretRight, ListChecks } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
-import { routinePreview } from "@/lib/routines/preview";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CreateRoutineForm } from "./CreateRoutineForm";
 import { DeleteRoutineButton } from "./DeleteRoutineButton";
+import { RoutinePreviewText } from "./RoutinePreviewText";
 import { StartRoutineButton } from "./StartRoutineButton";
 
 export default async function RoutinesPage() {
@@ -35,7 +35,7 @@ export default async function RoutinesPage() {
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{routine.name}</span>
                   <span className="block truncate text-sm text-muted">
-                    {routinePreview(routine)}
+                    <RoutinePreviewText routine={routine} />
                   </span>
                 </span>
                 <CaretRight className="h-4 w-4 shrink-0 text-muted" />

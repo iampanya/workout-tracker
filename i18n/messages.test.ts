@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { createTranslator } from "next-intl";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 import en from "@/messages/en.json";
 import th from "@/messages/th.json";
@@ -71,5 +72,32 @@ describe("isLocale", () => {
 
   it("defaults to Thai", () => {
     expect(DEFAULT_LOCALE).toBe("th");
+  });
+});
+
+describe("common messages render", () => {
+  const tEn = createTranslator({ locale: "en", messages: en, namespace: "common" });
+  const tTh = createTranslator({ locale: "th", messages: th as typeof en, namespace: "common" });
+
+  it("renders set counts like the old formatSetCount", () => {
+    expect(tEn("setCount", { working: 3, warmups: 0 })).toBe("3 sets");
+    expect(tEn("setCount", { working: 1, warmups: 0 })).toBe("1 set");
+    expect(tEn("setCount", { working: 2, warmups: 2 })).toBe("2 sets + 2W");
+    expect(tEn("setCount", { working: 0, warmups: 3 })).toBe("0 sets + 3W");
+    expect(tTh("setCount", { working: 2, warmups: 2 })).toBe("2 เซ็ต + 2W");
+  });
+
+  it("renders durations like the old formatDuration", () => {
+    expect(tEn("duration", { hours: 0, minutes: 45, mm: "45" })).toBe("45 min");
+    expect(tEn("duration", { hours: 1, minutes: 15, mm: "15" })).toBe("1h 15m");
+    expect(tEn("duration", { hours: 2, minutes: 0, mm: "00" })).toBe("2h 00m");
+    expect(tTh("duration", { hours: 1, minutes: 5, mm: "05" })).toBe("1 ชม. 05 นาที");
+    expect(tTh("duration", { hours: 0, minutes: 45, mm: "45" })).toBe("45 นาที");
+  });
+
+  it("pluralizes counts", () => {
+    expect(tEn("exercises", { count: 1 })).toBe("1 exercise");
+    expect(tEn("sets", { count: 4 })).toBe("4 sets");
+    expect(tTh("exercises", { count: 5 })).toBe("5 ท่า");
   });
 });

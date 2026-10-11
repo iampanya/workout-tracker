@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
@@ -35,10 +36,14 @@ export default async function LogSessionPage({
   if (!session) {
     notFound();
   }
-  const displayName = sessionDisplayName({
-    name: session.name,
-    routineName: session.routines?.name ?? null,
-  });
+  const tc = await getTranslations("common");
+  const displayName = sessionDisplayName(
+    {
+      name: session.name,
+      routineName: session.routines?.name ?? null,
+    },
+    tc("freeformWorkout")
+  );
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
   const [prMap, lastSessions, targetSets] = await Promise.all([

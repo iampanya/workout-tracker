@@ -65,27 +65,25 @@ export function workingSetNumbers(sets: { is_warmup: boolean }[]): (number | nul
   return sets.map((set) => (set.is_warmup ? null : ++n));
 }
 
-// Per-exercise count: "3 sets", "1 set + 2W", "0 sets + 3W".
-export function formatSetCount(sets: { is_warmup: boolean }[]): string {
+// Per-exercise counts, rendered by the `common.setCount` message ("2 sets + 2W" / "2 เซ็ต + 2W").
+export function countSets(sets: { is_warmup: boolean }[]): { working: number; warmups: number } {
   const warmups = sets.filter((s) => s.is_warmup).length;
-  const working = sets.length - warmups;
-  const base = `${working} ${working === 1 ? "set" : "sets"}`;
-  return warmups > 0 ? `${base} + ${warmups}W` : base;
+  return { working: sets.length - warmups, warmups };
 }
 
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+// Formats calendar parts as a UTC date so no timezone can shift the day. `locale` "th" gives
+// Buddhist Era years.
+function formatUtcDate(dateStr: string, locale: string, options: Intl.DateTimeFormatOptions): string {
+  const parts = parseDateParts(dateStr);
+  if (!parts) return dateStr;
+  return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+  );
+}
 
-// "2026-08-11" -> "Aug 11, 2026". Parses the calendar parts directly rather than
-// `new Date(str)`, which would UTC-shift the day across timezones.
-export function formatSessionDate(dateStr: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
-  if (!match) return dateStr;
-  const [, year, month, day] = match;
-  const monthName = MONTHS[Number(month) - 1] ?? month;
-  return `${monthName} ${Number(day)}, ${year}`;
+// "2026-08-11" -> "Aug 11, 2026" (en) / "11 ส.ค. 2569" (th).
+export function formatSessionDate(dateStr: string, locale: string): string {
+  return formatUtcDate(dateStr, locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 // Whole minutes between start and completion, or null if either timestamp is missing
@@ -102,19 +100,13 @@ export function sessionDurationMinutes(
   return minutes > 0 ? minutes : null;
 }
 
-// 45 -> "45 min", 58 -> "58 min", 75 -> "1h 15m".
-export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
+// 75 -> { hours: 1, minutes: 15, mm: "15" }, rendered by the `common.duration` message
+// ("45 min" / "1h 15m"; "45 นาที" / "1 ชม. 15 นาที").
+export function splitDuration(minutes: number): { hours: number; minutes: number; mm: string } {
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours}h ${String(mins).padStart(2, "0")}m`;
+  const rest = minutes % 60;
+  return { hours, minutes: rest, mm: String(rest).padStart(2, "0") };
 }
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 function parseDateParts(dateStr: string): { year: number; month: number; day: number } | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
@@ -131,30 +123,34 @@ function dayDiff(from: string, to: string): number | null {
   return Math.round(ms / 86_400_000);
 }
 
-// "2026-09-23" -> "Wed, Sep 23". The weekday comes from a UTC date built from the calendar
-// parts, so it never shifts across timezones.
-export function formatShortDate(dateStr: string): string {
-  const parts = parseDateParts(dateStr);
-  if (!parts) return dateStr;
-  const weekday = WEEKDAYS[new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay()];
-  return `${weekday}, ${MONTHS[parts.month - 1]} ${parts.day}`;
+// "2026-09-23" -> "Wed, Sep 23" (en) / "พ. 23 ก.ย." (th).
+export function formatShortDate(dateStr: string, locale: string): string {
+  return formatUtcDate(dateStr, locale, { weekday: "short", month: "short", day: "numeric" });
 }
 
-// "Today" / "Yesterday" / "Wed, Sep 23" (same year) / "Sep 23, 2025" (other years).
-// `today` is the viewer's local calendar date (getLocalDateString), passed in to keep this pure.
-export function formatRelativeDate(dateStr: string, today: string): string {
+// Today / Yesterday (the caller's translated labels), the short form within the same year,
+// else the full date. `today` is the viewer's local calendar date (getLocalDateString).
+export function formatRelativeDate(
+  dateStr: string,
+  today: string,
+  locale: string,
+  labels: { today: string; yesterday: string }
+): string {
   const diff = dayDiff(dateStr, today);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Yesterday";
+  if (diff === 0) return labels.today;
+  if (diff === 1) return labels.yesterday;
   const parts = parseDateParts(dateStr);
   const todayParts = parseDateParts(today);
-  if (parts && todayParts && parts.year === todayParts.year) return formatShortDate(dateStr);
-  return formatSessionDate(dateStr);
+  if (parts && todayParts && parts.year === todayParts.year) return formatShortDate(dateStr, locale);
+  return formatSessionDate(dateStr, locale);
 }
 
-// "2026-09-23" -> "September 2026", used as a month group heading in History.
-export function formatMonthHeading(dateStr: string): string {
-  const parts = parseDateParts(dateStr);
-  if (!parts) return dateStr;
-  return `${MONTH_NAMES[parts.month - 1]} ${parts.year}`;
+// "2026-09-23" -> "September 2026" / "กันยายน 2569", the month group heading in History.
+export function formatMonthHeading(dateStr: string, locale: string): string {
+  return formatUtcDate(dateStr, locale, { month: "long", year: "numeric" });
+}
+
+// "2026-09-23" -> "9/23" (en) / "23/9" (th) for compact chart axes.
+export function formatAxisDate(dateStr: string, locale: string): string {
+  return formatUtcDate(dateStr, locale, { month: "numeric", day: "numeric" });
 }

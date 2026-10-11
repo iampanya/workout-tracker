@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -8,7 +9,7 @@ import {
   sessionDisplayName,
   type CompletedSessionListItem,
 } from "@/lib/sessions/history";
-import { formatDuration, formatMonthHeading, formatRelativeDate } from "@/lib/sessions/summary";
+import { formatMonthHeading, formatRelativeDate, splitDuration } from "@/lib/sessions/summary";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -16,10 +17,10 @@ import { DeleteHistorySessionButton } from "./DeleteHistorySessionButton";
 
 const PAGE_SIZE = 30;
 
-function groupByMonth(sessions: CompletedSessionListItem[]) {
+function groupByMonth(sessions: CompletedSessionListItem[], locale: string) {
   const groups: { heading: string; sessions: CompletedSessionListItem[] }[] = [];
   for (const session of sessions) {
-    const heading = formatMonthHeading(session.session_date);
+    const heading = formatMonthHeading(session.session_date, locale);
     const last = groups[groups.length - 1];
     if (last?.heading === heading) last.sessions.push(session);
     else groups.push({ heading, sessions: [session] });
@@ -40,6 +41,9 @@ export default async function HistoryPage({
   const hasMore = rows.length > show;
   const sessions = rows.slice(0, show);
   const today = getLocalDateString();
+  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
+  const freeform = tc("freeformWorkout");
 
   return (
     <div className="space-y-6">
@@ -57,7 +61,7 @@ export default async function HistoryPage({
         />
       ) : (
         <>
-          {groupByMonth(sessions).map((group) => (
+          {groupByMonth(sessions, locale).map((group) => (
             <section key={group.heading} className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
                 {group.heading}
@@ -74,12 +78,12 @@ export default async function HistoryPage({
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">
-                        {sessionDisplayName(session)}
+                        {sessionDisplayName(session, freeform)}
                       </span>
                       <span className="block text-sm text-muted">
-                        {formatRelativeDate(session.session_date, today)}
+                        {formatRelativeDate(session.session_date, today, locale, relativeLabels)}
                         {session.stats.durationMin !== null &&
-                          ` · ${formatDuration(session.stats.durationMin)}`}
+                          ` · ${tc("duration", splitDuration(session.stats.durationMin))}`}
                       </span>
                       <span className="block truncate text-sm text-muted tabular-nums">
                         {session.stats.exerciseCount}{" "}
@@ -92,7 +96,7 @@ export default async function HistoryPage({
                   <div className="pr-2">
                     <DeleteHistorySessionButton
                       sessionId={session.id}
-                      sessionName={sessionDisplayName(session)}
+                      sessionName={sessionDisplayName(session, freeform)}
                     />
                   </div>
                 </Card>

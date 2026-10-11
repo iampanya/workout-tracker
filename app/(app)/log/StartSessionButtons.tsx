@@ -1,8 +1,8 @@
 "use client";
 
 import { Play, Shuffle } from "@phosphor-icons/react/ssr";
-import { routinePreview } from "@/lib/routines/preview";
 import { Button } from "@/components/ui/Button";
+import { RoutinePreviewText } from "../routines/RoutinePreviewText";
 import { useStartSession } from "./useStartSession";
 
 export function StartSessionButtons({
@@ -27,7 +27,7 @@ export function StartSessionButtons({
           <span className="min-w-0">
             <span className="block truncate">{routine.name}</span>
             <span className="block truncate text-xs font-normal text-muted">
-              {routinePreview(routine)}
+              <RoutinePreviewText routine={routine} />
             </span>
           </span>
         </Button>

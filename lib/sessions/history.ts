@@ -26,12 +26,12 @@ export type SessionDetail = {
 } | null;
 
 // The display label for a session: the name snapshotted at start, falling back to the linked
-// routine's current name, then "Freeform Workout".
-export function sessionDisplayName(session: {
-  name: string | null;
-  routineName?: string | null;
-}): string {
-  return session.name ?? session.routineName ?? "Freeform Workout";
+// routine's current name, then the caller's translated "Freeform Workout".
+export function sessionDisplayName(
+  session: { name: string | null; routineName?: string | null },
+  freeformLabel: string
+): string {
+  return session.name ?? session.routineName ?? freeformLabel;
 }
 
 export async function listCompletedSessions(

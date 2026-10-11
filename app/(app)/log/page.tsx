@@ -1,9 +1,11 @@
 import { ArrowRight } from "@phosphor-icons/react/ssr";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listRoutines } from "@/lib/routines/service";
 import { getInProgressSessions } from "@/lib/dashboard/current";
 import { sessionDisplayName } from "@/lib/sessions/history";
+import { formatSessionDate } from "@/lib/sessions/summary";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StartSessionButtons } from "./StartSessionButtons";
@@ -15,6 +17,7 @@ export default async function LogPage() {
     getInProgressSessions(),
   ]);
   const current = inProgress[0] ?? null;
+  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
 
   return (
     <div className="space-y-6">
@@ -24,7 +27,7 @@ export default async function LogPage() {
           <div>
             <p className="font-medium">You have a workout in progress</p>
             <p className="text-sm text-muted">
-              {sessionDisplayName(current)} · {current.session_date}
+              {sessionDisplayName(current, tc("freeformWorkout"))} · {formatSessionDate(current.session_date, locale)}
             </p>
           </div>
           <ButtonLink href={`/log/${current.id}`}>

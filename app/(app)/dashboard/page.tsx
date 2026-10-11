@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
@@ -11,7 +12,7 @@ import {
   listTopPrs,
 } from "@/lib/dashboard/service";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
-import { formatDuration, formatRelativeDate } from "@/lib/sessions/summary";
+import { formatRelativeDate, splitDuration } from "@/lib/sessions/summary";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -32,6 +33,9 @@ export default async function DashboardPage() {
     listCompletedSessions(prisma, user!.id, { take: 5 }),
   ]);
   const today = getLocalDateString();
+  const [locale, tc] = await Promise.all([getLocale(), getTranslations("common")]);
+  const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
+  const freeform = tc("freeformWorkout");
   const hasWeeklyVolume = weeklyVolume.some((w) => w.volumeKg > 0);
   // With a workout already open, the primary CTA resumes it instead of starting a second one.
   const current = inProgress[0] ?? null;
@@ -51,7 +55,7 @@ export default async function DashboardPage() {
         className="w-full"
       >
         <span className="truncate">
-          {current ? `Resume ${sessionDisplayName(current)}` : "Start a Workout"}
+          {current ? `Resume ${sessionDisplayName(current, freeform)}` : "Start a Workout"}
         </span>
       </ButtonLink>
 
@@ -62,9 +66,9 @@ export default async function DashboardPage() {
             {inProgress.map((session) => (
               <Card key={session.id} className="flex items-center justify-between">
                 <Link href={`/log/${session.id}`} className="flex-1 py-1">
-                  <div className="font-medium">{sessionDisplayName(session)}</div>
+                  <div className="font-medium">{sessionDisplayName(session, freeform)}</div>
                   <div className="text-sm text-muted">
-                    Started {formatRelativeDate(session.session_date, today).toLowerCase()}
+                    Started {formatRelativeDate(session.session_date, today, locale, relativeLabels).toLowerCase()}
                   </div>
                 </Link>
                 <DiscardSessionButton sessionId={session.id} />
@@ -151,13 +155,13 @@ export default async function DashboardPage() {
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
-                      {sessionDisplayName(session)}
+                      {sessionDisplayName(session, freeform)}
                     </span>
                     <span className="block truncate text-sm text-muted">
-                      {formatRelativeDate(session.session_date, today)} · {session.stats.setCount}{" "}
+                      {formatRelativeDate(session.session_date, today, locale, relativeLabels)} · {session.stats.setCount}{" "}
                       sets · {session.stats.volumeKg.toLocaleString()} kg
                       {session.stats.durationMin !== null &&
-                        ` · ${formatDuration(session.stats.durationMin)}`}
+                        ` · ${tc("duration", splitDuration(session.stats.durationMin))}`}
                     </span>
                   </span>
                   <CaretRight className="h-4 w-4 shrink-0 text-muted" />
