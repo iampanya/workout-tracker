@@ -24,6 +24,10 @@ describe("computeStreakDays", () => {
     expect(computeStreakDays(["2026-01-08", "2026-01-07", "2026-01-04"], TODAY)).toBe(2);
   });
 
+  it("counts across a month boundary", () => {
+    expect(computeStreakDays(["2026-03-01", "2026-02-28", "2026-02-27"], "2026-03-01")).toBe(3);
+  });
+
   it("treats duplicate dates as one day", () => {
     expect(computeStreakDays(["2026-01-08", "2026-01-08", "2026-01-07"], TODAY)).toBe(2);
   });

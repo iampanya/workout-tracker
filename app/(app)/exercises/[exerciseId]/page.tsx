@@ -4,7 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ChartLine, Trophy } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getLocalDateString } from "@/lib/date";
+import { getTodayString } from "@/lib/date";
 import {
   getExerciseHistory,
   getExercisePr,
@@ -62,7 +62,7 @@ export default async function ExerciseProgressPage({
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
   const bestE1rm = series.reduce((best, point) => Math.max(best, point.e1rm), 0);
   const sessions = groupBySession(history);
-  const today = getLocalDateString();
+  const today = getTodayString();
   const [locale, tc, t, tm] = await Promise.all([
     getLocale(),
     getTranslations("common"),

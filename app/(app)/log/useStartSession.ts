@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { getLocalDateString } from "@/lib/date";
+import { getTodayString } from "@/lib/date";
 import { startSession } from "@/lib/actions/sessions";
 
 // Starts a session (from a routine, or freeform) and opens it. Only one start at a time:
@@ -28,7 +28,8 @@ export function useStartSession() {
       const session = await startSession({
         routineId: routine?.id,
         name: routine?.name,
-        sessionDate: getLocalDateString(),
+        // TIME_ZONE's "today", not the device's, so it matches the server's Today/streak/week math.
+        sessionDate: getTodayString(),
       });
       router.push(`/log/${session.id}`);
     } catch (err) {

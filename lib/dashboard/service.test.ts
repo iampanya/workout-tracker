@@ -111,11 +111,11 @@ describe("getOverviewStats", () => {
     await seedCompletedSession(userId, "2026-01-06");
     await seedCompletedSession(userId, "2026-01-07");
 
-    const before = await getOverviewStats(prisma, userId, new Date(2026, 0, 8));
+    const before = await getOverviewStats(prisma, userId, "2026-01-08");
     expect(before.streakDays).toBe(3);
 
     await seedCompletedSession(userId, "2026-01-08");
-    const after = await getOverviewStats(prisma, userId, new Date(2026, 0, 8));
+    const after = await getOverviewStats(prisma, userId, "2026-01-08");
     expect(after.streakDays).toBe(4);
   });
 
@@ -125,7 +125,7 @@ describe("getOverviewStats", () => {
     await seedCompletedSession(userId, "2026-05-03"); // prev week, out
     await startSessionForUser(prisma, userId, { sessionDate: "2026-05-06" }); // not finished
 
-    const stats = await getOverviewStats(prisma, userId, new Date(2026, 4, 10));
+    const stats = await getOverviewStats(prisma, userId, "2026-05-10");
     expect(stats.sessionsThisWeek).toBe(2);
   });
 
@@ -143,7 +143,7 @@ describe("getOverviewStats", () => {
       { weightKg: 999, reps: 1, isWarmup: false }, // next week + after "now", excluded
     ]);
 
-    const stats = await getOverviewStats(prisma, userId, new Date(2026, 8, 8));
+    const stats = await getOverviewStats(prisma, userId, "2026-09-08");
     expect(stats.volumeThisWeekKg).toBe(1220);
     expect(stats.sessionsThisWeek).toBe(1);
   });
@@ -161,7 +161,7 @@ describe("getWeeklyVolume", () => {
       name: `Weekly Volume ${Date.now()}`,
       muscleGroup: "Back",
     });
-    const now = new Date(2026, 2, 25); // Wed Mar 25, 2026
+    const today = "2026-03-25"; // Wed
 
     await seedCompletedSessionWithSets(userId, "2026-03-24", exercise.id, [
       { weightKg: 50, reps: 10, isWarmup: false }, // 500 (current week)
@@ -171,12 +171,12 @@ describe("getWeeklyVolume", () => {
       { weightKg: 60, reps: 5, isWarmup: false }, // 300 (previous week)
     ]);
 
-    const result = await getWeeklyVolume(prisma, userId, 8, now);
+    const result = await getWeeklyVolume(prisma, userId, 8, today);
     expect(result).toHaveLength(8);
 
-    const current = result.find((b) => b.weekStart === getWeekStart(new Date(2026, 2, 24)));
+    const current = result.find((b) => b.weekStart === getWeekStart("2026-03-24"));
     expect(current?.volumeKg).toBe(500);
-    const previous = result.find((b) => b.weekStart === getWeekStart(new Date(2026, 2, 16)));
+    const previous = result.find((b) => b.weekStart === getWeekStart("2026-03-16"));
     expect(previous?.volumeKg).toBe(300);
     expect(result.reduce((sum, b) => sum + b.volumeKg, 0)).toBe(800);
   });

@@ -3,7 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { Play, Trophy, Fire, CalendarCheck, Barbell, CaretRight } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getLocalDateString, getWeekStart } from "@/lib/date";
+import { getTodayString, getWeekStart } from "@/lib/date";
 import { getInProgressSessions } from "@/lib/dashboard/current";
 import {
   listPrsFromLastCompletedSession,
@@ -24,15 +24,15 @@ const MAX_PRS = 6;
 
 export default async function DashboardPage() {
   const user = await getAuthUser();
+  const today = getTodayString();
   const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts] = await Promise.all([
     getInProgressSessions(),
     listPrsFromLastCompletedSession(prisma, user!.id),
-    getOverviewStats(prisma, user!.id),
-    getWeeklyVolume(prisma, user!.id),
+    getOverviewStats(prisma, user!.id, today),
+    getWeeklyVolume(prisma, user!.id, 8, today),
     listTopPrs(prisma, user!.id, MAX_PRS),
     listCompletedSessions(prisma, user!.id, { take: 5 }),
   ]);
-  const today = getLocalDateString();
   const [locale, tc, t, format] = await Promise.all([
     getLocale(),
     getTranslations("common"),
@@ -114,7 +114,7 @@ export default async function DashboardPage() {
         <section className="space-y-2">
           <h2 className="font-medium">{t("weeklyVolume")}</h2>
           <Card>
-            <WeeklyVolumeChart data={weeklyVolume} currentWeekStart={getWeekStart()} />
+            <WeeklyVolumeChart data={weeklyVolume} currentWeekStart={getWeekStart(today)} />
           </Card>
         </section>
       )}

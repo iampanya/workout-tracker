@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getLocalDateString } from "@/lib/date";
+import { getTodayString } from "@/lib/date";
 import { listExercises, listExerciseStats } from "@/lib/exercises/service";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { ExerciseList } from "./ExerciseList";
@@ -19,7 +19,7 @@ export default async function ExercisesPage() {
 
   // Formatted here, not in the client component: Node's and the browser's ICU/CLDR disagree on
   // Thai short weekdays, so formatting during SSR hydration would mismatch.
-  const today = getLocalDateString();
+  const today = getTodayString();
   const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
   const lastDoneLabels: Record<string, string> = {};
   for (const [id, stat] of Object.entries(stats)) {

@@ -129,7 +129,7 @@ export function formatShortDate(dateStr: string, locale: string): string {
 }
 
 // Today / Yesterday (the caller's translated labels), the short form within the same year,
-// else the full date. `today` is the viewer's local calendar date (getLocalDateString).
+// else the full date. `today` is the user's calendar date in TIME_ZONE (getTodayString).
 export function formatRelativeDate(
   dateStr: string,
   today: string,

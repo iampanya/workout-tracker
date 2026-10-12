@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient, type sessions } from "@prisma/client";
-import { getLocalDateString, getWeekStart, getWeekEnd, toDateOnlyString } from "@/lib/date";
+import { addDays, getTodayString, getWeekStart, getWeekEnd, toDateOnlyString } from "@/lib/date";
 import type { PrRecord } from "@/lib/pr";
 import { type CompletedSession, toCompletedSession } from "@/lib/sessions/serialize";
 import { getSessionPrs, type SessionPr } from "@/lib/sessions/service";
@@ -33,18 +33,15 @@ export type OverviewStats = {
 
 const STREAK_LOOKBACK_DAYS = 90;
 
-// `now` is injectable (default wall-clock) so tests can pin "today".
+// `todayStr` (YYYY-MM-DD) is injectable (default: today in TIME_ZONE) so tests can pin it.
 export async function getOverviewStats(
   db: PrismaClient,
   userId: string,
-  now: Date = new Date()
+  todayStr: string = getTodayString()
 ): Promise<OverviewStats> {
-  const todayStr = getLocalDateString(now);
-  const lookbackStart = getLocalDateString(
-    new Date(now.getFullYear(), now.getMonth(), now.getDate() - STREAK_LOOKBACK_DAYS)
-  );
-  const weekStart = getWeekStart(now);
-  const weekEnd = getWeekEnd(now);
+  const lookbackStart = addDays(todayStr, -STREAK_LOOKBACK_DAYS);
+  const weekStart = getWeekStart(todayStr);
+  const weekEnd = getWeekEnd(todayStr);
 
   const recentRows = await db.sessions.findMany({
     where: {
@@ -91,13 +88,12 @@ export async function getWeeklyVolume(
   db: PrismaClient,
   userId: string,
   weeks = 8,
-  now: Date = new Date()
+  todayStr: string = getTodayString()
 ): Promise<WeeklyVolumePoint[]> {
   const buckets: WeeklyVolumePoint[] = [];
   const bucketIndex = new Map<string, number>();
   for (let i = weeks - 1; i >= 0; i--) {
-    const ref = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
-    const weekStart = getWeekStart(ref);
+    const weekStart = getWeekStart(addDays(todayStr, -i * 7));
     if (!bucketIndex.has(weekStart)) {
       bucketIndex.set(weekStart, buckets.length);
       buckets.push({ weekStart, volumeKg: 0 });
@@ -112,7 +108,7 @@ export async function getWeeklyVolume(
       session_exercises: {
         sessions: {
           completed_at: { not: null },
-          session_date: { gte: new Date(windowStart), lte: new Date(getLocalDateString(now)) },
+          session_date: { gte: new Date(windowStart), lte: new Date(todayStr) },
         },
       },
     },
@@ -124,8 +120,7 @@ export async function getWeeklyVolume(
   });
 
   for (const set of sets) {
-    const dateStr = toDateOnlyString(set.session_exercises.sessions.session_date);
-    const weekStart = getWeekStart(new Date(`${dateStr}T00:00:00`));
+    const weekStart = getWeekStart(toDateOnlyString(set.session_exercises.sessions.session_date));
     const idx = bucketIndex.get(weekStart);
     if (idx === undefined) continue;
     buckets[idx].volumeKg += Number(set.weight_kg) * set.reps;

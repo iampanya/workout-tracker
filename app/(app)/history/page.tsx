@@ -3,7 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { CaretRight, ClockCounterClockwise, Play } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getLocalDateString } from "@/lib/date";
+import { getTodayString } from "@/lib/date";
 import {
   listCompletedSessions,
   sessionDisplayName,
@@ -40,7 +40,7 @@ export default async function HistoryPage({
   const rows = await listCompletedSessions(prisma, user!.id, { take: show + 1 });
   const hasMore = rows.length > show;
   const sessions = rows.slice(0, show);
-  const today = getLocalDateString();
+  const today = getTodayString();
   const [locale, tc, t, format] = await Promise.all([
     getLocale(),
     getTranslations("common"),
