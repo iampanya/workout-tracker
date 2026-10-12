@@ -166,10 +166,6 @@
       "invalidFile": "ไฟล์นี้ไม่ใช่ไฟล์สำรองของ workout-tracker",
       "unsupportedVersion": "ไม่รองรับไฟล์สำรองเวอร์ชันนี้",
       "importFailed": "นำเข้าข้อมูลสำรองไม่สำเร็จ"
-    },
-    "referral": {
-      "notAuthenticated": "คุณออกจากระบบแล้ว — โปรดเข้าสู่ระบบอีกครั้ง",
-      "regenerateFailed": "สร้างลิงก์ใหม่ไม่สำเร็จ"
     }
   },
   "landing": {
@@ -338,14 +334,10 @@
     "email": "อีเมล",
     "memberSince": "เป็นสมาชิกตั้งแต่",
     "inviteFriends": "ชวนเพื่อน",
-    "inviteDescription": "แชร์ลิงก์นี้ให้เพื่อนสร้างบัญชี ลิงก์ไม่มีวันหมดอายุ และใครมีลิงก์ก็สมัครได้",
+    "inviteDescription": "แชร์แอปให้เพื่อน เพื่อนล็อกอินด้วย Google แล้วเริ่มบันทึกการฝึกได้ทันที",
     "copied": "คัดลอกแล้ว",
     "copy": "คัดลอก",
-    "invited": "ชวนเพื่อนแล้ว <b>{count}</b> {count, plural, other {คน}}",
-    "linkLeaked": "ลิงก์หลุดหรือถูกแชร์ออกไปกว้างเกินไป?",
-    "regenerate": "สร้างใหม่",
-    "regenerateTitle": "สร้างลิงก์เชิญใหม่?",
-    "regenerateDescription": "ลิงก์ปัจจุบันจะใช้ไม่ได้ทันที คนที่คุณส่งลิงก์ไปแล้วจะสมัครด้วยลิงก์นั้นไม่ได้"
+    "invited": "ชวนเพื่อนแล้ว <b>{count}</b> {count, plural, other {คน}}"
   },
   "notFound": {
     "title": "ไม่พบหน้านี้",

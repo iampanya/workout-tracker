@@ -49,7 +49,7 @@ export default async function ProfilePage() {
         </div>
       </Card>
 
-      <ReferralCard code={referral.code} invitedCount={referral.invitedCount} origin={origin} />
+      <ReferralCard invitedCount={referral.invitedCount} origin={origin} />
     </div>
   );
 }

@@ -2,52 +2,35 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Copy, ArrowsClockwise, UsersThree } from "@phosphor-icons/react/ssr";
+import { Check, Copy, UsersThree } from "@phosphor-icons/react/ssr";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { regenerateReferralCodeAction } from "@/lib/actions/referrals";
 
 type ReferralCardProps = {
-  code: string;
   invitedCount: number;
   /** Absolute origin (e.g. https://app.example.com) computed server-side. */
   origin: string;
 };
 
-export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) {
+// Signup is open (Google sign-in), so the share link is just the public landing page — no invite
+// code. `invitedCount` only reflects legacy invite-link signups, so it's shown only when non-zero.
+export function ReferralCard({ invitedCount, origin }: ReferralCardProps) {
   const t = useTranslations("profile");
   const te = useTranslations("errors");
-  const [currentCode, setCurrentCode] = useState(code);
   const [copied, setCopied] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const link = `${origin}/signup?invite=${currentCode}`;
+  const link = `${origin}/`;
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(link);
+      setError(null);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError(te("copyLink"));
     }
-  }
-
-  async function handleRegenerate() {
-    setRegenerating(true);
-    setError(null);
-    const result = await regenerateReferralCodeAction();
-    setRegenerating(false);
-    setConfirmOpen(false);
-    if (result.error || !result.code) {
-      setError(te(`referral.${result.error ?? "regenerateFailed"}`));
-      return;
-    }
-    setCurrentCode(result.code);
-    setCopied(false);
   }
 
   return (
@@ -72,39 +55,19 @@ export function ReferralCard({ code, invitedCount, origin }: ReferralCardProps) 
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-muted">
-        <UsersThree className="h-4 w-4" weight="bold" />
-        <span>
-          {t.rich("invited", {
-            count: invitedCount,
-            b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
-          })}
-        </span>
-      </div>
+      {invitedCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-muted">
+          <UsersThree className="h-4 w-4" weight="bold" />
+          <span>
+            {t.rich("invited", {
+              count: invitedCount,
+              b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+            })}
+          </span>
+        </div>
+      )}
 
       {error && <p className="text-sm text-danger">{error}</p>}
-
-      <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="text-sm text-muted">{t("linkLeaked")}</span>
-        <Button
-          variant="danger"
-          icon={<ArrowsClockwise className="h-4 w-4" />}
-          onClick={() => setConfirmOpen(true)}
-        >
-          {t("regenerate")}
-        </Button>
-      </div>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        title={t("regenerateTitle")}
-        description={t("regenerateDescription")}
-        confirmLabel={t("regenerate")}
-        tone="danger"
-        loading={regenerating}
-        onConfirm={handleRegenerate}
-        onCancel={() => setConfirmOpen(false)}
-      />
     </Card>
   );
 }
