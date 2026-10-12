@@ -34,12 +34,13 @@ _Avoid_: RLS (removed), row-level security.
 
 **Referral code**:
 A user's permanent, personal 8-char code (`profiles.referral_code`, `not null unique`). One per user.
-Signup is open, so it **no longer gates anything** — it's a personal code surfaced on the Profile page
-that can be regenerated. Kept because the column is `not null unique` and cheap to keep.
+Signup is open, so it **no longer gates anything**, and the UI no longer shows it (the Profile "Invite
+friends" card just shares the landing page). Kept because the column is `not null unique` and cheap to
+keep.
 _Avoid_: Invite code (retired), promo code, token.
 
 **Regenerate**:
-Replacing a user's referral code with a fresh one.
+Replacing a user's referral code with a fresh one. Exists only in the service layer — no UI calls it.
 _Avoid_: Reset, rotate, refresh.
 
 **Referred by**:

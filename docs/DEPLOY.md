@@ -47,8 +47,8 @@ DIRECT_URL="$DIRECT_URL" npx prisma migrate deploy   # apply prisma/migrations/*
 > **DB ที่ยังว่างเปล่า** → คำสั่งเดียวจบ **DB ที่มี schema อยู่แล้วจากยุค Supabase (`supabase/migrations`)** → baseline ครั้งเดียวก่อน: `prisma migrate resolve --applied 0001_init` แล้วค่อย `migrate deploy` (ดู `docs/baseline-prod-to-prisma-migrate.md`)
 > **อย่าใช้** `supabase/migrations/*.sql` (archived) — มันพึ่ง `auth` schema / role Supabase / `auth.uid()` รันบน Postgres เปล่าไม่ผ่าน
 
-> migrations สร้างตาราง + view `exercise_prs` + ฟังก์ชัน (`import_backup`, `gen_referral_code`, `handle_new_user`) + ตาราง Auth.js (`users`/`accounts`) และ **ปิด RLS** ให้เอง (0010)
-> **หมายเหตุ 0010:** ถ้าย้ายมาจากระบบเดิม (GoTrue) มันจะ copy user จาก `auth.users` → `public.users` โดยคง id เดิม เพื่อให้ข้อมูลเก่าไม่หลุด FK
+> `0001_init` สร้างตาราง + view `exercise_prs` + ฟังก์ชัน (`import_backup`, `gen_referral_code`, `handle_new_user`) + trigger + ตาราง Auth.js (`users`/`accounts`) — **ไม่มี RLS** ตั้งแต่ต้น (isolation อยู่ที่ service layer)
+> **ประวัติ (legacy 0010):** prod เดิมย้ายจาก GoTrue ด้วย `supabase/migrations/0010` ซึ่ง copy user จาก `auth.users` → `public.users` โดยคง id เดิม (ทำไปแล้วครั้งเดียว) DB ใหม่ไม่ต้องทำขั้นนี้
 
 ### A3. หยอด seed exercises (ข้อมูล — ไม่ auto)
 
@@ -111,7 +111,7 @@ npx vercel --prod
 > **ผู้ใช้เดิม (ย้ายมาจาก GoTrue):** ข้อมูลจะกลับมาก็ต่อเมื่อ **email Google = email บัญชีเดิม** ที่ 0010 migrate มา (Auth.js link by email ให้ ผ่าน `allowDangerousEmailAccountLinking`) ถ้า email ไม่ตรง จะได้บัญชีใหม่ว่างเปล่า
 
 ### D2. Verify (ให้ครบ loop)
-login ด้วย Google → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี toast **"New PR … xx kg × N"** ตอนทำได้เกินสถิติเดิม (หนักกว่า หรือน้ำหนักเท่าเดิมแต่ reps มากกว่า) → **Finish** → เช็ค **dashboard** ขึ้น session นั้น → ลองทั้งมือถือและ desktop
+login ด้วย Google → **Log workout** → เลือกท่า + log สัก 2-3 set → ดูว่ามี toast **"PR ใหม่ของ …: xx kg × N!"** (ภาษาอังกฤษ: "New PR on …") ตอนทำได้เกินสถิติเดิม (หนักกว่า หรือน้ำหนักเท่าเดิมแต่ reps มากกว่า) → **Finish** → เช็ค **dashboard** ขึ้น session นั้น → ลองทั้งมือถือและ desktop
 
 ---
 

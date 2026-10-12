@@ -1,5 +1,16 @@
 # TODO
 
+## Done — Invite card fix (2026-10-12)
+
+The Profile "Invite friends" card copied a dead `/signup?invite=CODE` link (the `/signup` flow was
+removed with Google sign-in). It now shares the landing page `/`; Regenerate and its server action
+were removed.
+
+## Done — Thai localization (2026-10-11)
+
+next-intl, cookie-based, Thai default + English. Plan/spec in
+`docs/superpowers/plans/2026-10-11-thai-localization.md`.
+
 ## Done — Exercise picker redesign (2026-10-03)
 
 Replaced the inline `ExerciseCombobox` dropdown with `ExercisePicker` (bottom sheet): search, muscle-group
@@ -20,7 +31,10 @@ along with a broader UX pass:
 - Delete a workout from History; remove an exercise mid-workout; finish-workout validation (no empty
   exercises). Searchable exercise picker (now `ExercisePicker`, see below) in the log + routine pickers.
 
-## Done — Username login + multi-user signup (2026-08-11)
+## Done — Username login + multi-user signup (2026-08-11) — superseded
+
+> Superseded by Google sign-in (Auth.js, open signup): username/password login and the invite-gated
+> `/signup` flow were removed.
 
 Implemented phases B1–B4: username login, invite-gated `/signup`, `profiles`/`invite_codes` schema
 (migration `0003`), server-side auth actions, and docs. See
