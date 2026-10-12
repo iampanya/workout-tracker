@@ -346,5 +346,16 @@
     "regenerate": "Regenerate",
     "regenerateTitle": "Regenerate invite link?",
     "regenerateDescription": "Your current link will stop working immediately. Anyone you've already sent it to won't be able to sign up with it."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page doesn't exist, or it may have been deleted.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "errorPage": {
+    "title": "Something went wrong",
+    "description": "This page couldn't load. Try again, or head back to the dashboard.",
+    "retry": "Try again",
+    "backToDashboard": "Back to dashboard"
   }
 }
