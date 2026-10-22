@@ -20,8 +20,9 @@ A user's app-level row (`profiles`, keyed to `users.id`), provisioned automatica
 _Avoid_: Account.
 
 **Username**:
-A display handle auto-derived from the email local-part at sign-in (lowercased, unique; a numeric
-suffix is added on collision). Shown in the top bar / Profile. **Not** a login credential — login is
+A display handle auto-derived from the email local-part at sign-in (sanitized to `[a-z0-9_]`,
+lowercased, unique; on collision `_` + a widening slice of the user's uuid is appended, e.g.
+`john_a1b`). Shown in the top bar / Profile. **Not** a login credential — login is
 Google only.
 _Avoid_: Handle, login (it is no longer the login identity).
 
