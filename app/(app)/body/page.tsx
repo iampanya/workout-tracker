@@ -9,6 +9,7 @@ import { formatRelativeDate } from "@/lib/sessions/summary";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LatestSnapshot } from "./LatestSnapshot";
+import { ImportScanSheet } from "./ImportScanSheet";
 
 export default async function BodyPage() {
   const user = await getAuthUser();
@@ -24,11 +25,13 @@ export default async function BodyPage() {
   const n = (value: number) => format.number(value, { maximumFractionDigits: 2 });
   const latest = scans.at(-1) ?? null;
   const previous = scans.at(-2) ?? null;
+  const existingMeasuredAt = scans.map((scan) => scan.measured_at);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        {latest && <ImportScanSheet existingMeasuredAt={existingMeasuredAt} />}
       </div>
 
       {!latest ? (
@@ -36,6 +39,7 @@ export default async function BodyPage() {
           icon={<PersonSimple className="h-6 w-6" />}
           title={t("emptyTitle")}
           description={t("emptyDescription")}
+          action={<ImportScanSheet existingMeasuredAt={existingMeasuredAt} variant="primary" />}
         />
       ) : (
         <>
