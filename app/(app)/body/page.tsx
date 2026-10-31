@@ -4,17 +4,22 @@ import { CaretRight, PersonSimple } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getTodayString } from "@/lib/date";
-import { listBodyScans } from "@/lib/body/service";
+import { listBodyGoals, listBodyScans } from "@/lib/body/service";
+import { suggestedGoalTargets } from "@/lib/body/metrics";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LatestSnapshot } from "./LatestSnapshot";
 import { ImportScanSheet } from "./ImportScanSheet";
+import { GoalsCard } from "./GoalsCard";
 
 export default async function BodyPage() {
   const user = await getAuthUser();
   const today = getTodayString();
-  const scans = await listBodyScans(prisma, user!.id);
+  const [scans, goals] = await Promise.all([
+    listBodyScans(prisma, user!.id),
+    listBodyGoals(prisma, user!.id),
+  ]);
   const [locale, t, tc, format] = await Promise.all([
     getLocale(),
     getTranslations("body"),
@@ -52,6 +57,17 @@ export default async function BodyPage() {
             </div>
             <LatestSnapshot latest={latest} previous={previous} />
           </section>
+
+          <GoalsCard
+            goals={goals}
+            current={{
+              weight_kg: latest.weight_kg,
+              body_fat_pct: latest.body_fat_pct,
+              body_fat_kg: latest.body_fat_kg,
+              skeletal_muscle_kg: latest.skeletal_muscle_kg,
+            }}
+            suggestion={suggestedGoalTargets(latest)}
+          />
 
           <section className="space-y-2">
             <h2 className="font-medium">{t("history")}</h2>
