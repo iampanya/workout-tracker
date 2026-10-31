@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LatestSnapshot } from "./LatestSnapshot";
 import { ImportScanSheet } from "./ImportScanSheet";
 import { GoalsCard } from "./GoalsCard";
+import { TrendChart } from "./TrendChart";
 
 export default async function BodyPage() {
   const user = await getAuthUser();
@@ -68,6 +69,26 @@ export default async function BodyPage() {
             }}
             suggestion={suggestedGoalTargets(latest)}
           />
+
+          <section className="space-y-2">
+            <h2 className="font-medium">{t("trend")}</h2>
+            <Card>
+              {scans.length >= 2 ? (
+                <TrendChart
+                  data={scans.map((scan) => ({
+                    date: scan.scan_date,
+                    weight_kg: scan.weight_kg,
+                    body_fat_pct: scan.body_fat_pct,
+                    body_fat_kg: scan.body_fat_kg,
+                    skeletal_muscle_kg: scan.skeletal_muscle_kg,
+                  }))}
+                  goalTargets={Object.fromEntries(goals.map((goal) => [goal.metric, goal.target]))}
+                />
+              ) : (
+                <p className="text-sm text-muted">{t("trendNeedsMore")}</p>
+              )}
+            </Card>
+          </section>
 
           <section className="space-y-2">
             <h2 className="font-medium">{t("history")}</h2>
