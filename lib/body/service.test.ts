@@ -4,12 +4,21 @@ import { prisma } from "@/lib/db";
 import { createTestUser } from "@/lib/test-helpers";
 import { sampleScan } from "./fixtures";
 import {
+  addExerciseToSessionForUser,
+  finishSessionForUser,
+  logSetForUser,
+  startSessionForUser,
+} from "@/lib/sessions/service";
+import {
   BodyImportError,
+  countWorkingSetsByMuscleGroup,
   deleteBodyScanForUser,
   getBodyScan,
   getLatestBodySummary,
   importBodyScansForUser,
+  listBodyGoals,
   listBodyScans,
+  replaceBodyGoalsForUser,
 } from "./service";
 
 const file = (...scans: unknown[]) => ({ version: 1, source: "arboleaf", scans });
@@ -110,5 +119,117 @@ describe("body scans service", () => {
       latest: { weight_kg: 80 },
       previous: { weight_kg: 82 },
     });
+  });
+});
+
+describe("body goals", () => {
+  it("starts new goals from the latest scan and keeps start_value when only the target changes", async () => {
+    const { userId } = await createTestUser();
+    await importBodyScansForUser(
+      prisma,
+      userId,
+      file(sampleScan({ measured_at: "2026-10-01T07:00:00+07:00", weight_kg: 82 }), sampleScan())
+    );
+
+    expect(
+      await replaceBodyGoalsForUser(prisma, userId, [
+        { metric: "weight_kg", target: 75 },
+        { metric: "skeletal_muscle_kg", target: 37 },
+      ])
+    ).toEqual([
+      { metric: "weight_kg", target: 75, start_value: 80 },
+      { metric: "skeletal_muscle_kg", target: 37, start_value: 35 },
+    ]);
+
+    await importBodyScansForUser(prisma, userId, file(sampleScan({ measured_at: "2026-10-25T07:00:00+07:00", weight_kg: 78 })));
+    // Muscle goal dropped; weight goal keeps its original start.
+    expect(await replaceBodyGoalsForUser(prisma, userId, [{ metric: "weight_kg", target: 74 }])).toEqual([
+      { metric: "weight_kg", target: 74, start_value: 80 },
+    ]);
+    expect(await listBodyGoals(prisma, userId)).toEqual([{ metric: "weight_kg", target: 74, start_value: 80 }]);
+  });
+
+  it("switching fat goal metric replaces the old fat goal", async () => {
+    const { userId } = await createTestUser();
+    await importBodyScansForUser(prisma, userId, file(sampleScan()));
+    await replaceBodyGoalsForUser(prisma, userId, [{ metric: "body_fat_pct", target: 15 }]);
+    expect(await replaceBodyGoalsForUser(prisma, userId, [{ metric: "body_fat_kg", target: 12 }])).toEqual([
+      { metric: "body_fat_kg", target: 12, start_value: 17.6 },
+    ]);
+  });
+
+  it("rejects invalid goal sets and goals with no baseline scan", async () => {
+    const { userId } = await createTestUser();
+    await expect(replaceBodyGoalsForUser(prisma, userId, [{ metric: "weight_kg", target: 75 }])).rejects.toThrow();
+    await importBodyScansForUser(prisma, userId, file(sampleScan()));
+    await expect(
+      replaceBodyGoalsForUser(prisma, userId, [
+        { metric: "body_fat_pct", target: 15 },
+        { metric: "body_fat_kg", target: 12 },
+      ])
+    ).rejects.toThrow();
+    expect(await listBodyGoals(prisma, userId)).toEqual([]);
+  });
+
+  it("isolation: goals are per user", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    await importBodyScansForUser(prisma, a.userId, file(sampleScan()));
+    await importBodyScansForUser(prisma, b.userId, file(sampleScan({ weight_kg: 90 })));
+    await replaceBodyGoalsForUser(prisma, a.userId, [{ metric: "weight_kg", target: 75 }]);
+    await replaceBodyGoalsForUser(prisma, b.userId, [{ metric: "weight_kg", target: 85 }]);
+
+    // Clearing A's goals leaves B's alone.
+    await replaceBodyGoalsForUser(prisma, a.userId, []);
+    expect(await listBodyGoals(prisma, a.userId)).toEqual([]);
+    expect(await listBodyGoals(prisma, b.userId)).toEqual([{ metric: "weight_kg", target: 85, start_value: 90 }]);
+  });
+});
+
+describe("countWorkingSetsByMuscleGroup", () => {
+  it("counts completed working sets per muscle group within the window, for the user only", async () => {
+    const { userId } = await createTestUser();
+    const other = await createTestUser();
+    const legs = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true, muscle_group: "Legs" } });
+    const chest = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true, muscle_group: "Chest" } });
+
+    async function logSession(
+      ownerId: string,
+      date: string,
+      sets: { exerciseId: string; isWarmup: boolean }[],
+      finish = true
+    ) {
+      const session = await startSessionForUser(prisma, ownerId, { sessionDate: date });
+      const seByExercise = new Map<string, string>();
+      for (const { exerciseId, isWarmup } of sets) {
+        if (!seByExercise.has(exerciseId)) {
+          const se = await addExerciseToSessionForUser(prisma, ownerId, session.id, exerciseId);
+          seByExercise.set(exerciseId, se.id);
+        }
+        await logSetForUser(prisma, ownerId, {
+          sessionExerciseId: seByExercise.get(exerciseId),
+          weightKg: 50,
+          reps: 5,
+          isWarmup,
+        });
+      }
+      if (finish) await finishSessionForUser(prisma, ownerId, session.id);
+    }
+
+    await logSession(userId, "2026-10-10", [
+      { exerciseId: legs.id, isWarmup: true },
+      { exerciseId: legs.id, isWarmup: false },
+      { exerciseId: legs.id, isWarmup: false },
+      { exerciseId: chest.id, isWarmup: false },
+    ]);
+    await logSession(userId, "2026-09-01", [{ exerciseId: legs.id, isWarmup: false }]); // before the window
+    await logSession(userId, "2026-10-12", [{ exerciseId: chest.id, isWarmup: false }], false); // in progress
+    await logSession(other.userId, "2026-10-10", [{ exerciseId: legs.id, isWarmup: false }]);
+
+    const counts = await countWorkingSetsByMuscleGroup(prisma, userId, "2026-10-01", "2026-10-28");
+    expect([...counts].sort((x, y) => String(x.muscle_group).localeCompare(String(y.muscle_group)))).toEqual([
+      { muscle_group: "Chest", sets: 1 },
+      { muscle_group: "Legs", sets: 2 },
+    ]);
   });
 });
