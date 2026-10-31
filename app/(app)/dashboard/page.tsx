@@ -11,12 +11,14 @@ import {
   getWeeklyVolume,
   listTopPrs,
 } from "@/lib/dashboard/service";
+import { getLatestBodySummary, listBodyGoals } from "@/lib/body/service";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
 import { formatRelativeDate, splitDuration } from "@/lib/sessions/summary";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
+import { BodyCard } from "./BodyCard";
 import { DiscardSessionButton } from "./DiscardSessionButton";
 import { WeeklyVolumeChart } from "./WeeklyVolumeChart";
 
@@ -25,14 +27,17 @@ const MAX_PRS = 6;
 export default async function DashboardPage() {
   const user = await getAuthUser();
   const today = getTodayString();
-  const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts] = await Promise.all([
-    getInProgressSessions(),
-    listPrsFromLastCompletedSession(prisma, user!.id),
-    getOverviewStats(prisma, user!.id, today),
-    getWeeklyVolume(prisma, user!.id, 8, today),
-    listTopPrs(prisma, user!.id, MAX_PRS),
-    listCompletedSessions(prisma, user!.id, { take: 5 }),
-  ]);
+  const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts, bodySummary, bodyGoals] =
+    await Promise.all([
+      getInProgressSessions(),
+      listPrsFromLastCompletedSession(prisma, user!.id),
+      getOverviewStats(prisma, user!.id, today),
+      getWeeklyVolume(prisma, user!.id, 8, today),
+      listTopPrs(prisma, user!.id, MAX_PRS),
+      listCompletedSessions(prisma, user!.id, { take: 5 }),
+      getLatestBodySummary(prisma, user!.id),
+      listBodyGoals(prisma, user!.id),
+    ]);
   const [locale, tc, t, format] = await Promise.all([
     getLocale(),
     getTranslations("common"),
@@ -108,6 +113,11 @@ export default async function DashboardPage() {
             icon={<Barbell className="h-4 w-4" />}
           />
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">{t("bodyTitle")}</h2>
+        <BodyCard summary={bodySummary} goals={bodyGoals} today={today} />
       </section>
 
       {hasWeeklyVolume && (
