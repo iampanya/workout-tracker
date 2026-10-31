@@ -139,3 +139,54 @@ model sets {
   @@unique([session_exercise_id, set_number])
   @@index([user_id, exercise_id, is_warmup], map: "sets_user_exercise_idx")
 }
+
+// Body-composition scans (see lib/body/schema.ts). Metric columns mirror SCAN_METRIC_KEYS;
+// segments/report are validated JSON. One row per (user, measured_at): re-imports replace it.
+model body_scans {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String   @db.Uuid
+  measured_at          DateTime @db.Timestamptz(6)
+  source               String   @default("arboleaf")
+  weight_kg            Decimal  @db.Decimal(7, 2)
+  bmi                  Decimal? @db.Decimal(7, 2)
+  body_fat_pct         Decimal? @db.Decimal(7, 2)
+  body_fat_kg          Decimal? @db.Decimal(7, 2)
+  skeletal_muscle_kg   Decimal? @db.Decimal(7, 2)
+  skeletal_muscle_pct  Decimal? @db.Decimal(7, 2)
+  muscle_mass_pct      Decimal? @db.Decimal(7, 2)
+  soft_lean_mass_kg    Decimal? @db.Decimal(7, 2)
+  fat_free_mass_kg     Decimal? @db.Decimal(7, 2)
+  body_water_l         Decimal? @db.Decimal(7, 2)
+  body_water_pct       Decimal? @db.Decimal(7, 2)
+  protein_kg           Decimal? @db.Decimal(7, 2)
+  protein_pct          Decimal? @db.Decimal(7, 2)
+  bone_mass_kg         Decimal? @db.Decimal(7, 2)
+  bone_mass_pct        Decimal? @db.Decimal(7, 2)
+  visceral_fat         Decimal? @db.Decimal(7, 2)
+  subcutaneous_fat_pct Decimal? @db.Decimal(7, 2)
+  subcutaneous_fat_kg  Decimal? @db.Decimal(7, 2)
+  bmr_kcal             Decimal? @db.Decimal(7, 2)
+  smi                  Decimal? @db.Decimal(7, 2)
+  waist_hip_ratio      Decimal? @db.Decimal(7, 2)
+  fitness_score        Decimal? @db.Decimal(7, 2)
+  height_cm            Decimal? @db.Decimal(7, 2)
+  age                  Decimal? @db.Decimal(7, 2)
+  segments             Json?
+  report               Json?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, measured_at])
+}
+
+// Up to one goal per metric per user; start_value is the latest scan's value when the goal was
+// first set (kept when only the target changes).
+model body_goals {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  metric      String
+  target      Decimal  @db.Decimal(7, 2)
+  start_value Decimal  @db.Decimal(7, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, metric])
+}
