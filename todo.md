@@ -1,5 +1,19 @@
 # TODO
 
+## Next — Body scans follow-ups
+
+- Include `body_scans` / `body_goals` in the JSON backup (`exportUserData`, `ImportSummary`, and the
+  `import_backup` SQL function).
+- In-app PDF upload: send the PDF to the Claude API for extraction, then reuse the `/body` import
+  preview/confirm flow.
+- Strength relative to bodyweight on exercise pages (e1RM ÷ weight at that date).
+
+## Done — Body composition tracking (2026-10-31)
+
+`/body`: import arboleaf scans as JSON (made by Claude Code via the `arboleaf-to-json` skill), latest
+snapshot with deltas, goals (with arboleaf's suggestion), trend chart, muscle balance vs training,
+full per-scan report; dashboard Body card. Spec/plan in `docs/superpowers/{specs,plans}/2026-10-31-*`.
+
 ## Done — Invite card fix (2026-10-12)
 
 The Profile "Invite friends" card copied a dead `/signup?invite=CODE` link (the `/signup` flow was
