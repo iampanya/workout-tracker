@@ -109,9 +109,9 @@ export default async function BodyPage() {
                       </span>
                       <span className="block truncate text-sm text-muted">
                         {n(scan.weight_kg ?? 0)} kg
-                        {scan.body_fat_pct !== null && ` · ${t("metrics.body_fat_pct")} ${n(scan.body_fat_pct)}`}
+                        {scan.body_fat_pct !== null && ` · ${n(scan.body_fat_pct)}%`}
                         {scan.skeletal_muscle_kg !== null &&
-                          ` · ${t("metrics.skeletal_muscle_kg")} ${n(scan.skeletal_muscle_kg)} kg`}
+                          ` · ${t("trendMetrics.skeletal_muscle_kg")} ${n(scan.skeletal_muscle_kg)} kg`}
                       </span>
                     </span>
                     <CaretRight className="h-4 w-4 shrink-0 text-muted" />

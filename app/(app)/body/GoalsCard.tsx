@@ -155,7 +155,7 @@ export function GoalsCard({
               ))}
             </div>
             <Input
-              label={`${t(`metrics.${draft.fatMetric}`)} (${METRIC_UNITS[draft.fatMetric]})`}
+              label={draft.fatMetric === "body_fat_pct" ? t("metrics.body_fat_pct") : `${t("metrics.body_fat_kg")} (kg)`}
               {...numberProps}
               value={draft.fat}
               onChange={(e) => setDraft((d) => ({ ...d, fat: e.target.value }))}

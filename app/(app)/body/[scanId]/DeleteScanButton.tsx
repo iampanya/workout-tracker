@@ -23,7 +23,7 @@ export function DeleteScanButton({ scanId, dateLabel }: { scanId: string; dateLa
     try {
       await deleteBodyScan(scanId);
       setConfirmOpen(false);
-      router.push("/body");
+      router.replace("/body");
     } catch (err) {
       console.error(err);
       setError(te("body.deleteScan"));

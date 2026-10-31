@@ -25,6 +25,7 @@ time replaces the saved one, so fixing a misread value is just "edit the JSON, i
 
 ## Rules
 
+- `weight_kg` is the one required metric (must be > 0) — a scan without it fails the whole import.
 - `measured_at`: the report's "Time" is `DD/MM/YYYY HH:mm` Bangkok local →
   `"YYYY-MM-DDTHH:mm:00+07:00"`. Never write a time without the offset.
 - Numbers only — strip `kg`, `%`, `L`, `kcal`. Omit anything the report doesn't show; never estimate.
