@@ -3,8 +3,8 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { CaretRight, PersonSimple } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { getTodayString } from "@/lib/date";
-import { listBodyGoals, listBodyScans } from "@/lib/body/service";
+import { addDays, getTodayString } from "@/lib/date";
+import { countWorkingSetsByMuscleGroup, listBodyGoals, listBodyScans } from "@/lib/body/service";
 import { suggestedGoalTargets } from "@/lib/body/metrics";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { Card } from "@/components/ui/Card";
@@ -13,13 +13,18 @@ import { LatestSnapshot } from "./LatestSnapshot";
 import { ImportScanSheet } from "./ImportScanSheet";
 import { GoalsCard } from "./GoalsCard";
 import { TrendChart } from "./TrendChart";
+import { BalanceCard } from "./BalanceCard";
+
+// The balance card compares the latest scan with this many days of training (today inclusive).
+const BALANCE_WINDOW_DAYS = 28;
 
 export default async function BodyPage() {
   const user = await getAuthUser();
   const today = getTodayString();
-  const [scans, goals] = await Promise.all([
+  const [scans, goals, setCounts] = await Promise.all([
     listBodyScans(prisma, user!.id),
     listBodyGoals(prisma, user!.id),
+    countWorkingSetsByMuscleGroup(prisma, user!.id, addDays(today, -(BALANCE_WINDOW_DAYS - 1)), today),
   ]);
   const [locale, t, tc, format] = await Promise.all([
     getLocale(),
@@ -89,6 +94,8 @@ export default async function BodyPage() {
               )}
             </Card>
           </section>
+
+          <BalanceCard segments={latest.segments} setCounts={setCounts} />
 
           <section className="space-y-2">
             <h2 className="font-medium">{t("history")}</h2>
