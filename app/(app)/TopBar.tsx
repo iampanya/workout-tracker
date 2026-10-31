@@ -7,7 +7,7 @@ import { CaretLeft, Barbell, Play, Plus } from "@phosphor-icons/react/ssr";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { AccountMenu } from "./AccountMenu";
-import { NAV_ITEMS } from "./nav-items";
+import { TOP_NAV_ITEMS } from "./nav-items";
 
 const TOP_LEVEL_ROUTES = new Set(["/dashboard", "/routines", "/exercises", "/history", "/log"]);
 
@@ -53,7 +53,7 @@ export function TopBar({
           </Link>
 
           <nav className="ml-2 hidden items-center gap-1 lg:flex">
-            {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
+            {TOP_NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link

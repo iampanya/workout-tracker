@@ -78,7 +78,8 @@
     "logWorkout": "Log workout",
     "logAWorkout": "Log a workout",
     "resume": "Resume",
-    "log": "Log"
+    "log": "Log",
+    "body": "Body"
   },
   "account": {
     "menu": "Account menu",
@@ -87,7 +88,8 @@
     "theme": "Theme",
     "logOut": "Log out",
     "logOutTitle": "Log out?",
-    "logOutDescription": "You'll need to sign in with Google again to get back in."
+    "logOutDescription": "You'll need to sign in with Google again to get back in.",
+    "body": "Body"
   },
   "muscle": {
     "Chest": "Chest",
@@ -140,7 +142,11 @@
     "discardDescription": "This in-progress workout and any sets logged in it will be permanently deleted.",
     "discard": "Discard",
     "chartThisWeek": "This wk",
-    "chartVolumeSeries": "Volume (kg)"
+    "chartVolumeSeries": "Volume (kg)",
+    "bodyTitle": "Body",
+    "bodyLastScan": "Last scan: {when}",
+    "bodyEmptyTitle": "Track your body composition",
+    "bodyEmptyDescription": "Import a scale report to see weight, fat and muscle next to your training."
   },
   "errors": {
     "addExercise": "Failed to add exercise",
@@ -166,6 +172,14 @@
       "invalidFile": "This file isn't a workout-tracker backup",
       "unsupportedVersion": "Unsupported backup version",
       "importFailed": "Could not import backup"
+    },
+    "body": {
+      "invalidJson": "That isn't valid JSON.",
+      "invalidFile": "This isn't a body-scan import file.",
+      "unsupportedVersion": "Unsupported import version.",
+      "importFailed": "Could not import the scan.",
+      "deleteScan": "Failed to delete the scan.",
+      "saveGoals": "Failed to save goals."
     }
   },
   "landing": {
@@ -349,5 +363,108 @@
     "description": "This page couldn't load. Try again, or head back to the dashboard.",
     "retry": "Try again",
     "backToDashboard": "Back to dashboard"
+  },
+  "body": {
+    "title": "Body",
+    "latest": "Latest scan",
+    "measuredOn": "Measured {date}",
+    "history": "Scans",
+    "emptyTitle": "No scans yet",
+    "emptyDescription": "Import your first scale report to start tracking.",
+    "importButton": "Import scan",
+    "importTitle": "Import a scale scan",
+    "importHelp": "Paste the JSON Claude Code made from your arboleaf PDF, or choose the .json file.",
+    "importPlaceholder": "Paste JSON here",
+    "importPickFile": "Choose file",
+    "importPreview": "Check before saving",
+    "importConfirm": "Save {count, plural, one {# scan} other {# scans}}",
+    "importReplaces": "Replaces saved",
+    "trend": "Trend",
+    "trendLabel": "Chart metric",
+    "trendNeedsMore": "Import another scan to see a trend.",
+    "goalLine": "Goal",
+    "trendMetrics": {
+      "weight_kg": "Weight",
+      "body_fat_pct": "Fat %",
+      "body_fat_kg": "Fat kg",
+      "skeletal_muscle_kg": "Muscle"
+    },
+    "goals": "Goals",
+    "goalsEmpty": "No goals yet.",
+    "editGoals": "Edit",
+    "goalsTitle": "Body goals",
+    "goalsHelp": "Leave a field empty for no goal. Progress counts from your latest scan when a goal is first set.",
+    "goalNone": "No goal",
+    "fatGoalMetric": "Fat goal as",
+    "useSuggestion": "Use arboleaf's suggestion",
+    "goalRange": "{start} → {target} {unit}",
+    "goalPercent": "{percent}%",
+    "balance": "Muscle balance vs training",
+    "leftRight": "Left vs right (lean mass)",
+    "left": "L",
+    "right": "R",
+    "difference": "{pct}% apart",
+    "regionShare": "Where your muscle is vs where your sets go",
+    "leanShareLabel": "Lean mass (latest scan)",
+    "trainingShareLabel": "Working sets, last 4 weeks",
+    "noTrainingSets": "No working sets in the last 4 weeks.",
+    "regions": {
+      "arms": "Arms",
+      "trunk": "Trunk",
+      "legs": "Legs"
+    },
+    "detailTitle": "Scan report",
+    "values": "Values",
+    "range": "Normal {min}–{max}",
+    "rangeMax": "Normal ≤ {max}",
+    "rangeMin": "Normal ≥ {min}",
+    "assessments": "Assessment",
+    "weightControl": "Weight control",
+    "weightControlKeys": {
+      "normal_weight_kg": "Normal weight",
+      "weight_kg": "Weight change",
+      "fat_kg": "Fat change",
+      "muscle_kg": "Muscle change"
+    },
+    "segments": "Segments",
+    "segmentLean": "Lean",
+    "segmentFat": "Fat",
+    "segmentNames": {
+      "left_arm": "Left arm",
+      "right_arm": "Right arm",
+      "trunk": "Trunk",
+      "left_leg": "Left leg",
+      "right_leg": "Right leg"
+    },
+    "advice": "Advice",
+    "deleteLabel": "Delete scan",
+    "deleteTitle": "Delete this scan?",
+    "deleteDescription": "The scan from {date} will be permanently deleted.",
+    "metrics": {
+      "weight_kg": "Weight",
+      "bmi": "BMI",
+      "body_fat_pct": "Body fat %",
+      "body_fat_kg": "Body fat mass",
+      "skeletal_muscle_kg": "Skeletal muscle",
+      "skeletal_muscle_pct": "Skeletal muscle %",
+      "muscle_mass_pct": "Muscle mass %",
+      "soft_lean_mass_kg": "Soft lean mass",
+      "fat_free_mass_kg": "Fat-free mass",
+      "body_water_l": "Body water",
+      "body_water_pct": "Body water %",
+      "protein_kg": "Protein",
+      "protein_pct": "Protein %",
+      "bone_mass_kg": "Bone mass",
+      "bone_mass_pct": "Bone mass %",
+      "visceral_fat": "Visceral fat",
+      "subcutaneous_fat_pct": "Subcutaneous fat %",
+      "subcutaneous_fat_kg": "Subcutaneous fat",
+      "bmr_kcal": "BMR",
+      "smi": "SMI",
+      "waist_hip_ratio": "Waist-hip ratio",
+      "fitness_score": "Fitness score",
+      "height_cm": "Height",
+      "age": "Age"
+    }
   }
 }

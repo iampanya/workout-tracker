@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { User, CaretDown, Gear, SignOut } from "@phosphor-icons/react/ssr";
+import { User, CaretDown, Gear, SignOut, PersonSimple } from "@phosphor-icons/react/ssr";
 import { ThemeModeControl } from "@/components/theme/ThemeModeControl";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { signOut } from "next-auth/react";
@@ -69,6 +69,15 @@ export function AccountMenu({ username, email }: { username: string; email: stri
           </div>
           <div className="my-1 h-px bg-border" />
 
+          <Link
+            href="/body"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={`${ITEM_CLASS} text-foreground hover:bg-surface-muted`}
+          >
+            <PersonSimple className="h-4 w-4 text-muted" />
+            {t("body")}
+          </Link>
           <Link
             href="/profile"
             role="menuitem"

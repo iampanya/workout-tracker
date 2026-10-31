@@ -78,7 +78,8 @@
     "logWorkout": "บันทึกการฝึก",
     "logAWorkout": "บันทึกการฝึก",
     "resume": "ฝึกต่อ",
-    "log": "บันทึก"
+    "log": "บันทึก",
+    "body": "ร่างกาย"
   },
   "account": {
     "menu": "เมนูบัญชี",
@@ -87,7 +88,8 @@
     "theme": "ธีม",
     "logOut": "ออกจากระบบ",
     "logOutTitle": "ออกจากระบบ?",
-    "logOutDescription": "คุณจะต้องเข้าสู่ระบบด้วย Google อีกครั้งเพื่อกลับเข้ามา"
+    "logOutDescription": "คุณจะต้องเข้าสู่ระบบด้วย Google อีกครั้งเพื่อกลับเข้ามา",
+    "body": "ร่างกาย"
   },
   "muscle": {
     "Chest": "อก",
@@ -140,7 +142,11 @@
     "discardDescription": "การฝึกที่ค้างอยู่นี้และทุกเซ็ตที่บันทึกไว้จะถูกลบถาวร",
     "discard": "ยกเลิกการฝึก",
     "chartThisWeek": "สัปดาห์นี้",
-    "chartVolumeSeries": "ปริมาณรวม (kg)"
+    "chartVolumeSeries": "ปริมาณรวม (kg)",
+    "bodyTitle": "ร่างกาย",
+    "bodyLastScan": "ชั่งล่าสุด: {when}",
+    "bodyEmptyTitle": "ติดตามองค์ประกอบร่างกาย",
+    "bodyEmptyDescription": "นำเข้าผลจากเครื่องชั่งเพื่อดูน้ำหนัก ไขมัน และกล้ามเนื้อคู่กับการฝึก"
   },
   "errors": {
     "addExercise": "เพิ่มท่าไม่สำเร็จ",
@@ -166,6 +172,14 @@
       "invalidFile": "ไฟล์นี้ไม่ใช่ไฟล์สำรองของ workout-tracker",
       "unsupportedVersion": "ไม่รองรับไฟล์สำรองเวอร์ชันนี้",
       "importFailed": "นำเข้าข้อมูลสำรองไม่สำเร็จ"
+    },
+    "body": {
+      "invalidJson": "ข้อความนี้ไม่ใช่ JSON ที่ถูกต้อง",
+      "invalidFile": "ไฟล์นี้ไม่ใช่ไฟล์นำเข้าผลชั่ง",
+      "unsupportedVersion": "ไม่รองรับเวอร์ชันของไฟล์นำเข้านี้",
+      "importFailed": "นำเข้าผลชั่งไม่สำเร็จ",
+      "deleteScan": "ลบผลชั่งไม่สำเร็จ",
+      "saveGoals": "บันทึกเป้าหมายไม่สำเร็จ"
     }
   },
   "landing": {
@@ -349,5 +363,108 @@
     "description": "โหลดหน้านี้ไม่สำเร็จ ลองอีกครั้ง หรือกลับไปหน้าหลัก",
     "retry": "ลองอีกครั้ง",
     "backToDashboard": "กลับไปหน้าหลัก"
+  },
+  "body": {
+    "title": "ร่างกาย",
+    "latest": "ผลชั่งล่าสุด",
+    "measuredOn": "ชั่งเมื่อ {date}",
+    "history": "ประวัติการชั่ง",
+    "emptyTitle": "ยังไม่มีผลชั่ง",
+    "emptyDescription": "นำเข้ารายงานจากเครื่องชั่งครั้งแรกเพื่อเริ่มติดตาม",
+    "importButton": "นำเข้าผลชั่ง",
+    "importTitle": "นำเข้าผลชั่ง",
+    "importHelp": "วาง JSON ที่ Claude Code สร้างจาก PDF ของ arboleaf หรือเลือกไฟล์ .json",
+    "importPlaceholder": "วาง JSON ที่นี่",
+    "importPickFile": "เลือกไฟล์",
+    "importPreview": "ตรวจสอบก่อนบันทึก",
+    "importConfirm": "บันทึก {count, plural, other {# ครั้ง}}",
+    "importReplaces": "แทนที่ของเดิม",
+    "trend": "แนวโน้ม",
+    "trendLabel": "ค่าที่แสดงในกราฟ",
+    "trendNeedsMore": "นำเข้าผลชั่งอีกครั้งเพื่อดูแนวโน้ม",
+    "goalLine": "เป้าหมาย",
+    "trendMetrics": {
+      "weight_kg": "น้ำหนัก",
+      "body_fat_pct": "ไขมัน %",
+      "body_fat_kg": "ไขมัน kg",
+      "skeletal_muscle_kg": "กล้ามเนื้อ"
+    },
+    "goals": "เป้าหมาย",
+    "goalsEmpty": "ยังไม่ได้ตั้งเป้าหมาย",
+    "editGoals": "แก้ไข",
+    "goalsTitle": "เป้าหมายร่างกาย",
+    "goalsHelp": "เว้นว่างไว้ถ้าไม่ต้องการตั้งเป้าค่านั้น ความคืบหน้านับจากผลชั่งล่าสุดตอนที่ตั้งเป้าครั้งแรก",
+    "goalNone": "ไม่ตั้งเป้า",
+    "fatGoalMetric": "ตั้งเป้าไขมันเป็น",
+    "useSuggestion": "ใช้ค่าที่ arboleaf แนะนำ",
+    "goalRange": "{start} → {target} {unit}",
+    "goalPercent": "{percent}%",
+    "balance": "สมดุลกล้ามเนื้อเทียบกับการฝึก",
+    "leftRight": "ซ้ายเทียบขวา (มวลไร้ไขมัน)",
+    "left": "ซ้าย",
+    "right": "ขวา",
+    "difference": "ต่างกัน {pct}%",
+    "regionShare": "กล้ามเนื้ออยู่ตรงไหน เทียบกับเซ็ตที่ฝึก",
+    "leanShareLabel": "มวลไร้ไขมัน (ผลชั่งล่าสุด)",
+    "trainingShareLabel": "เซ็ตที่ฝึก 4 สัปดาห์ล่าสุด",
+    "noTrainingSets": "ไม่มีเซ็ตที่ฝึกใน 4 สัปดาห์ล่าสุด",
+    "regions": {
+      "arms": "แขน",
+      "trunk": "ลำตัว",
+      "legs": "ขา"
+    },
+    "detailTitle": "รายงานผลชั่ง",
+    "values": "ค่าที่วัดได้",
+    "range": "ปกติ {min}–{max}",
+    "rangeMax": "ปกติ ≤ {max}",
+    "rangeMin": "ปกติ ≥ {min}",
+    "assessments": "ผลประเมิน",
+    "weightControl": "การควบคุมน้ำหนัก",
+    "weightControlKeys": {
+      "normal_weight_kg": "น้ำหนักที่เหมาะสม",
+      "weight_kg": "ปรับน้ำหนัก",
+      "fat_kg": "ปรับไขมัน",
+      "muscle_kg": "ปรับกล้ามเนื้อ"
+    },
+    "segments": "แยกตามส่วน",
+    "segmentLean": "ไร้ไขมัน",
+    "segmentFat": "ไขมัน",
+    "segmentNames": {
+      "left_arm": "แขนซ้าย",
+      "right_arm": "แขนขวา",
+      "trunk": "ลำตัว",
+      "left_leg": "ขาซ้าย",
+      "right_leg": "ขาขวา"
+    },
+    "advice": "คำแนะนำ",
+    "deleteLabel": "ลบผลชั่ง",
+    "deleteTitle": "ลบผลชั่งนี้?",
+    "deleteDescription": "ผลชั่งวันที่ {date} จะถูกลบถาวร",
+    "metrics": {
+      "weight_kg": "น้ำหนัก",
+      "bmi": "BMI",
+      "body_fat_pct": "ไขมันในร่างกาย (%)",
+      "body_fat_kg": "มวลไขมัน",
+      "skeletal_muscle_kg": "กล้ามเนื้อโครงร่าง",
+      "skeletal_muscle_pct": "กล้ามเนื้อโครงร่าง (%)",
+      "muscle_mass_pct": "มวลกล้ามเนื้อ (%)",
+      "soft_lean_mass_kg": "มวลเนื้อเยื่อไร้ไขมัน",
+      "fat_free_mass_kg": "มวลไร้ไขมัน",
+      "body_water_l": "น้ำในร่างกาย",
+      "body_water_pct": "น้ำในร่างกาย (%)",
+      "protein_kg": "โปรตีน",
+      "protein_pct": "โปรตีน (%)",
+      "bone_mass_kg": "มวลกระดูก",
+      "bone_mass_pct": "มวลกระดูก (%)",
+      "visceral_fat": "ไขมันช่องท้อง",
+      "subcutaneous_fat_pct": "ไขมันใต้ผิวหนัง (%)",
+      "subcutaneous_fat_kg": "ไขมันใต้ผิวหนัง",
+      "bmr_kcal": "อัตราเผาผลาญพื้นฐาน",
+      "smi": "SMI",
+      "waist_hip_ratio": "สัดส่วนเอวต่อสะโพก",
+      "fitness_score": "คะแนนสุขภาพ",
+      "height_cm": "ส่วนสูง",
+      "age": "อายุ"
+    }
   }
 }
