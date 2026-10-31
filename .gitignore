@@ -49,3 +49,7 @@ next-env.d.ts
 /test-results/
 /blob-report/
 /playwright/.cache/
+
+# personal health data (arboleaf scan exports and the JSON derived from them)
+*.pdf
+/body-scans/
