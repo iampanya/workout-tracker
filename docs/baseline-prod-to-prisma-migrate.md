@@ -56,6 +56,10 @@ DIRECT_URL="$PROD_DIRECT_URL" npx prisma migrate status
 
 ## Workflow ใหม่ (หลัง baseline) — แทน `supabase db push`
 
+> **อัปเดต:** หัวข้อนี้เป็นบันทึกตอน baseline (2026-09-15) — workflow ปัจจุบันอยู่ที่ `docs/DEPLOY.md` ส่วน E +
+> Operational: ใช้ `migrate dev --create-only` แล้วลบ `DROP CONSTRAINT …_user_id_fkey` ที่ generate มาเอง (FK ไป
+> `users` ไม่ได้ model ใน `schema.prisma`) และ production build บน Vercel รัน `migrate deploy` ให้เองแล้ว
+
 ทุกครั้งที่แก้ schema:
 ```bash
 # 1) local: แก้ prisma/schema.prisma แล้วสร้าง+apply migration

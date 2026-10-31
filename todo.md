@@ -7,6 +7,16 @@
 - In-app PDF upload: send the PDF to the Claude API for extraction, then reuse the `/body` import
   preview/confirm flow.
 - Strength relative to bodyweight on exercise pages (e1RM ÷ weight at that date).
+- Small UI leftovers: scan report assessments come back in jsonb key order, not the PDF's; the lean-share
+  bar on the Balance card can sum to 99% (per-segment rounding).
+
+## Next — Schema drift (makes plain `prisma migrate dev` unsafe)
+
+`npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` is not empty:
+`schema.prisma` lacks the `user_id → users` FKs, `accounts_user_id_idx` and the expression unique index
+`exercises_user_name_key`, so `migrate dev` generates drops for all of them. Model the FKs/index (relations
+or `prisma db pull`, keeping the expression index raw) until the diff is empty, then simplify the "Known
+drift" note in `CLAUDE.md` and `docs/DEPLOY.md`.
 
 ## Done — Body composition tracking (2026-10-31)
 

@@ -12,5 +12,7 @@ This directory is kept for **historical reference only**. Nothing here is applie
 - `seed.sql` is the one live file: it's still the single source of the preset exercises, executed by
   `prisma/seed.mjs` during `prisma migrate reset` / `prisma db seed`. Leave it here.
 
-**Change the schema:** `prisma migrate dev --name <x>` (local) → commit + push `main` (the Vercel
-production build runs `prisma migrate deploy` before `next build` — see `docs/DEPLOY.md` section E).
+**Change the schema:** `prisma migrate dev --create-only --name <x>`, strip the unintended drops from the
+generated SQL (see the "Known drift" note in `CLAUDE.md`), apply locally with `npm run db:migrate` →
+commit + push `main` (the Vercel production build runs `prisma migrate deploy` before `next build` — see
+`docs/DEPLOY.md` section E).

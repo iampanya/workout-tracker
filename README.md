@@ -1,6 +1,6 @@
 # Weight Training Tracker
 
-A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, and all-time PRs. Built with Next.js 16.3, **Postgres via [Prisma](https://www.prisma.io/)**, **[Auth.js](https://authjs.dev/) (NextAuth v5) with Google sign-in**, Tailwind CSS, and Recharts.
+A weight-training log: routines, per-set weight/reps tracking, progressive-overload charts, all-time PRs, and body-composition tracking from arboleaf smart-scale scans (`/body`). Built with Next.js 16.3, **Postgres via [Prisma](https://www.prisma.io/)**, **[Auth.js](https://authjs.dev/) (NextAuth v5) with Google sign-in**, Tailwind CSS, and Recharts.
 
 **Google sign-in.** Anyone can sign in with a Google account; a profile (username derived from the
 email, plus a personal referral code) is provisioned automatically on first login. Each user's data is
@@ -74,6 +74,9 @@ See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any 
   to scope by `user_id` would leak data, so every service function takes a `userId` and filters by it, and
   there are cross-user isolation tests (e.g. `lib/exercises/service.test.ts`).
 - All weights are stored and displayed in kilograms.
+- Body scans: arboleaf exports an image-only PDF per scan. Ask Claude Code to convert it (project skill
+  `.claude/skills/arboleaf-to-json`) into the import JSON, written to the gitignored `body-scans/`, then
+  paste or pick that file on `/body` → Import scan. Never commit the PDFs or the JSON (health data).
 - The `import_backup` / `gen_referral_code` / `handle_new_user` functions are defined as raw SQL in the
   squashed `prisma/migrations/0001_init`, the schema baseline for both local and production. The
   `exercise_prs` view (per-exercise PR = heaviest working set + most reps at that weight) was redefined in

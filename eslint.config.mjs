@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Supabase CLI's generated scratch files, not part of the app source.
     "supabase/.temp/**",
+    // Other agents' checkouts of this repo (git worktrees), each linted in its own tree.
+    ".claude/worktrees/**",
+    ".worktrees/**",
   ]),
 ]);
 
