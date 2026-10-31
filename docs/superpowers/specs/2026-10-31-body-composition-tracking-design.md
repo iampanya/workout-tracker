@@ -14,7 +14,8 @@ Decisions made in brainstorming:
   upload via Claude API is a later phase that reuses the same preview/confirm flow.
 - Re-importing a scan with the same `measured_at` **replaces** the stored one (lets the user fix misreads).
 - Goals: up to 3 target values, no deadline; "use arboleaf's suggestion" button.
-- New 5th bottom-nav tab "Body".
+- Navigation: **no** new bottom-nav tab (the phone bar is full: 2 links + log FAB + 2 links). Phones reach
+  `/body` from the dashboard Body card and the account menu; the desktop top bar gets a "Body" link.
 
 ## 1. Data model (Prisma migration `body_scans`, expand-only)
 
@@ -27,11 +28,15 @@ Decisions made in brainstorming:
   `body_water_l`, `body_water_pct`, `protein_kg`, `protein_pct`, `bone_mass_kg`, `bone_mass_pct`,
   `visceral_fat`, `subcutaneous_fat_pct`, `subcutaneous_fat_kg`, `bmr_kcal`, `smi`, `waist_hip_ratio`,
   `fitness_score`, `height_cm`, `age`
-- `segments jsonb` — `{ leftArm, rightArm, trunk, leftLeg, rightLeg }`, each
-  `{ leanKg, leanPct, leanEval, fatKg, fatPct, fatEval, muscleRatioPct, fatRatioPct }` (nullable fields)
-- `report jsonb` — everything else for the historical report: `ranges` (per metric `[min,max]`),
-  `evaluations` (nutrition / fat / body balance / body strength checkboxes), `weightControl`
-  `{ normalWeightKg, weightKg, fatKg, muscleKg }`, `advice` (text)
+- `segments jsonb` — `{ left_arm, right_arm, trunk, left_leg, right_leg }`, each
+  `{ lean_kg, lean_pct, lean_eval, fat_kg, fat_pct, fat_eval, muscle_ratio_pct, fat_ratio_pct }` (nullable fields)
+- `report jsonb` — everything else for the historical report: `ranges` (metric key → `[min, max]`, open end
+  `null`), `evaluations` (metric key → the report's verdict, e.g. `"Mild obesity"`), `assessments` (the
+  report's other checklist rows, its own English label → verdict, e.g. `"Lower extremity balance":
+  "Slightly uneven"`), `weight_control` `{ normal_weight_kg, weight_kg, fat_kg, muscle_kg }`, `advice` (text).
+  Verdicts, assessment labels and advice are report content and are shown verbatim (not translated).
+- All metric columns are `numeric(7,2)`. The migration is hand-written SQL (FKs to `users` aren't modeled
+  in `schema.prisma`, so `prisma migrate dev` would try to drop them) and applied with `prisma migrate deploy`.
 
 `body_goals`
 - `id`, `user_id`, `metric text` (`weight_kg` | `body_fat_pct` | `body_fat_kg` | `skeletal_muscle_kg`),
@@ -42,15 +47,17 @@ Prisma `Decimal` → `Number()` at the service boundary (same as `toSetRow`).
 
 ## 2. Import format + flow
 
-JSON (`lib/body/schema.ts`, zod, single source; `version` gate like backup):
+JSON (`lib/body/schema.ts`, zod, single source; `version` gate like backup). Keys are the `body_scans`
+column names (snake_case, like the backup file):
 ```json
 { "version": 1, "source": "arboleaf",
-  "scans": [{ "measuredAt": "2026-10-18T09:58:00+07:00", "weightKg": 74.15, "bmi": 23.4,
-    "bodyFatPct": 23.2, "bodyFatKg": 17.2, "skeletalMuscleKg": 32.11, "visceralFat": 7, "…": "…",
-    "segments": { "leftArm": { "leanKg": 3.1, "leanPct": 94.4, "fatKg": 0.89, "fatPct": 141.8 }, "…": {} },
-    "report": { "ranges": {}, "evaluations": {}, "weightControl": {}, "advice": "…" } }] }
+  "scans": [{ "measured_at": "2026-10-18T09:58:00+07:00", "weight_kg": 74.15, "bmi": 23.4,
+    "body_fat_pct": 23.2, "body_fat_kg": 17.2, "skeletal_muscle_kg": 32.11, "visceral_fat": 7, "…": "…",
+    "segments": { "left_arm": { "lean_kg": 3.1, "lean_pct": 94.4, "fat_kg": 0.89, "fat_pct": 141.8 }, "…": {} },
+    "report": { "ranges": {}, "evaluations": {}, "assessments": {}, "weight_control": {}, "advice": "…" } }] }
 ```
-- `measuredAt` must carry an offset (reject naive timestamps).
+- `measured_at` must carry an offset or `Z` (reject naive timestamps). Missing metrics are `null`/omitted.
+- A present-but-wrong `version` → `unsupportedVersion`; anything else invalid → `invalidFile`.
 - Project skill `.claude/skills/arboleaf-to-json/SKILL.md`: how to read either arboleaf layout, field
   mapping, the schema, a full example built from the 18/10/2026 scan, and "write to `body-scans/*.json`
   (gitignored), never commit".
@@ -58,11 +65,12 @@ JSON (`lib/body/schema.ts`, zod, single source; `version` gate like backup):
   preview (date, core values, "replaces existing" marker) → confirm → server action `importBodyScans`
   (re-validates with the same zod schema) → `lib/body/service.ts::importBodyScansForUser` upserts by
   `(user_id, measured_at)` in one transaction → `revalidatePath('/body')`, `/dashboard`.
-- Errors return codes (`invalidJson`, `invalidSchema`, `unsupportedVersion`) translated in the UI.
+- Errors return codes (`invalidJson`, `invalidFile`, `unsupportedVersion`, `importFailed`) translated in the UI.
 
 ## 3. `/body` page and goals
 
-- Nav: 5th `NAV_ITEMS` entry `{ href: "/body", labelKey: "body", icon: PersonSimple }`.
+- Nav: `TOP_NAV_ITEMS = [...NAV_ITEMS, { href: "/body", labelKey: "body", icon: PersonSimple }]` for the
+  desktop `TopBar`; `BottomNav` keeps `NAV_ITEMS`; `AccountMenu` gets a "Body" item above Profile.
 - Sections: (1) latest snapshot — 4 `StatCard`s (weight, %fat, skeletal muscle, visceral fat) with delta vs
   previous scan, colored by "good direction"; (2) goals — progress bars + edit `Sheet` with "use arboleaf
   suggestion" (from latest `report.weightControl`); (3) trend line chart (recharts, chip toggle
@@ -77,10 +85,11 @@ JSON (`lib/body/schema.ts`, zod, single source; `version` gate like backup):
 ## 4. Training link
 
 - Dashboard "Body" card after the overview stats: latest weight/%fat/skeletal muscle + delta, mini goal
-  bars, "last scan N days ago"; hidden when the user has no scans. Data from
-  `getLatestBodySummary(db, userId)`.
+  bars, "last scan <relative date>". With no scans it's a compact "Track your body composition" link card
+  to `/body` (it's the phone's main way in). Data from `getLatestBodySummary(db, userId)`.
 - Balance card on `/body`:
-  - Left vs right: arm and leg lean kg from the latest scan, % difference, report evaluation badge.
+  - Left vs right: arm and leg lean kg from the latest scan and their % difference. (The report's own
+    balance verdicts are free-form `assessments` labels, so they're shown on the scan report page, not here.)
   - Upper/trunk/lower: lean-mass share (arms / trunk / legs) vs working-set share over the last 4 weeks
     (Arms → arms; Chest/Back/Shoulders/Core → trunk; Legs → legs). Pure mapping + aggregation in
     `lib/body/balance.ts`; set counts via a service query filtered by `user_id`, working sets only.
