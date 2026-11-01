@@ -77,6 +77,8 @@ See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for the full production runbook (any 
 - Body scans: arboleaf exports an image-only PDF per scan. Ask Claude Code to convert it (project skill
   `.claude/skills/arboleaf-to-json`) into the import JSON, written to the gitignored `body-scans/`, then
   paste or pick that file on `/body` → Import scan. Never commit the PDFs or the JSON (health data).
+  Without an arboleaf scale, type a scan in by hand on `/body` (weight required, the rest optional);
+  only hand-entered scans can be edited afterwards.
 - The `import_backup` / `gen_referral_code` / `handle_new_user` functions are defined as raw SQL in the
   squashed `prisma/migrations/0001_init`, the schema baseline for both local and production. The
   `exercise_prs` view (per-exercise PR = heaviest working set + most reps at that weight) was redefined in

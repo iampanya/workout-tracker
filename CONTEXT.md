@@ -87,3 +87,25 @@ _Avoid_: Body part, category.
 The exercises a user did most recently in **completed** workouts, newest first (in-progress workouts
 and archived exercises don't count). Shown at the top of the exercise picker.
 _Avoid_: History (that's the list of workouts), favorites.
+
+### Body composition
+
+**Body scan**:
+One body-composition measurement at a moment in time (`body_scans`, unique per user + `measured_at`):
+weight plus optional metrics such as body fat %, skeletal muscle and visceral fat.
+_Avoid_: Weigh-in (a scan is more than weight), reading.
+
+**Imported scan**:
+A scan from an arboleaf smart-scale PDF, converted to JSON by Claude Code and imported on `/body`. Carries
+per-segment values and the scale's report. Corrected by re-importing (same `measured_at` replaces it),
+not edited.
+_Avoid_: Synced scan (there is no device sync).
+
+**Manual scan**:
+A scan typed in by hand on `/body` (`source = "manual"`). Weight is required; fat mass is derived from
+weight × fat %. The only kind of scan that can be edited.
+_Avoid_: Custom scan.
+
+**Body goal**:
+A target for one body metric (`body_goals`, at most one fat goal), remembering the value it started from.
+_Avoid_: Target weight (a goal may be a fat %, not weight).

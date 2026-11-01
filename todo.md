@@ -10,6 +10,11 @@
 - Small UI leftovers: scan report assessments come back in jsonb key order, not the PDF's; the lean-share
   bar on the Balance card can sum to 99% (per-segment rounding).
 
+## Next — Logging screen
+
+- "เพิ่มโน้ต" (Add note) now sits directly above the sticky action bar, so it is covered until you
+  scroll to the end — the same problem "Add exercise" had. Low priority (used ~once per workout).
+
 ## Next — Schema drift (makes plain `prisma migrate dev` unsafe)
 
 `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` is not empty:
@@ -17,6 +22,18 @@
 `exercises_user_name_key`, so `migrate dev` generates drops for all of them. Model the FKs/index (relations
 or `prisma db pull`, keeping the expression index raw) until the diff is empty, then simplify the "Known
 drift" note in `CLAUDE.md` and `docs/DEPLOY.md`.
+
+## Done — "Add exercise" in the logging action bar (2026-11-01)
+
+The dashed "Add exercise" button sat right above the sticky Finish bar, which covered it until you
+scrolled to the end. It now lives in the bar (`ExercisePicker`'s `trigger` prop): `[rest timer]
+[✓ Finish] [+ Add exercise]`; while resting, or before the first exercise, Finish shrinks to an
+outlined icon so the bar fits a 360 px phone.
+
+## Done — Manual body-scan entry (2026-11-01)
+
+Type a scan in on `/body` without an arboleaf scale (`source = "manual"`): weight required, fat mass
+derived from weight × fat %, duplicate or future times rejected. Only manual scans are editable.
 
 ## Done — Body composition tracking (2026-10-31)
 
