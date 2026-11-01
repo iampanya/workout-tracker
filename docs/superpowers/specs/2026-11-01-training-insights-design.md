@@ -121,8 +121,9 @@ exercises (`exerciseId`, `name`, `muscleGroup`, working sets). All dates are `YY
   the window; every query filters by `user_id`. Returns `{ muscleVolume, trends, deload, consistency,
   hasEnoughData }` where `hasEnoughData` = ≥ 2 completed sessions in the window. No next-auth import.
 - `lib/actions/routines.ts`: `updateRoutineExerciseRepRange` thin action + `revalidatePath`.
-- The add-exercise-to-session path also returns the new exercise's `target` (computed with the default
-  range) so the client can show it without a reload.
+- The add-exercise-to-session action also returns the exercise's `recentSessions`; the client computes
+  its `target` with the pure `nextTarget` (default range, step from the picked exercise's muscle group)
+  so it shows without a reload.
 
 ## 5. UI
 
@@ -135,8 +136,8 @@ exercises (`exerciseId`, `name`, `muscleGroup`, working sets). All dates are `YY
 - New-set inputs prefill from `target`, falling back to `prefillFromLast`.
 
 **Routine page** (`app/(app)/routines/[routineId]/RoutineExerciseRow.tsx`)
-- Rep range min/max controls next to target sets; empty shows the 8–12 default as placeholder; clearing
-  one clears both.
+- A "Rep range" select under target sets: "Default (8–12)" plus presets 3–5, 5–8, 6–10, 8–12, 10–15,
+  12–20, 15–25 (`REP_RANGE_PRESETS`). Picking one sets min and max together; "Default" clears both.
 
 **`/insights`** (`app/(app)/insights/page.tsx`, `loading.tsx` with `PageSkeleton`)
 - `hasEnoughData` false → `EmptyState` only.
