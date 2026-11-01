@@ -2,13 +2,14 @@ import { type ButtonHTMLAttributes, type ComponentProps, type ReactNode } from "
 import Link from "next/link";
 import { CircleNotch } from "@phosphor-icons/react/ssr";
 
-type ButtonVariant = "primary" | "secondary" | "success" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "success" | "successOutline" | "ghost" | "danger";
 type ButtonSize = "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: "bg-accent text-accent-foreground hover:opacity-90",
   secondary: "border border-border bg-surface text-foreground hover:bg-surface-muted",
   success: "bg-success text-success-foreground hover:opacity-90",
+  successOutline: "border border-success text-success hover:bg-success/10",
   ghost: "text-muted hover:text-foreground",
   danger: "text-danger hover:bg-danger/10",
 };

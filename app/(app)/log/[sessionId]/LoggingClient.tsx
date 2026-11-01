@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMutation } from "@tanstack/react-query";
-import { CheckCircle, Trash, Trophy } from "@phosphor-icons/react/ssr";
+import { CheckCircle, Plus, Trash, Trophy } from "@phosphor-icons/react/ssr";
 import {
   logSet,
   updateSet,
@@ -71,6 +71,7 @@ export function LoggingClient({
   const tc = useTranslations("common");
   const t = useTranslations("log");
   const te = useTranslations("errors");
+  const tp = useTranslations("picker");
   const format = useFormatter();
   const [exercises, setExercises] = useState(initialExercises);
   const [expandedId, setExpandedId] = useState(() => initialExpandedId(initialExercises));
@@ -341,6 +342,8 @@ export function LoggingClient({
     }
   }
 
+  const resting = restStartedAt !== null;
+  const compactFinish = resting || exercises.length === 0;
   const removeTarget =
     exercises.find((e) => e.sessionExerciseId === confirmRemoveExerciseId) ?? null;
 
@@ -396,32 +399,84 @@ export function LoggingClient({
         </p>
       )}
 
-      {availableExercises.length > 0 && (
-        <ExercisePicker
-          exercises={availableExercises}
-          recentIds={recentExerciseIds}
-          addedIds={exercises.map((e) => e.exerciseId)}
-          onAdd={handleAddExercise}
-        />
-      )}
-
       <SessionNotes sessionId={sessionId} initialNotes={initialNotes} />
 
-      {/* Sticky action bar: rest timer + Finish, kept in reach however long the workout gets.
-          Sits just above the mobile BottomNav (whose log FAB is hidden on this screen). */}
+      {/* Sticky action bar: rest timer + Finish + Add exercise, kept in reach however long the
+          workout gets. Add exercise lives here, not after the list, because a bottom-sticky bar
+          covers whatever sits just above it until you scroll to the very end; it's the most
+          frequent action, so it gets the biggest target in the thumb's corner (far right). Sits
+          just above the mobile BottomNav (whose log FAB is hidden on this screen). */}
       <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 lg:bottom-4">
         <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
           <RestTimer startedAt={restStartedAt} onClear={() => setRestStartedAt(null)} />
-          <Button
-            variant="success"
-            size="lg"
-            icon={<CheckCircle className="h-5 w-5" />}
-            loading={finishPending}
-            onClick={handleFinish}
-            className="min-w-0 flex-1"
-          >
-            {t("finish")}
-          </Button>
+          {/* A running rest timer (or the labelled Add) leaves no room for "Finish" on a phone,
+              so it collapses to its icon then — finishing is rare mid-rest or with no exercises.
+              Outlined, so it doesn't read like the filled "+" right next to it: Finish has no
+              confirm step. `!`: size="lg" adds px-5, which would win and squeeze the icon. */}
+          {compactFinish ? (
+            <Button
+              variant="successOutline"
+              size="lg"
+              icon={<CheckCircle className="h-5 w-5" />}
+              aria-label={t("finish")}
+              loading={finishPending}
+              onClick={handleFinish}
+              className="ml-auto w-12 shrink-0 px-0!"
+            />
+          ) : (
+            <Button
+              variant="success"
+              size="lg"
+              icon={<CheckCircle className="h-5 w-5 shrink-0" />}
+              loading={finishPending}
+              onClick={handleFinish}
+              // nowrap: on a 360px phone it's ~10px short and would break "จบการฝึก" onto two
+              // lines; the overflow just eats into its own padding instead.
+              className="min-w-0 flex-1 whitespace-nowrap"
+            >
+              {t("finish")}
+            </Button>
+          )}
+          {availableExercises.length > 0 && (
+            <ExercisePicker
+              exercises={availableExercises}
+              recentIds={recentExerciseIds}
+              addedIds={exercises.map((e) => e.exerciseId)}
+              onAdd={handleAddExercise}
+              trigger={(open) =>
+                // Labelled while the workout is empty — it's the only next step.
+                exercises.length === 0 ? (
+                  <Button
+                    size="lg"
+                    icon={<Plus className="h-5 w-5" />}
+                    onClick={open}
+                    className="ml-1 min-w-0 flex-1"
+                  >
+                    {tp("addExercise")}
+                  </Button>
+                ) : resting ? (
+                  // The running timer leaves no room for the label (same as Finish).
+                  <Button
+                    size="lg"
+                    icon={<Plus className="h-5 w-5" weight="bold" />}
+                    aria-label={tp("addExercise")}
+                    onClick={open}
+                    className="ml-1 w-14 shrink-0 px-0!"
+                  />
+                ) : (
+                  // Tighter padding so it fits beside the labelled Finish on a 375px phone.
+                  <Button
+                    size="lg"
+                    icon={<Plus className="h-4 w-4" weight="bold" />}
+                    onClick={open}
+                    className="ml-1 shrink-0 px-3!"
+                  >
+                    {tp("addExercise")}
+                  </Button>
+                )
+              }
+            />
+          )}
         </div>
       </div>
 

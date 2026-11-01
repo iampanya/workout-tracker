@@ -49,6 +49,7 @@ export function ExercisePicker({
   addedIds,
   onAdd,
   triggerLabel,
+  trigger,
 }: {
   exercises: ExerciseOption[];
   /** Most recently done first. */
@@ -58,6 +59,8 @@ export function ExercisePicker({
   /** Adds the exercise; throw to surface an error in the sheet. */
   onAdd: (exercise: ExerciseOption) => Promise<void>;
   triggerLabel?: string;
+  /** Replaces the default full-width dashed button; call `open` to show the sheet. */
+  trigger?: (open: () => void) => ReactNode;
 }) {
   const t = useTranslations("picker");
   const tc = useTranslations("common");
@@ -233,14 +236,18 @@ export function ExercisePicker({
 
   return (
     <>
-      <Button
-        variant="secondary"
-        icon={<Plus className="h-4 w-4" />}
-        onClick={openSheet}
-        className="w-full border-dashed"
-      >
-        {title}
-      </Button>
+      {trigger ? (
+        trigger(openSheet)
+      ) : (
+        <Button
+          variant="secondary"
+          icon={<Plus className="h-4 w-4" />}
+          onClick={openSheet}
+          className="w-full border-dashed"
+        >
+          {title}
+        </Button>
+      )}
 
       <Sheet open={open} onClose={() => setOpen(false)} labelledBy={titleId}>
         <div className="flex shrink-0 justify-center pt-2 sm:hidden" aria-hidden="true">
