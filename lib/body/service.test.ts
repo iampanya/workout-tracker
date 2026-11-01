@@ -11,6 +11,7 @@ import {
 } from "@/lib/sessions/service";
 import {
   BodyImportError,
+  BodyManualError,
   countWorkingSetsByMuscleGroup,
   deleteBodyScanForUser,
   getBodyScan,
@@ -19,6 +20,7 @@ import {
   listBodyGoals,
   listBodyScans,
   replaceBodyGoalsForUser,
+  saveManualBodyScanForUser,
 } from "./service";
 
 const file = (...scans: unknown[]) => ({ version: 1, source: "arboleaf", scans });
@@ -119,6 +121,109 @@ describe("body scans service", () => {
       latest: { weight_kg: 80 },
       previous: { weight_kg: 82 },
     });
+  });
+});
+
+describe("manual body scans", () => {
+  const manual = (overrides: Record<string, unknown> = {}) => ({
+    measured_at: "2026-10-18T07:30:00+07:00",
+    weight_kg: 80,
+    ...overrides,
+  });
+
+  it("creates a manual scan with fat mass derived from weight × fat %", async () => {
+    const { userId } = await createTestUser();
+    const id = await saveManualBodyScanForUser(prisma, userId, manual({ body_fat_pct: 22, visceral_fat: 8 }));
+    expect(await getBodyScan(prisma, userId, id)).toMatchObject({
+      source: "manual",
+      measured_at: "2026-10-18T00:30:00.000Z",
+      weight_kg: 80,
+      body_fat_pct: 22,
+      body_fat_kg: 17.6,
+      visceral_fat: 8,
+      skeletal_muscle_kg: null,
+      segments: null,
+      report: null,
+    });
+  });
+
+  it("an edit replaces every value and can move the time", async () => {
+    const { userId } = await createTestUser();
+    const id = await saveManualBodyScanForUser(prisma, userId, manual({ body_fat_pct: 22, bmi: 24 }));
+    const updated = await saveManualBodyScanForUser(
+      prisma,
+      userId,
+      manual({ measured_at: "2026-10-18T08:00:00+07:00", weight_kg: 79 }),
+      id
+    );
+    expect(updated).toBe(id);
+    const scans = await listBodyScans(prisma, userId);
+    expect(scans).toHaveLength(1);
+    expect(scans[0]).toMatchObject({
+      id,
+      measured_at: "2026-10-18T01:00:00.000Z",
+      weight_kg: 79,
+      body_fat_pct: null,
+      body_fat_kg: null,
+      bmi: null,
+    });
+  });
+
+  it("rejects a time another scan already has, on create and on edit", async () => {
+    const { userId } = await createTestUser();
+    await importBodyScansForUser(prisma, userId, file(sampleScan({ measured_at: "2026-10-18T07:30:00+07:00" })));
+    await expect(saveManualBodyScanForUser(prisma, userId, manual())).rejects.toMatchObject({ code: "duplicateTime" });
+
+    const id = await saveManualBodyScanForUser(prisma, userId, manual({ measured_at: "2026-10-19T07:30:00+07:00" }));
+    await expect(saveManualBodyScanForUser(prisma, userId, manual(), id)).rejects.toMatchObject({
+      code: "duplicateTime",
+    });
+    // Saving at its own time is not a duplicate.
+    await saveManualBodyScanForUser(prisma, userId, manual({ measured_at: "2026-10-19T07:30:00+07:00", weight_kg: 81 }), id);
+    expect((await getBodyScan(prisma, userId, id))?.weight_kg).toBe(81);
+  });
+
+  it("rejects future times and invalid input with a translatable code", async () => {
+    const { userId } = await createTestUser();
+    await expect(
+      saveManualBodyScanForUser(prisma, userId, manual({ measured_at: "2099-01-01T07:00:00+07:00" }))
+    ).rejects.toMatchObject({ code: "futureTime" });
+    await expect(saveManualBodyScanForUser(prisma, userId, manual({ weight_kg: 0 }))).rejects.toBeInstanceOf(
+      BodyManualError
+    );
+    await expect(saveManualBodyScanForUser(prisma, userId, manual({ body_fat_pct: 120 }))).rejects.toMatchObject({
+      code: "invalid",
+    });
+    expect(await listBodyScans(prisma, userId)).toEqual([]);
+  });
+
+  it("can't edit an imported scan", async () => {
+    const { userId } = await createTestUser();
+    await importBodyScansForUser(prisma, userId, file(sampleScan()));
+    const [imported] = await listBodyScans(prisma, userId);
+    await expect(
+      saveManualBodyScanForUser(prisma, userId, manual({ measured_at: "2026-10-20T07:00:00+07:00" }), imported.id)
+    ).rejects.toMatchObject({ code: "notFound" });
+    expect((await getBodyScan(prisma, userId, imported.id))?.segments).not.toBeNull();
+  });
+
+  it("isolation: never edits another user's scan, and their times don't collide", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+    const theirs = await saveManualBodyScanForUser(prisma, b.userId, manual());
+
+    await expect(
+      saveManualBodyScanForUser(prisma, a.userId, manual({ weight_kg: 60 }), theirs)
+    ).rejects.toMatchObject({ code: "notFound" });
+    await expect(
+      saveManualBodyScanForUser(prisma, a.userId, manual({ weight_kg: 60 }), "not-a-uuid")
+    ).rejects.toMatchObject({ code: "notFound" });
+    expect((await getBodyScan(prisma, b.userId, theirs))?.weight_kg).toBe(80);
+
+    // The same time is free for A.
+    const mine = await saveManualBodyScanForUser(prisma, a.userId, manual({ weight_kg: 60 }));
+    expect(mine).not.toBe(theirs);
+    expect((await listBodyScans(prisma, a.userId)).map((s) => s.weight_kg)).toEqual([60]);
   });
 });
 

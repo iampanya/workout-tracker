@@ -1,5 +1,13 @@
 import { afterEach, describe, it, expect } from "vitest";
-import { addDays, getTodayString, getWeekStart, getWeekEnd, toDateOnlyString } from "./date";
+import {
+  addDays,
+  fromZonedDateTimeInput,
+  getTodayString,
+  getWeekStart,
+  getWeekEnd,
+  toDateOnlyString,
+  toZonedDateTimeInput,
+} from "./date";
 import { computeStreakDays } from "./dashboard/streak";
 
 describe("getTodayString", () => {
@@ -67,6 +75,37 @@ describe("getWeekStart / getWeekEnd", () => {
   });
 });
 
+describe("toZonedDateTimeInput / fromZonedDateTimeInput", () => {
+  it("formats an instant as a datetime-local value in Bangkok by default", () => {
+    expect(toZonedDateTimeInput(new Date("2026-10-11T17:30:00Z"))).toBe("2026-10-12T00:30");
+    expect(toZonedDateTimeInput(new Date("2026-10-11T17:30:00Z"), "UTC")).toBe("2026-10-11T17:30");
+  });
+
+  it("reads a datetime-local value as Bangkok wall time, with the zone's offset", () => {
+    const iso = fromZonedDateTimeInput("2026-10-12T00:30");
+    expect(iso).toBe("2026-10-12T00:30:00+07:00");
+    expect(new Date(iso!).toISOString()).toBe("2026-10-11T17:30:00.000Z");
+  });
+
+  it("uses the offset in effect at that wall time in a DST zone", () => {
+    expect(fromZonedDateTimeInput("2026-01-15T09:00", "America/Los_Angeles")).toBe("2026-01-15T09:00:00-08:00");
+    expect(fromZonedDateTimeInput("2026-07-15T09:00", "America/Los_Angeles")).toBe("2026-07-15T09:00:00-07:00");
+    expect(fromZonedDateTimeInput("2026-07-15T09:00", "UTC")).toBe("2026-07-15T09:00:00+00:00");
+  });
+
+  it("round-trips", () => {
+    const local = toZonedDateTimeInput(new Date("2026-12-31T18:05:00Z"));
+    expect(local).toBe("2027-01-01T01:05");
+    expect(new Date(fromZonedDateTimeInput(local)!).toISOString()).toBe("2026-12-31T18:05:00.000Z");
+  });
+
+  it("returns null for anything that isn't a YYYY-MM-DDTHH:mm value", () => {
+    expect(fromZonedDateTimeInput("")).toBeNull();
+    expect(fromZonedDateTimeInput("2026-10-12")).toBeNull();
+    expect(fromZonedDateTimeInput("2026-13-40T25:00")).toBeNull();
+  });
+});
+
 // Vercel runs in UTC, a dev machine may be anywhere: none of the helpers may read the process's
 // local time zone. Node re-reads process.env.TZ, so switching it changes local-time Date methods.
 describe("independence from the runtime time zone", () => {
@@ -84,6 +123,8 @@ describe("independence from the runtime time zone", () => {
       expect(getWeekStart("2026-10-11")).toBe("2026-10-05");
       expect(getWeekEnd("2026-11-01")).toBe("2026-11-01"); // US DST end, a Sunday
       expect(computeStreakDays(["2026-03-07", "2026-03-08", "2026-03-09"], "2026-03-09")).toBe(3);
+      expect(toZonedDateTimeInput(instant)).toBe("2026-10-12T00:30");
+      expect(fromZonedDateTimeInput("2026-10-12T00:30")).toBe("2026-10-12T00:30:00+07:00");
     });
   }
 });

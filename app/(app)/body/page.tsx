@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LatestSnapshot } from "./LatestSnapshot";
 import { ImportScanSheet } from "./ImportScanSheet";
+import { ManualScanSheet } from "./ManualScanSheet";
 import { GoalsCard } from "./GoalsCard";
 import { TrendChart } from "./TrendChart";
 import { BalanceCard } from "./BalanceCard";
@@ -42,7 +43,12 @@ export default async function BodyPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        {latest && <ImportScanSheet existingMeasuredAt={existingMeasuredAt} />}
+        {latest && (
+          <div className="flex flex-wrap justify-end gap-2">
+            <ManualScanSheet latestWeight={latest.weight_kg} />
+            <ImportScanSheet existingMeasuredAt={existingMeasuredAt} />
+          </div>
+        )}
       </div>
 
       {!latest ? (
@@ -50,7 +56,12 @@ export default async function BodyPage() {
           icon={<PersonSimple className="h-6 w-6" />}
           title={t("emptyTitle")}
           description={t("emptyDescription")}
-          action={<ImportScanSheet existingMeasuredAt={existingMeasuredAt} variant="primary" />}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <ManualScanSheet variant="primary" />
+              <ImportScanSheet existingMeasuredAt={existingMeasuredAt} />
+            </div>
+          }
         />
       ) : (
         <>

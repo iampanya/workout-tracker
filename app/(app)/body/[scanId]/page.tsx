@@ -8,6 +8,7 @@ import { SCAN_METRIC_KEYS, SEGMENT_KEYS } from "@/lib/body/schema";
 import { formatSessionDate } from "@/lib/sessions/summary";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { ManualScanSheet } from "../ManualScanSheet";
 import { DeleteScanButton } from "./DeleteScanButton";
 
 const WEIGHT_CONTROL_KEYS = ["normal_weight_kg", "weight_kg", "fat_kg", "muscle_kg"] as const;
@@ -47,7 +48,10 @@ export default async function BodyScanPage({ params }: { params: Promise<{ scanI
           <h1 className="text-2xl font-semibold">{t("detailTitle")}</h1>
           <p className="text-sm text-muted">{dateLabel}</p>
         </div>
-        <DeleteScanButton scanId={scan.id} dateLabel={dateLabel} />
+        <div className="flex items-start gap-1">
+          {scan.source === "manual" && <ManualScanSheet scan={scan} />}
+          <DeleteScanButton scanId={scan.id} dateLabel={dateLabel} />
+        </div>
       </div>
 
       <section className="space-y-2">

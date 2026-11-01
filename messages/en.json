@@ -179,7 +179,12 @@
       "unsupportedVersion": "Unsupported import version.",
       "importFailed": "Could not import the scan.",
       "deleteScan": "Failed to delete the scan.",
-      "saveGoals": "Failed to save goals."
+      "saveGoals": "Failed to save goals.",
+      "invalid": "Check the values — one of them isn't valid.",
+      "duplicateTime": "Another scan is already saved at this time.",
+      "futureTime": "The time can't be in the future.",
+      "notFound": "This scan can't be edited.",
+      "saveFailed": "Could not save the scan."
     }
   },
   "landing": {
@@ -370,7 +375,7 @@
     "measuredOn": "Measured {date}",
     "history": "Scans",
     "emptyTitle": "No scans yet",
-    "emptyDescription": "Import your first scale report to start tracking.",
+    "emptyDescription": "Enter your weight and body fat, or import a scale report, to start tracking.",
     "importButton": "Import scan",
     "importTitle": "Import a scale scan",
     "importHelp": "Paste the JSON Claude Code made from your arboleaf PDF, or choose the .json file.",
@@ -379,9 +384,17 @@
     "importPreview": "Check before saving",
     "importConfirm": "Save {count, plural, one {# scan} other {# scans}}",
     "importReplaces": "Replaces saved",
+    "manualButton": "Add",
+    "manualTitle": "Enter a scan",
+    "manualEditTitle": "Edit scan",
+    "measuredAt": "Measured at",
+    "moreValues": "More values",
+    "fewerValues": "Fewer values",
+    "fatKgDerived": "Fat mass {value} kg (weight × fat %)",
+    "editLabel": "Edit scan",
     "trend": "Trend",
     "trendLabel": "Chart metric",
-    "trendNeedsMore": "Import another scan to see a trend.",
+    "trendNeedsMore": "Add another scan to see a trend.",
     "goalLine": "Goal",
     "trendMetrics": {
       "weight_kg": "Weight",

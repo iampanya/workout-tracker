@@ -179,7 +179,12 @@
       "unsupportedVersion": "ไม่รองรับเวอร์ชันของไฟล์นำเข้านี้",
       "importFailed": "นำเข้าผลชั่งไม่สำเร็จ",
       "deleteScan": "ลบผลชั่งไม่สำเร็จ",
-      "saveGoals": "บันทึกเป้าหมายไม่สำเร็จ"
+      "saveGoals": "บันทึกเป้าหมายไม่สำเร็จ",
+      "invalid": "ตรวจสอบค่าที่กรอก มีบางช่องไม่ถูกต้อง",
+      "duplicateTime": "มีผลชั่งที่บันทึกไว้ในเวลานี้แล้ว",
+      "futureTime": "เวลาที่ชั่งต้องไม่เป็นเวลาในอนาคต",
+      "notFound": "แก้ไขผลชั่งนี้ไม่ได้",
+      "saveFailed": "บันทึกผลชั่งไม่สำเร็จ"
     }
   },
   "landing": {
@@ -370,7 +375,7 @@
     "measuredOn": "ชั่งเมื่อ {date}",
     "history": "ประวัติการชั่ง",
     "emptyTitle": "ยังไม่มีผลชั่ง",
-    "emptyDescription": "นำเข้ารายงานจากเครื่องชั่งครั้งแรกเพื่อเริ่มติดตาม",
+    "emptyDescription": "กรอกน้ำหนักและไขมันเอง หรือนำเข้ารายงานจากเครื่องชั่ง เพื่อเริ่มติดตาม",
     "importButton": "นำเข้าผลชั่ง",
     "importTitle": "นำเข้าผลชั่ง",
     "importHelp": "วาง JSON ที่ Claude Code สร้างจาก PDF ของ arboleaf หรือเลือกไฟล์ .json",
@@ -379,9 +384,17 @@
     "importPreview": "ตรวจสอบก่อนบันทึก",
     "importConfirm": "บันทึก {count, plural, other {# ครั้ง}}",
     "importReplaces": "แทนที่ของเดิม",
+    "manualButton": "กรอกเอง",
+    "manualTitle": "กรอกผลชั่งเอง",
+    "manualEditTitle": "แก้ไขผลชั่ง",
+    "measuredAt": "วันและเวลาที่ชั่ง",
+    "moreValues": "ค่าอื่นๆ เพิ่มเติม",
+    "fewerValues": "ซ่อนค่าเพิ่มเติม",
+    "fatKgDerived": "มวลไขมัน {value} kg (คำนวณจากน้ำหนัก × % ไขมัน)",
+    "editLabel": "แก้ไขผลชั่ง",
     "trend": "แนวโน้ม",
     "trendLabel": "ค่าที่แสดงในกราฟ",
-    "trendNeedsMore": "นำเข้าผลชั่งอีกครั้งเพื่อดูแนวโน้ม",
+    "trendNeedsMore": "เพิ่มผลชั่งอีกครั้งเพื่อดูแนวโน้ม",
     "goalLine": "เป้าหมาย",
     "trendMetrics": {
       "weight_kg": "น้ำหนัก",

@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient, type body_goals, type body_scans } from "@prisma/client";
 import { z } from "zod";
+import { deriveManualMetrics, manualScanInputSchema, type ManualMetrics } from "./manual";
 import { toScanDateString } from "./metrics";
 import {
   GOAL_METRICS,
@@ -38,6 +39,22 @@ export class BodyImportError extends Error {
     this.name = "BodyImportError";
   }
 }
+
+export type BodyManualErrorCode = "invalid" | "duplicateTime" | "futureTime" | "notFound";
+
+// A rejected manual entry; `code` is translated by the UI (errors.body.*).
+export class BodyManualError extends Error {
+  constructor(
+    public readonly code: BodyManualErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "BodyManualError";
+  }
+}
+
+// A device clock a little ahead of the server's shouldn't block "now".
+const FUTURE_SLACK_MS = 5 * 60_000;
 
 function toBodyScan(row: body_scans): BodyScan {
   const metrics = {} as Record<ScanMetricKey, number | null>;
@@ -99,6 +116,65 @@ export async function importBodyScansForUser(
     },
     { timeout: 30_000 }
   );
+}
+
+// Creates a manual scan, or replaces every value of one (with `scanId`). Only source "manual"
+// rows can be edited — an imported scan is fixed by re-importing, so its segments/report stay.
+// A time another of the user's scans already has is rejected rather than overwriting it.
+export async function saveManualBodyScanForUser(
+  db: PrismaClient,
+  userId: string,
+  raw: unknown,
+  scanId?: string
+): Promise<string> {
+  const parsed = manualScanInputSchema.safeParse(raw);
+  if (!parsed.success) throw new BodyManualError("invalid", "Invalid manual body scan");
+  const measuredAt = new Date(parsed.data.measured_at);
+  if (measuredAt.getTime() > Date.now() + FUTURE_SLACK_MS) {
+    throw new BodyManualError("futureTime", "Manual body scan is in the future");
+  }
+  if (scanId !== undefined && !z.uuid().safeParse(scanId).success) {
+    throw new BodyManualError("notFound", "Body scan not found or not editable");
+  }
+
+  try {
+    return await saveManualInTransaction(db, userId, measuredAt, deriveManualMetrics(parsed.data), scanId);
+  } catch (err) {
+    // A concurrent save that slipped past the clash check hits unique(user_id, measured_at).
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new BodyManualError("duplicateTime", "Another scan has this measured_at");
+    }
+    throw err;
+  }
+}
+
+function saveManualInTransaction(
+  db: PrismaClient,
+  userId: string,
+  measuredAt: Date,
+  metrics: ManualMetrics,
+  scanId: string | undefined
+): Promise<string> {
+  return db.$transaction(async (tx) => {
+    const clash = await tx.body_scans.findFirst({
+      where: { user_id: userId, measured_at: measuredAt, ...(scanId ? { id: { not: scanId } } : {}) },
+      select: { id: true },
+    });
+    if (clash) throw new BodyManualError("duplicateTime", "Another scan has this measured_at");
+
+    const data = { measured_at: measuredAt, ...metrics };
+    if (!scanId) {
+      const row = await tx.body_scans.create({
+        data: { user_id: userId, source: "manual", segments: Prisma.DbNull, report: Prisma.DbNull, ...data },
+        select: { id: true },
+      });
+      return row.id;
+    }
+    // Scoped by user_id and source; count === 0 means missing, imported, or not theirs.
+    const result = await tx.body_scans.updateMany({ where: { id: scanId, user_id: userId, source: "manual" }, data });
+    if (result.count === 0) throw new BodyManualError("notFound", "Body scan not found or not editable");
+    return scanId;
+  });
 }
 
 // Oldest first (chart order); the history list reverses it.

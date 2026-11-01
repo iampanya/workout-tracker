@@ -5,9 +5,12 @@ import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import {
   BodyImportError,
+  BodyManualError,
   deleteBodyScanForUser,
   importBodyScansForUser,
   replaceBodyGoalsForUser,
+  saveManualBodyScanForUser,
+  type BodyManualErrorCode,
 } from "@/lib/body/service";
 import type { BodyImportErrorCode } from "@/lib/body/schema";
 
@@ -32,6 +35,25 @@ export async function importBodyScans(rawFile: unknown): Promise<BodyImportResul
     if (err instanceof BodyImportError) return { error: err.code, imported: 0, replaced: 0 };
     console.error(err);
     return { error: "importFailed", imported: 0, replaced: 0 };
+  }
+}
+
+export type ManualBodyScanResult =
+  | { error: null; id: string }
+  | { error: BodyManualErrorCode | "saveFailed"; id: null };
+
+// Without `scanId` creates a manual scan; with it, edits that (manual) scan.
+export async function saveManualBodyScan(input: unknown, scanId?: string): Promise<ManualBodyScanResult> {
+  const userId = await requireUserId();
+  try {
+    const id = await saveManualBodyScanForUser(prisma, userId, input, scanId);
+    revalidateBody();
+    revalidatePath(`/body/${id}`);
+    return { error: null, id };
+  } catch (err) {
+    if (err instanceof BodyManualError) return { error: err.code, id: null };
+    console.error(err);
+    return { error: "saveFailed", id: null };
   }
 }
 
