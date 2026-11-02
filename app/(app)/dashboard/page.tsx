@@ -12,6 +12,7 @@ import {
   listTopPrs,
 } from "@/lib/dashboard/service";
 import { getLatestBodySummary, listBodyGoals } from "@/lib/body/service";
+import { getInsights } from "@/lib/insights/service";
 import { listCompletedSessions, sessionDisplayName } from "@/lib/sessions/history";
 import { formatRelativeDate, splitDuration } from "@/lib/sessions/summary";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +21,7 @@ import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { BodyCard } from "./BodyCard";
 import { DiscardSessionButton } from "./DiscardSessionButton";
+import { InsightsCard } from "./InsightsCard";
 import { WeeklyVolumeChart } from "./WeeklyVolumeChart";
 
 const MAX_PRS = 6;
@@ -27,7 +29,7 @@ const MAX_PRS = 6;
 export default async function DashboardPage() {
   const user = await getAuthUser();
   const today = getTodayString();
-  const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts, bodySummary, bodyGoals] =
+  const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts, bodySummary, bodyGoals, insights] =
     await Promise.all([
       getInProgressSessions(),
       listPrsFromLastCompletedSession(prisma, user!.id),
@@ -37,6 +39,7 @@ export default async function DashboardPage() {
       listCompletedSessions(prisma, user!.id, { take: 5 }),
       getLatestBodySummary(prisma, user!.id),
       listBodyGoals(prisma, user!.id),
+      getInsights(prisma, user!.id, today),
     ]);
   const [locale, tc, t, format] = await Promise.all([
     getLocale(),
@@ -118,6 +121,11 @@ export default async function DashboardPage() {
       <section className="space-y-2">
         <h2 className="font-medium">{t("bodyTitle")}</h2>
         <BodyCard summary={bodySummary} goals={bodyGoals} today={today} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">{t("insightsTitle")}</h2>
+        <InsightsCard insights={insights} />
       </section>
 
       {hasWeeklyVolume && (

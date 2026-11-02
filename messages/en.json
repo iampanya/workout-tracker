@@ -79,7 +79,8 @@
     "logAWorkout": "Log a workout",
     "resume": "Resume",
     "log": "Log",
-    "body": "Body"
+    "body": "Body",
+    "insights": "Insights"
   },
   "account": {
     "menu": "Account menu",
@@ -89,7 +90,8 @@
     "logOut": "Log out",
     "logOutTitle": "Log out?",
     "logOutDescription": "You'll need to sign in with Google again to get back in.",
-    "body": "Body"
+    "body": "Body",
+    "insights": "Insights"
   },
   "muscle": {
     "Chest": "Chest",
@@ -146,7 +148,11 @@
     "bodyTitle": "Body",
     "bodyLastScan": "Last scan: {when}",
     "bodyEmptyTitle": "Track your body composition",
-    "bodyEmptyDescription": "Import a scale report to see weight, fat and muscle next to your training."
+    "bodyEmptyDescription": "Import a scale report to see weight, fat and muscle next to your training.",
+    "insightsTitle": "Insights",
+    "insightsEmpty": "Finish a couple of workouts to unlock your analysis.",
+    "insightsDeload": "Several lifts are trending down — consider a lighter week.",
+    "insightsSummary": "{plateaus, plural, =0 {No plateaus} one {# plateau} other {# plateaus}} · {low, plural, =0 {volume on target} one {# muscle group low} other {# muscle groups low}}"
   },
   "errors": {
     "addExercise": "Failed to add exercise",
