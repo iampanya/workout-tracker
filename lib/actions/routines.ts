@@ -10,7 +10,9 @@ import {
   removeRoutineExerciseForUser,
   moveRoutineExerciseForUser,
   updateRoutineExerciseTargetSetsForUser,
+  updateRoutineExerciseRepRangeForUser,
 } from "@/lib/routines/service";
+import type { RepRange } from "@/lib/insights/progression";
 
 export async function createRoutine(input: unknown) {
   const userId = await requireUserId();
@@ -56,5 +58,15 @@ export async function updateRoutineExerciseTargetSets(
 ) {
   const userId = await requireUserId();
   await updateRoutineExerciseTargetSetsForUser(prisma, userId, routineExerciseId, { targetSets });
+  revalidatePath(`/routines/${routineId}`);
+}
+
+export async function updateRoutineExerciseRepRange(
+  routineExerciseId: string,
+  routineId: string,
+  repRange: RepRange | null
+) {
+  const userId = await requireUserId();
+  await updateRoutineExerciseRepRangeForUser(prisma, userId, routineExerciseId, { repRange });
   revalidatePath(`/routines/${routineId}`);
 }

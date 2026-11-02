@@ -157,6 +157,7 @@
     "moveExercise": "Failed to move exercise",
     "removeExercise": "Failed to remove exercise",
     "updateTargetSets": "Failed to update target sets",
+    "updateRepRange": "Failed to update rep range",
     "startWorkout": "Failed to start workout",
     "finishWorkout": "Failed to finish workout",
     "discardWorkout": "Failed to discard workout",
@@ -308,6 +309,9 @@
   },
   "routines": {
     "title": "Routines",
+    "repRange": "Rep range",
+    "repRangeDefault": "Default ({min}–{max} reps)",
+    "repRangeOption": "{min}–{max} reps",
     "emptyTitle": "No routines yet",
     "emptyDescription": "Create one above to line up your exercises before a workout.",
     "nameLabel": "Routine name",

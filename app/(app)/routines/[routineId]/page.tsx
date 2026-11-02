@@ -62,6 +62,11 @@ export default async function RoutineEditorPage({
               name={entry.exercise.name}
               muscleGroup={entry.exercise.muscle_group}
               targetSets={entry.target_sets}
+              repRange={
+                entry.target_reps_min !== null && entry.target_reps_max !== null
+                  ? { min: entry.target_reps_min, max: entry.target_reps_max }
+                  : null
+              }
               isFirst={index === 0}
               isLast={index === exercises.length - 1}
             />

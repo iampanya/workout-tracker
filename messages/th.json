@@ -157,6 +157,7 @@
     "moveExercise": "เลื่อนท่าไม่สำเร็จ",
     "removeExercise": "เอาท่าออกไม่สำเร็จ",
     "updateTargetSets": "อัปเดตเซ็ตเป้าหมายไม่สำเร็จ",
+    "updateRepRange": "อัปเดตช่วงจำนวนครั้งไม่สำเร็จ",
     "startWorkout": "เริ่มการฝึกไม่สำเร็จ",
     "finishWorkout": "จบการฝึกไม่สำเร็จ",
     "discardWorkout": "ยกเลิกการฝึกไม่สำเร็จ",
@@ -308,6 +309,9 @@
   },
   "routines": {
     "title": "โปรแกรม",
+    "repRange": "ช่วงจำนวนครั้ง",
+    "repRangeDefault": "ค่าเริ่มต้น ({min}–{max} ครั้ง)",
+    "repRangeOption": "{min}–{max} ครั้ง",
     "emptyTitle": "ยังไม่มีโปรแกรม",
     "emptyDescription": "สร้างโปรแกรมด้านบนเพื่อจัดลำดับท่าก่อนเริ่มฝึก",
     "nameLabel": "ชื่อโปรแกรม",

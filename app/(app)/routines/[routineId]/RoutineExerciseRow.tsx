@@ -7,13 +7,22 @@ import {
   removeRoutineExercise,
   moveRoutineExercise,
   updateRoutineExerciseTargetSets,
+  updateRoutineExerciseRepRange,
 } from "@/lib/actions/routines";
+import {
+  DEFAULT_REP_RANGE,
+  REP_RANGE_PRESETS,
+  parseRepRange,
+  repRangeValue,
+  type RepRange,
+} from "@/lib/insights/progression";
 import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { muscleLabel } from "@/components/ui/muscle";
 
-type PendingAction = "up" | "down" | "remove" | "target" | null;
+type PendingAction = "up" | "down" | "remove" | "target" | "repRange" | null;
 
 const MAX_TARGET_SETS = 20;
 
@@ -23,6 +32,7 @@ export function RoutineExerciseRow({
   name,
   muscleGroup,
   targetSets,
+  repRange: initialRepRange,
   isFirst,
   isLast,
 }: {
@@ -31,6 +41,7 @@ export function RoutineExerciseRow({
   name: string;
   muscleGroup: string | null;
   targetSets: number | null;
+  repRange: RepRange | null;
   isFirst: boolean;
   isLast: boolean;
 }) {
@@ -43,11 +54,17 @@ export function RoutineExerciseRow({
   const [confirmRemove, setConfirmRemove] = useState(false);
   // Optimistic target so rapid taps feel instant; the server value replaces it on revalidate.
   const [target, setTarget] = useState(targetSets);
+  const [repRange, setRepRange] = useState(initialRepRange);
+  // Presets, plus the stored range if it isn't one of them.
+  const rangeOptions =
+    repRange && !REP_RANGE_PRESETS.some((r) => repRangeValue(r) === repRangeValue(repRange))
+      ? [...REP_RANGE_PRESETS, repRange]
+      : REP_RANGE_PRESETS;
 
   async function run(
     action: Exclude<PendingAction, null>,
     fn: () => Promise<void>,
-    fallbackKey: "moveExercise" | "removeExercise" | "updateTargetSets"
+    fallbackKey: "moveExercise" | "removeExercise" | "updateTargetSets" | "updateRepRange"
   ) {
     setPending(action);
     setError(null);
@@ -84,7 +101,19 @@ export function RoutineExerciseRow({
     if (!ok) setTarget(previous);
   }
 
-  const busy = pending !== null && pending !== "target";
+  async function changeRepRange(value: string) {
+    const previous = repRange;
+    const next = parseRepRange(value);
+    setRepRange(next);
+    const ok = await run(
+      "repRange",
+      () => updateRoutineExerciseRepRange(routineExerciseId, routineId, next),
+      "updateRepRange"
+    );
+    if (!ok) setRepRange(previous);
+  }
+
+  const busy = pending !== null && pending !== "target" && pending !== "repRange";
 
   return (
     <Card>
@@ -149,6 +178,24 @@ export function RoutineExerciseRow({
             onClick={() => changeTarget(1)}
           />
         </div>
+      </div>
+
+      <div className="mt-2 border-t border-border pt-2">
+        <Select
+          label={t("repRange")}
+          value={repRangeValue(repRange)}
+          disabled={pending === "repRange"}
+          onChange={(e) => changeRepRange(e.target.value)}
+        >
+          <option value="">
+            {t("repRangeDefault", { min: DEFAULT_REP_RANGE.min, max: DEFAULT_REP_RANGE.max })}
+          </option>
+          {rangeOptions.map((range) => (
+            <option key={repRangeValue(range)} value={repRangeValue(range)}>
+              {t("repRangeOption", { min: range.min, max: range.max })}
+            </option>
+          ))}
+        </Select>
       </div>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
 
