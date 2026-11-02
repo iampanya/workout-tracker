@@ -490,5 +490,34 @@
       "height_cm": "Height",
       "age": "Age"
     }
+  },
+  "insights": {
+    "title": "Insights",
+    "windowNote": "Based on your last 8 weeks",
+    "emptyTitle": "Not enough training yet",
+    "emptyDescription": "Finish at least two workouts in the last 8 weeks to see your analysis.",
+    "deloadTitle": "Time for a lighter week?",
+    "deloadDescription": "{declining} of {scored} tracked exercises are trending down. A week at about half your usual sets can help you recover.",
+    "deloadSinceLight": "{weeks, plural, =0 {Last week was a light week.} one {Last light week: # week ago.} other {Last light week: # weeks ago.}}",
+    "deloadNoLightWeek": "No light week in the last 8 weeks.",
+    "volumeTitle": "Weekly sets per muscle group",
+    "volumeHint": "Average working sets over the last 4 weeks. Aim for {low}–{high}.",
+    "setsPerWeek": "{sets} sets/wk",
+    "sessionsPerWeek": "{count} sessions/wk",
+    "band": { "low": "Low", "optimal": "On target", "high": "High" },
+    "trendsTitle": "Exercise trends",
+    "trendsHint": "Best estimated 1RM of your last 3 sessions vs before.",
+    "trendsEmpty": "Log an exercise 4+ times in 8 weeks to see its trend.",
+    "status": { "progressing": "Progressing", "plateau": "Plateau", "declining": "Declining" },
+    "tip": {
+      "progressing": "Keep going — follow the target on the log screen.",
+      "plateau": "Try a different rep range, or swap in a variation for a few weeks.",
+      "declining": "Check sleep and recovery, or lower the weight and build back up."
+    },
+    "consistencyTitle": "Consistency",
+    "averagePerWeek": "{count} workouts/wk on average",
+    "thisWeek": "This wk",
+    "skippedTitle": "Often skipped in routines",
+    "skippedRow": "{routine} · skipped {skipped} of {sessions}"
   }
 }
