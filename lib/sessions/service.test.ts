@@ -584,6 +584,86 @@ describe("getRecentSessionSets", () => {
     const result = await getRecentSessionSets(prisma, other.userId, [presetId], ownerSession.id);
     expect(result).toEqual({});
   });
+
+  it("counts an exercise logged twice in one session as one session, merging its sets in order", async () => {
+    const { userId } = await createTestUser();
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Twice Logged Exercise"),
+      muscleGroup: "Chest",
+    });
+    const other = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Between Exercise"),
+      muscleGroup: "Legs",
+    });
+    await seedSession(userId, exercise.id, "2026-04-01", [{ weightKg: 60, reps: 10 }]);
+    await seedSession(userId, exercise.id, "2026-04-05", [{ weightKg: 70, reps: 8 }]);
+    // Heavy entry, an unrelated exercise in between, then a back-off entry of the same exercise.
+    const twice = await startSessionForUser(prisma, userId, { sessionDate: "2026-04-10" });
+    const heavy = await addExerciseToSessionForUser(prisma, userId, twice.id, exercise.id);
+    const between = await addExerciseToSessionForUser(prisma, userId, twice.id, other.id);
+    const backOff = await addExerciseToSessionForUser(prisma, userId, twice.id, exercise.id);
+    for (const [sessionExerciseId, weightKg, reps] of [
+      [backOff.id, 60, 12],
+      [heavy.id, 80, 5],
+      [between.id, 100, 5],
+      [heavy.id, 80, 4],
+    ] as const) {
+      await logSetForUser(prisma, userId, { sessionExerciseId, weightKg, reps, isWarmup: false });
+    }
+    await finishSessionForUser(prisma, userId, twice.id);
+
+    const result = await getRecentSessionSets(prisma, userId, [exercise.id], crypto.randomUUID());
+    expect(result[exercise.id]).toEqual([
+      {
+        sessionDate: "2026-04-10",
+        sets: [
+          { weight_kg: 80, reps: 5, is_warmup: false },
+          { weight_kg: 80, reps: 4, is_warmup: false },
+          { weight_kg: 60, reps: 12, is_warmup: false },
+        ],
+      },
+      { sessionDate: "2026-04-05", sets: [{ weight_kg: 70, reps: 8, is_warmup: false }] },
+    ]);
+  });
+
+  it("ranks each requested exercise's sessions independently", async () => {
+    const { userId } = await createTestUser();
+    const [a, b] = await Promise.all(
+      ["Ranked A", "Ranked B"].map((label) =>
+        createCustomExerciseForUser(prisma, userId, { name: uniqueExerciseName(label), muscleGroup: "Legs" })
+      )
+    );
+    await seedSession(userId, a.id, "2026-05-01", [{ weightKg: 10, reps: 10 }]);
+    await seedSession(userId, b.id, "2026-05-02", [{ weightKg: 20, reps: 10 }]);
+    await seedSession(userId, a.id, "2026-05-03", [{ weightKg: 11, reps: 10 }]);
+    await seedSession(userId, a.id, "2026-05-04", [{ weightKg: 12, reps: 10 }]);
+    await seedSession(userId, a.id, "2026-05-05", [{ weightKg: 13, reps: 10 }]);
+
+    const result = await getRecentSessionSets(prisma, userId, [a.id, b.id], crypto.randomUUID());
+    expect(result[a.id].map((s) => s.sessionDate)).toEqual(["2026-05-05", "2026-05-04"]);
+    expect(result[b.id]).toEqual([
+      { sessionDate: "2026-05-02", sets: [{ weight_kg: 20, reps: 10, is_warmup: false }] },
+    ]);
+  });
+
+  it("orders two sessions on the same day by completion time", async () => {
+    const { userId } = await createTestUser();
+    const exercise = await createCustomExerciseForUser(prisma, userId, {
+      name: uniqueExerciseName("Same Day Exercise"),
+      muscleGroup: "Back",
+    });
+    const morning = await seedSession(userId, exercise.id, "2026-06-01", [{ weightKg: 50, reps: 10 }]);
+    const evening = await seedSession(userId, exercise.id, "2026-06-01", [{ weightKg: 55, reps: 8 }]);
+    // Finish the session started first *last*, so creation order can't stand in for completion order.
+    await prisma.sessions.update({ where: { id: evening.id }, data: { completed_at: new Date("2026-06-01T05:00:00Z") } });
+    await prisma.sessions.update({ where: { id: morning.id }, data: { completed_at: new Date("2026-06-01T12:00:00Z") } });
+
+    const result = await getRecentSessionSets(prisma, userId, [exercise.id], crypto.randomUUID());
+    expect(result[exercise.id]).toEqual([
+      { sessionDate: "2026-06-01", sets: [{ weight_kg: 50, reps: 10, is_warmup: false }] },
+      { sessionDate: "2026-06-01", sets: [{ weight_kg: 55, reps: 8, is_warmup: false }] },
+    ]);
+  });
 });
 
 describe("updateSessionNotesForUser", () => {

@@ -255,13 +255,17 @@ export async function getRecentSessionSets(
   limit = 2
 ): Promise<Record<string, LastSession[]>> {
   if (exerciseIds.length === 0) return {};
-  // Ranked per exercise: latest by session date, then by completion time for two sessions on
-  // the same day.
-  const recent = await db.$queryRaw<{ id: string; exercise_id: string; session_date: Date }[]>(Prisma.sql`
-    select id, exercise_id, session_date from (
-      select se.id::text as id, se.exercise_id::text as exercise_id, s.session_date,
-        row_number() over (
-          partition by se.exercise_id order by s.session_date desc, s.completed_at desc
+  // Sessions (not session_exercises rows) are ranked per exercise: latest by session date, then
+  // by completion time for two sessions on the same day (id breaks an exact tie). dense_rank gives
+  // every entry of an exercise logged twice in one session the same rank, so it counts once.
+  const recent = await db.$queryRaw<
+    { id: string; exercise_id: string; session_id: string; session_date: Date }[]
+  >(Prisma.sql`
+    select id, exercise_id, session_id, session_date from (
+      select se.id::text as id, se.exercise_id::text as exercise_id, s.id::text as session_id,
+        s.session_date, se.position,
+        dense_rank() over (
+          partition by se.exercise_id order by s.session_date desc, s.completed_at desc, s.id
         ) as rn
       from session_exercises se
       join sessions s on s.id = se.session_id
@@ -272,7 +276,7 @@ export async function getRecentSessionSets(
         and s.id::text <> ${excludeSessionId}
     ) ranked
     where rn <= ${limit}
-    order by exercise_id, rn`);
+    order by exercise_id, rn, position`);
   if (recent.length === 0) return {};
 
   const sets = await db.sets.findMany({
@@ -281,14 +285,22 @@ export async function getRecentSessionSets(
     select: { session_exercise_id: true, weight_kg: true, reps: true, is_warmup: true },
   });
 
+  // Rows arrive grouped by (exercise, session) in rank order, entries by position, so consecutive
+  // rows of the same session merge into one LastSession.
   const result: Record<string, LastSession[]> = {};
+  let lastKey = "";
   for (const row of recent) {
-    (result[row.exercise_id] ??= []).push({
-      sessionDate: toDateOnlyString(row.session_date),
-      sets: sets
-        .filter((set) => set.session_exercise_id === row.id)
-        .map((set) => ({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup })),
-    });
+    const rowSets = sets
+      .filter((set) => set.session_exercise_id === row.id)
+      .map((set) => ({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup }));
+    const key = `${row.exercise_id}:${row.session_id}`;
+    const sessions = (result[row.exercise_id] ??= []);
+    if (key === lastKey) {
+      sessions[sessions.length - 1].sets.push(...rowSets);
+    } else {
+      sessions.push({ sessionDate: toDateOnlyString(row.session_date), sets: rowSets });
+      lastKey = key;
+    }
   }
   return result;
 }
