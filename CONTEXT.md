@@ -88,6 +88,18 @@ The exercises a user did most recently in **completed** workouts, newest first (
 and archived exercises don't count). Shown at the top of the exercise picker.
 _Avoid_: History (that's the list of workouts), favorites.
 
+**Rep range**:
+The target reps for an exercise in a routine (`routine_exercises.target_reps_min/max`, set together). Without one — or outside a routine — the default is 8–12.
+
+**Next target**:
+The weight × reps suggested for an exercise's next session (`nextTarget`, `lib/insights/progression.ts`): add a rep until every top set reaches the top of the rep range, then add weight (Legs +5, Chest/Back +2.5, others +1.25 kg) and restart at the bottom; two stalled sessions below the range at the same weight drop the weight one step.
+
+**Plateau**:
+An exercise whose best estimated 1RM of its last 3 sessions is between 0% and −5% of its best before them (needs 4+ sessions in the 8-week window). Above 0% is progressing, −5% or lower is declining.
+
+**Deload signal**:
+Shown on `/insights` when 2+ scored exercises are declining and they are at least 40% of those scored.
+
 ### Body composition
 
 **Body scan**:
