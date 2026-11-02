@@ -13,11 +13,13 @@ export function DeloadBanner({ deload }: { deload: DeloadSignal }) {
         <p className="text-muted">
           {t("deloadDescription", { declining: deload.declining, scored: deload.scored })}
         </p>
-        <p className="text-muted">
-          {deload.weeksSinceLightWeek === null
-            ? t("deloadNoLightWeek")
-            : t("deloadSinceLight", { weeks: deload.weeksSinceLightWeek })}
-        </p>
+        {deload.weeksSinceLightWeek !== 0 && (
+          <p className="text-muted">
+            {deload.weeksSinceLightWeek === null
+              ? t("deloadNoLightWeek")
+              : t("deloadSinceLight", { weeks: deload.weeksSinceLightWeek })}
+          </p>
+        )}
       </div>
     </Card>
   );

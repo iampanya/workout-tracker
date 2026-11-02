@@ -65,9 +65,9 @@ function TargetHint({ exercise }: { exercise: ExerciseEntry }) {
     repsOnly: t("targetReason.repsOnly"),
   }[target.reason];
   return (
-    <p className="mt-0.5 flex items-center gap-1 text-xs text-accent">
-      <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="truncate">
+    <p className="mt-0.5 flex items-start gap-1 text-xs text-accent">
+      <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="min-w-0">
         {t("target", { weight: target.weightKg, reps: target.reps })} · {reason}
       </span>
     </p>

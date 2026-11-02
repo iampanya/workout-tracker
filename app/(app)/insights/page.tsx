@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getTodayString } from "@/lib/date";
 import { getInsights } from "@/lib/insights/service";
-import { formatShortDate } from "@/lib/sessions/summary";
+import { formatAxisDate } from "@/lib/sessions/summary";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConsistencyCard } from "./ConsistencyCard";
 import { DeloadBanner } from "./DeloadBanner";
@@ -42,7 +42,7 @@ export default async function InsightsPage() {
 
   // Formatted here on the server (Intl output differs between Node and the browser).
   const weekLabels = insights.consistency.weeks.map((week) =>
-    week.partial ? t("thisWeek") : formatShortDate(week.weekStart, locale)
+    week.partial ? t("thisWeek") : formatAxisDate(week.weekStart, locale)
   );
 
   return (

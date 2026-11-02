@@ -194,6 +194,7 @@ export async function getRoutineTargets(
   const rows = await db.routine_exercises.findMany({
     where: { routine_id: routineId, user_id: userId },
     select: { exercise_id: true, target_sets: true, target_reps_min: true, target_reps_max: true },
+    orderBy: { position: "asc" },
   });
   return Object.fromEntries(
     rows.map((row) => [

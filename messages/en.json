@@ -504,7 +504,7 @@
     "emptyDescription": "Finish at least two workouts in the last 8 weeks to see your analysis.",
     "deloadTitle": "Time for a lighter week?",
     "deloadDescription": "{declining} of {scored} tracked exercises are trending down. A week at about half your usual sets can help you recover.",
-    "deloadSinceLight": "{weeks, plural, =0 {Last week was a light week.} one {Last light week: # week ago.} other {Last light week: # weeks ago.}}",
+    "deloadSinceLight": "{weeks, plural, one {Last light week: # week ago.} other {Last light week: # weeks ago.}}",
     "deloadNoLightWeek": "No light week in the last 8 weeks.",
     "volumeTitle": "Weekly sets per muscle group",
     "volumeHint": "Average working sets over the last 4 weeks. Aim for {low}–{high}.",
@@ -522,7 +522,7 @@
     },
     "consistencyTitle": "Consistency",
     "averagePerWeek": "{count} workouts/wk on average",
-    "thisWeek": "This wk",
+    "thisWeek": "Now",
     "skippedTitle": "Often skipped in routines",
     "skippedRow": "{routine} · skipped {skipped} of {sessions}"
   }
