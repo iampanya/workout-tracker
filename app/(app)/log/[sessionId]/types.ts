@@ -1,5 +1,6 @@
 import type { LastSession } from "@/lib/sessions/last-session";
 import type { PrRecord } from "@/lib/pr";
+import type { NextTarget, RepRange } from "@/lib/insights/progression";
 
 export type SetEntry = {
   id: string;
@@ -21,6 +22,10 @@ export type ExerciseEntry = {
   lastSession: (LastSession & { dateLabel?: string }) | null;
   // Planned working sets when the session came from a routine that sets one (routine_exercises.target_sets).
   targetSets: number | null;
+  // Next-session target from the last two sessions (lib/insights/progression); null without history.
+  target: NextTarget | null;
+  // The routine's rep range for this exercise, else DEFAULT_REP_RANGE.
+  repRange: RepRange;
 };
 
 export type SetFormInput = { weight: string; reps: string; warmup: boolean };

@@ -7,6 +7,7 @@ import {
   ClockCounterClockwise,
   PencilSimple,
   Plus,
+  Target,
   Trash,
   Trophy,
 } from "@phosphor-icons/react/ssr";
@@ -26,12 +27,14 @@ import { SetEditor } from "./SetEditor";
 import { WarmupToggle, WeightRepsFields, isValidSetInput } from "./SetForm";
 import type { ExerciseEntry, SetEntry, SetFormInput, SetValues } from "./types";
 
-// Starting values for the "add set" form: repeat the last set logged today, else the first
-// working set from last time, else blank.
+// Starting values for the "add set" form: repeat the last set logged today, else the
+// next-session target, else the first working set from last time, else blank.
 function initialInput(exercise: ExerciseEntry): SetFormInput {
   const lastSet = exercise.sets[exercise.sets.length - 1];
   if (lastSet)
     return { weight: String(lastSet.weight_kg), reps: String(lastSet.reps), warmup: false };
+  if (exercise.target)
+    return { weight: String(exercise.target.weightKg), reps: String(exercise.target.reps), warmup: false };
   const prefill = prefillFromLast(exercise.lastSession);
   return prefill ? { ...prefill, warmup: false } : { weight: "", reps: "", warmup: false };
 }
@@ -46,6 +49,26 @@ function LastTimeHint({ exercise }: { exercise: ExerciseEntry }) {
       <ClockCounterClockwise className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="truncate">
         {t("lastTime", { date: last.dateLabel ?? formatShortDate(last.sessionDate, locale), sets: formatLastSets(last.sets) })}
+      </span>
+    </p>
+  );
+}
+
+function TargetHint({ exercise }: { exercise: ExerciseEntry }) {
+  const t = useTranslations("log");
+  const { target, repRange } = exercise;
+  if (!target) return null;
+  const reason = {
+    addReps: t("targetReason.addReps"),
+    addWeight: t("targetReason.addWeight", { max: repRange.max }),
+    reset: t("targetReason.reset", { min: repRange.min }),
+    repsOnly: t("targetReason.repsOnly"),
+  }[target.reason];
+  return (
+    <p className="mt-0.5 flex items-center gap-1 text-xs text-accent">
+      <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="truncate">
+        {t("target", { weight: target.weightKg, reps: target.reps })} · {reason}
       </span>
     </p>
   );
@@ -141,6 +164,7 @@ export function ExerciseCard({
             )}
           </div>
           <LastTimeHint exercise={exercise} />
+          <TargetHint exercise={exercise} />
         </div>
         <IconButton
           icon={<Trash className="h-4 w-4" />}

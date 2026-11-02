@@ -21,6 +21,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ExercisePicker, type ExerciseOption } from "@/components/ui/ExercisePicker";
 import { Toast } from "@/components/ui/Toast";
+import { DEFAULT_REP_RANGE, nextTarget, stepFor } from "@/lib/insights/progression";
 import { ExerciseCard } from "./ExerciseCard";
 import { RestTimer } from "./RestTimer";
 import { SessionNotes } from "./SessionNotes";
@@ -261,6 +262,8 @@ export function LoggingClient({
         pr: added.pr,
         lastSession: added.lastSession,
         targetSets: null,
+        target: nextTarget(added.recentSessions, DEFAULT_REP_RANGE, stepFor(exercise.muscleGroup)),
+        repRange: DEFAULT_REP_RANGE,
       },
     ]);
     setExpandedId(added.id);

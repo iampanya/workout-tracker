@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
+import { DEFAULT_REP_RANGE, nextTarget, stepFor } from "@/lib/insights/progression";
 import { getRoutineTargets, type RoutineTarget } from "@/lib/routines/service";
 import { getPriorPrs, getRecentSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
@@ -29,7 +30,7 @@ export default async function LogSessionPage({
     prisma.session_exercises.findMany({
       where: { session_id: sessionId, user_id: userId },
       orderBy: { position: "asc" },
-      include: { exercises: { select: { id: true, name: true } }, sets: true },
+      include: { exercises: { select: { id: true, name: true, muscle_group: true } }, sets: true },
     }),
     listExercises(prisma, userId),
     listRecentExerciseIds(prisma, userId),
@@ -57,7 +58,10 @@ export default async function LogSessionPage({
   ]);
 
   const exercises = sessionExercises.map((se) => {
-    const ls = recentSessions[se.exercise_id]?.[0];
+    const recent = recentSessions[se.exercise_id] ?? [];
+    const ls = recent[0];
+    const routineTarget = routineTargets[se.exercise_id];
+    const repRange = routineTarget?.repRange ?? DEFAULT_REP_RANGE;
     return {
       sessionExerciseId: se.id,
       exerciseId: se.exercise_id,
@@ -68,7 +72,9 @@ export default async function LogSessionPage({
       pr: prMap[se.exercise_id] ?? null,
       // Formatted on the server: Node and the browser disagree on Thai short weekdays (hydration).
       lastSession: ls ? { ...ls, dateLabel: formatShortDate(ls.sessionDate, locale) } : null,
-      targetSets: routineTargets[se.exercise_id]?.targetSets ?? null,
+      targetSets: routineTarget?.targetSets ?? null,
+      target: nextTarget(recent, repRange, stepFor(se.exercises.muscle_group)),
+      repRange,
     };
   });
 

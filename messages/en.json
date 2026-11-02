@@ -224,6 +224,13 @@
   },
   "log": {
     "title": "Start a Workout",
+    "target": "Target {weight} kg × {reps}",
+    "targetReason": {
+      "addReps": "add a rep",
+      "addWeight": "hit {max} on every set → add weight",
+      "reset": "below {min} twice → lighter weight",
+      "repsOnly": "add a rep"
+    },
     "inProgress": "You have a workout in progress",
     "resume": "Resume",
     "warmup": "Warmup",
