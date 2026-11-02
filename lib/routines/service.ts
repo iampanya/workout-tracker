@@ -3,7 +3,9 @@ import {
   createRoutineSchema,
   addRoutineExerciseSchema,
   updateRoutineTargetSetsSchema,
+  updateRoutineRepRangeSchema,
 } from "@/lib/validation";
+import type { RepRange } from "@/lib/insights/progression";
 
 export type Routine = routines;
 export type RoutineExercise = routine_exercises;
@@ -165,15 +167,44 @@ export async function updateRoutineExerciseTargetSetsForUser(
   if (result.count === 0) throw new Error("Routine exercise not found or not owned by user");
 }
 
-// routine_exercises.target_sets keyed by exercise_id, for a session started from `routineId`.
-export async function getRoutineTargetSets(
+// Rep range for one exercise in a routine (null clears it): drives the next-session target
+// while logging a session started from the routine.
+export async function updateRoutineExerciseRepRangeForUser(
+  db: PrismaClient,
+  userId: string,
+  routineExerciseId: string,
+  input: unknown
+): Promise<void> {
+  const { repRange } = updateRoutineRepRangeSchema.parse(input);
+  const result = await db.routine_exercises.updateMany({
+    where: { id: routineExerciseId, user_id: userId },
+    data: { target_reps_min: repRange?.min ?? null, target_reps_max: repRange?.max ?? null },
+  });
+  if (result.count === 0) throw new Error("Routine exercise not found or not owned by user");
+}
+
+export type RoutineTarget = { targetSets: number | null; repRange: RepRange | null };
+
+// Planned sets and rep range keyed by exercise_id, for a session started from `routineId`.
+export async function getRoutineTargets(
   db: PrismaClient,
   userId: string,
   routineId: string
-): Promise<Record<string, number>> {
+): Promise<Record<string, RoutineTarget>> {
   const rows = await db.routine_exercises.findMany({
-    where: { routine_id: routineId, user_id: userId, target_sets: { not: null } },
-    select: { exercise_id: true, target_sets: true },
+    where: { routine_id: routineId, user_id: userId },
+    select: { exercise_id: true, target_sets: true, target_reps_min: true, target_reps_max: true },
   });
-  return Object.fromEntries(rows.map((row) => [row.exercise_id, row.target_sets!]));
+  return Object.fromEntries(
+    rows.map((row) => [
+      row.exercise_id,
+      {
+        targetSets: row.target_sets,
+        repRange:
+          row.target_reps_min !== null && row.target_reps_max !== null
+            ? { min: row.target_reps_min, max: row.target_reps_max }
+            : null,
+      },
+    ])
+  );
 }

@@ -60,6 +60,13 @@ export const updateRoutineTargetSetsSchema = z.object({
   targetSets: z.number().int().min(1).max(20).nullable(),
 });
 
+export const updateRoutineRepRangeSchema = z.object({
+  repRange: z
+    .object({ min: z.number().int().min(1).max(50), max: z.number().int().min(1).max(50) })
+    .refine((range) => range.min <= range.max)
+    .nullable(),
+});
+
 // --- Backup file (Export/Import) ---------------------------------------------
 // Shape of the JSON produced by the Export button and accepted by Import. Row
 // schemas stay permissive on the exact column set (extra keys are stripped by

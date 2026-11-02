@@ -3,7 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
-import { getRoutineTargetSets } from "@/lib/routines/service";
+import { getRoutineTargets, type RoutineTarget } from "@/lib/routines/service";
 import { getPriorPrs, getLastSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
 import { formatShortDate } from "@/lib/sessions/summary";
@@ -48,12 +48,12 @@ export default async function LogSessionPage({
   );
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
-  const [prMap, lastSessions, targetSets] = await Promise.all([
+  const [prMap, lastSessions, routineTargets] = await Promise.all([
     getPriorPrs(prisma, userId, exerciseIds),
     getLastSessionSets(prisma, userId, exerciseIds, sessionId),
     session.routine_id
-      ? getRoutineTargetSets(prisma, userId, session.routine_id)
-      : Promise.resolve({} as Record<string, number>),
+      ? getRoutineTargets(prisma, userId, session.routine_id)
+      : Promise.resolve({} as Record<string, RoutineTarget>),
   ]);
 
   const exercises = sessionExercises.map((se) => {
@@ -68,7 +68,7 @@ export default async function LogSessionPage({
       pr: prMap[se.exercise_id] ?? null,
       // Formatted on the server: Node and the browser disagree on Thai short weekdays (hydration).
       lastSession: ls ? { ...ls, dateLabel: formatShortDate(ls.sessionDate, locale) } : null,
-      targetSets: targetSets[se.exercise_id] ?? null,
+      targetSets: routineTargets[se.exercise_id]?.targetSets ?? null,
     };
   });
 

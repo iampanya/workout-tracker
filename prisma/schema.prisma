@@ -88,6 +88,8 @@ model routine_exercises {
   exercise_id String    @db.Uuid
   position    Int
   target_sets Int?
+  target_reps_min Int?
+  target_reps_max Int?
   exercises   exercises @relation(fields: [exercise_id], references: [id], onUpdate: NoAction)
   routines    routines  @relation(fields: [routine_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 

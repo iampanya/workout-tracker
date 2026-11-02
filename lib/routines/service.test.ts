@@ -12,7 +12,8 @@ import {
   removeRoutineExerciseForUser,
   moveRoutineExerciseForUser,
   updateRoutineExerciseTargetSetsForUser,
-  getRoutineTargetSets,
+  getRoutineTargets,
+  updateRoutineExerciseRepRangeForUser,
 } from "./service";
 
 describe("routines service", () => {
@@ -180,10 +181,50 @@ describe("routine list preview and target sets", () => {
     });
 
     await updateRoutineExerciseTargetSetsForUser(prisma, userId, entry.id, { targetSets: 4 });
-    expect(await getRoutineTargetSets(prisma, userId, routine.id)).toEqual({ [preset.id]: 4 });
+    expect(await getRoutineTargets(prisma, userId, routine.id)).toEqual({
+      [preset.id]: { targetSets: 4, repRange: null },
+    });
 
     await updateRoutineExerciseTargetSetsForUser(prisma, userId, entry.id, { targetSets: null });
-    expect(await getRoutineTargetSets(prisma, userId, routine.id)).toEqual({});
+    expect(await getRoutineTargets(prisma, userId, routine.id)).toEqual({
+      [preset.id]: { targetSets: null, repRange: null },
+    });
+  });
+
+  it("sets, clears and validates a rep range", async () => {
+    const { userId } = await createTestUser();
+    const preset = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true } });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Rep ranges" });
+    const entry = await addExerciseToRoutineForUser(prisma, userId, {
+      routineId: routine.id,
+      exerciseId: preset.id,
+    });
+
+    await updateRoutineExerciseRepRangeForUser(prisma, userId, entry.id, { repRange: { min: 5, max: 8 } });
+    expect((await getRoutineTargets(prisma, userId, routine.id))[preset.id].repRange).toEqual({ min: 5, max: 8 });
+
+    await expect(
+      updateRoutineExerciseRepRangeForUser(prisma, userId, entry.id, { repRange: { min: 9, max: 6 } })
+    ).rejects.toThrow();
+    await expect(
+      updateRoutineExerciseRepRangeForUser(prisma, userId, entry.id, { repRange: { min: 0, max: 6 } })
+    ).rejects.toThrow();
+
+    await updateRoutineExerciseRepRangeForUser(prisma, userId, entry.id, { repRange: null });
+    expect((await getRoutineTargets(prisma, userId, routine.id))[preset.id].repRange).toBeNull();
+  });
+
+  it("enforces min and max together in the database", async () => {
+    const { userId } = await createTestUser();
+    const preset = await prisma.exercises.findFirstOrThrow({ where: { is_preset: true } });
+    const routine = await createRoutineForUser(prisma, userId, { name: "Check" });
+    const entry = await addExerciseToRoutineForUser(prisma, userId, {
+      routineId: routine.id,
+      exerciseId: preset.id,
+    });
+    await expect(
+      prisma.routine_exercises.update({ where: { id: entry.id }, data: { target_reps_min: 5 } })
+    ).rejects.toThrow();
   });
 
   it("rejects changing another user's target sets and never lists their routines", async () => {
@@ -201,7 +242,12 @@ describe("routine list preview and target sets", () => {
     ).rejects.toThrow();
     const row = await prisma.routine_exercises.findUniqueOrThrow({ where: { id: entry.id } });
     expect(row.target_sets).toBeNull();
-    expect(await getRoutineTargetSets(prisma, attacker.userId, routine.id)).toEqual({});
+    await expect(
+      updateRoutineExerciseRepRangeForUser(prisma, attacker.userId, entry.id, { repRange: { min: 5, max: 8 } })
+    ).rejects.toThrow();
+    const after = await prisma.routine_exercises.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(after.target_reps_min).toBeNull();
+    expect(await getRoutineTargets(prisma, attacker.userId, routine.id)).toEqual({});
     expect(await listRoutines(prisma, attacker.userId)).toEqual([]);
   });
 });
