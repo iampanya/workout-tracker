@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
 import { getRoutineTargets, type RoutineTarget } from "@/lib/routines/service";
-import { getPriorPrs, getLastSessionSets } from "@/lib/sessions/service";
+import { getPriorPrs, getRecentSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
 import { formatShortDate } from "@/lib/sessions/summary";
 import { QueryProvider } from "./QueryProvider";
@@ -48,16 +48,16 @@ export default async function LogSessionPage({
   );
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
-  const [prMap, lastSessions, routineTargets] = await Promise.all([
+  const [prMap, recentSessions, routineTargets] = await Promise.all([
     getPriorPrs(prisma, userId, exerciseIds),
-    getLastSessionSets(prisma, userId, exerciseIds, sessionId),
+    getRecentSessionSets(prisma, userId, exerciseIds, sessionId),
     session.routine_id
       ? getRoutineTargets(prisma, userId, session.routine_id)
       : Promise.resolve({} as Record<string, RoutineTarget>),
   ]);
 
   const exercises = sessionExercises.map((se) => {
-    const ls = lastSessions[se.exercise_id];
+    const ls = recentSessions[se.exercise_id]?.[0];
     return {
       sessionExerciseId: se.id,
       exerciseId: se.exercise_id,

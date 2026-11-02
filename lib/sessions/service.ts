@@ -244,47 +244,51 @@ export async function discardSessionForUser(
   await db.sessions.deleteMany({ where: { id: sessionId, user_id: userId } });
 }
 
-// For each exercise, the sets the user logged in their most recent *completed* session that
-// included it (excluding `excludeSessionId`, i.e. the session being logged right now). Powers
-// the "Last" hint and the weight/reps prefill on the logging screen.
-export async function getLastSessionSets(
+// For each exercise, the sets the user logged in their most recent *completed* sessions that
+// included it, newest first (excluding `excludeSessionId`, i.e. the session being logged right
+// now). The first powers the "Last" hint; the first two drive the next-session target.
+export async function getRecentSessionSets(
   db: PrismaClient,
   userId: string,
   exerciseIds: string[],
-  excludeSessionId: string
-): Promise<Record<string, LastSession>> {
+  excludeSessionId: string,
+  limit = 2
+): Promise<Record<string, LastSession[]>> {
   if (exerciseIds.length === 0) return {};
-  // DISTINCT ON picks one session_exercise per exercise: the latest by session date, then by
-  // completion time for two sessions on the same day.
-  const latest = await db.$queryRaw<
-    { id: string; exercise_id: string; session_date: Date }[]
-  >(Prisma.sql`
-    select distinct on (se.exercise_id) se.id::text as id, se.exercise_id::text as exercise_id,
-      s.session_date
-    from session_exercises se
-    join sessions s on s.id = se.session_id
-    where se.user_id::text = ${userId}
-      and s.user_id::text = ${userId}
-      and se.exercise_id::text in (${Prisma.join(exerciseIds)})
-      and s.completed_at is not null
-      and s.id::text <> ${excludeSessionId}
-    order by se.exercise_id, s.session_date desc, s.completed_at desc`);
-  if (latest.length === 0) return {};
+  // Ranked per exercise: latest by session date, then by completion time for two sessions on
+  // the same day.
+  const recent = await db.$queryRaw<{ id: string; exercise_id: string; session_date: Date }[]>(Prisma.sql`
+    select id, exercise_id, session_date from (
+      select se.id::text as id, se.exercise_id::text as exercise_id, s.session_date,
+        row_number() over (
+          partition by se.exercise_id order by s.session_date desc, s.completed_at desc
+        ) as rn
+      from session_exercises se
+      join sessions s on s.id = se.session_id
+      where se.user_id::text = ${userId}
+        and s.user_id::text = ${userId}
+        and se.exercise_id::text in (${Prisma.join(exerciseIds)})
+        and s.completed_at is not null
+        and s.id::text <> ${excludeSessionId}
+    ) ranked
+    where rn <= ${limit}
+    order by exercise_id, rn`);
+  if (recent.length === 0) return {};
 
   const sets = await db.sets.findMany({
-    where: { user_id: userId, session_exercise_id: { in: latest.map((row) => row.id) } },
+    where: { user_id: userId, session_exercise_id: { in: recent.map((row) => row.id) } },
     orderBy: { set_number: "asc" },
     select: { session_exercise_id: true, weight_kg: true, reps: true, is_warmup: true },
   });
 
-  const result: Record<string, LastSession> = {};
-  for (const row of latest) {
-    result[row.exercise_id] = {
+  const result: Record<string, LastSession[]> = {};
+  for (const row of recent) {
+    (result[row.exercise_id] ??= []).push({
       sessionDate: toDateOnlyString(row.session_date),
       sets: sets
         .filter((set) => set.session_exercise_id === row.id)
         .map((set) => ({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup })),
-    };
+    });
   }
   return result;
 }

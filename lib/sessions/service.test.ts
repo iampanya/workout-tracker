@@ -14,7 +14,7 @@ import {
   finishSessionForUser,
   discardSessionForUser,
   getPriorPrs,
-  getLastSessionSets,
+  getRecentSessionSets,
   updateSessionNotesForUser,
   getSessionPrs,
 } from "./service";
@@ -542,13 +542,14 @@ async function seedSession(
   return session;
 }
 
-describe("getLastSessionSets", () => {
-  it("returns the sets from the latest completed session, skipping the current and unfinished ones", async () => {
+describe("getRecentSessionSets", () => {
+  it("returns the latest completed sessions newest first, skipping the current and unfinished ones", async () => {
     const { userId } = await createTestUser();
     const exercise = await createCustomExerciseForUser(prisma, userId, {
-      name: uniqueExerciseName("Last Session Exercise"),
+      name: uniqueExerciseName("Recent Session Exercise"),
       muscleGroup: "Back",
     });
+    await seedSession(userId, exercise.id, "2026-02-20", [{ weightKg: 40, reps: 10 }]);
     await seedSession(userId, exercise.id, "2026-03-01", [{ weightKg: 50, reps: 10 }]);
     await seedSession(userId, exercise.id, "2026-03-08", [
       { weightKg: 30, reps: 10, isWarmup: true },
@@ -557,14 +558,20 @@ describe("getLastSessionSets", () => {
     await seedSession(userId, exercise.id, "2026-03-10", [{ weightKg: 99, reps: 1 }], false);
     const current = await seedSession(userId, exercise.id, "2026-03-15", [{ weightKg: 70, reps: 5 }], false);
 
-    const result = await getLastSessionSets(prisma, userId, [exercise.id], current.id);
-    expect(result[exercise.id]).toEqual({
-      sessionDate: "2026-03-08",
-      sets: [
-        { weight_kg: 30, reps: 10, is_warmup: true },
-        { weight_kg: 60, reps: 8, is_warmup: false },
-      ],
-    });
+    const result = await getRecentSessionSets(prisma, userId, [exercise.id], current.id);
+    expect(result[exercise.id]).toEqual([
+      {
+        sessionDate: "2026-03-08",
+        sets: [
+          { weight_kg: 30, reps: 10, is_warmup: true },
+          { weight_kg: 60, reps: 8, is_warmup: false },
+        ],
+      },
+      { sessionDate: "2026-03-01", sets: [{ weight_kg: 50, reps: 10, is_warmup: false }] },
+    ]);
+
+    const one = await getRecentSessionSets(prisma, userId, [exercise.id], current.id, 1);
+    expect(one[exercise.id].map((s) => s.sessionDate)).toEqual(["2026-03-08"]);
   });
 
   it("never returns another user's sets", async () => {
@@ -574,7 +581,7 @@ describe("getLastSessionSets", () => {
     const presetId = presets[0].id;
     const ownerSession = await seedSession(owner.userId, presetId, "2026-03-01", [{ weightKg: 80, reps: 5 }]);
 
-    const result = await getLastSessionSets(prisma, other.userId, [presetId], ownerSession.id);
+    const result = await getRecentSessionSets(prisma, other.userId, [presetId], ownerSession.id);
     expect(result).toEqual({});
   });
 });
