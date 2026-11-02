@@ -39,7 +39,15 @@ export async function exportUserData(db: PrismaClient, userId: string): Promise<
       db.routine_exercises.findMany({
         where: { user_id: userId },
         orderBy: [{ routine_id: "asc" }, { position: "asc" }],
-        select: { id: true, routine_id: true, exercise_id: true, position: true, target_sets: true },
+        select: {
+          id: true,
+          routine_id: true,
+          exercise_id: true,
+          position: true,
+          target_sets: true,
+          target_reps_min: true,
+          target_reps_max: true,
+        },
       }),
       db.sessions.findMany({
         where: { user_id: userId },

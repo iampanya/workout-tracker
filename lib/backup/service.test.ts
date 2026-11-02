@@ -13,7 +13,15 @@ async function seedWorkout(userId: string) {
   });
   const routine = await prisma.routines.create({ data: { user_id: userId, name: "Push Day" } });
   await prisma.routine_exercises.create({
-    data: { user_id: userId, routine_id: routine.id, exercise_id: exercise.id, position: 0, target_sets: 3 },
+    data: {
+      user_id: userId,
+      routine_id: routine.id,
+      exercise_id: exercise.id,
+      position: 0,
+      target_sets: 3,
+      target_reps_min: 6,
+      target_reps_max: 10,
+    },
   });
   const session = await prisma.sessions.create({
     data: { user_id: userId, name: "Push Day", session_date: new Date("2026-08-01"), completed_at: new Date() },
@@ -93,6 +101,48 @@ describe("backup service", () => {
     expect(after.data.sessions).toHaveLength(1);
     expect(after.data.exercises).toHaveLength(1);
     expect(after.data.exercises[0].name).toBe(seeded.exerciseName);
+  });
+
+  it("round-trips a routine exercise's rep range through export + replace import", async () => {
+    expect(backup.data.routine_exercises[0]).toMatchObject({ target_reps_min: 6, target_reps_max: 10 });
+
+    const b = (await createTestUser()).userId;
+    await seedWorkout(b);
+    await importUserData(prisma, b, backup, "replace");
+
+    const after = await exportUserData(prisma, b);
+    expect(after.data.routine_exercises).toHaveLength(1);
+    expect(after.data.routine_exercises[0]).toMatchObject({ target_sets: 3, target_reps_min: 6, target_reps_max: 10 });
+  });
+
+  it("imports an older backup without rep range keys, leaving the range NULL", async () => {
+    const b = (await createTestUser()).userId;
+    const exId = randomUUID();
+    const routineId = randomUUID();
+    const reId = randomUUID();
+    const now = new Date().toISOString();
+    const legacy = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exported_at: now,
+      data: {
+        exercises: [{ id: exId, name: `Legacy ${randomUUID().slice(0, 8)}`, muscle_group: null, is_archived: false, created_at: now }],
+        routines: [{ id: routineId, name: "Old", notes: null, created_at: now, updated_at: now }],
+        routine_exercises: [{ id: reId, routine_id: routineId, exercise_id: exId, position: 0, target_sets: 4 }],
+        sessions: [],
+        session_exercises: [],
+        sets: [],
+      },
+    };
+
+    const summary = await importUserData(prisma, b, legacy, "replace");
+    expect(summary.routine_exercises).toBe(1);
+
+    const re = await prisma.routine_exercises.findUnique({
+      where: { id: reId },
+      select: { target_sets: true, target_reps_min: true, target_reps_max: true },
+    });
+    expect(re).toEqual({ target_sets: 4, target_reps_min: null, target_reps_max: null });
   });
 
   it("remaps a file exercise onto an existing preset instead of duplicating it", async () => {

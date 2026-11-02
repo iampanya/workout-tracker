@@ -73,7 +73,7 @@ export const updateRoutineRepRangeSchema = z.object({
 // default) but strict on the identifiers/types the import RPC relies on, so a
 // truncated or foreign file is rejected with a clear message before it reaches
 // the database. `user_id` is intentionally absent — import always stamps the
-// caller's id (see import_backup in 0005_backup_import.sql).
+// caller's id (see import_backup, latest in prisma/migrations/0005_backup_rep_ranges).
 const backupExercise = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
@@ -96,6 +96,9 @@ const backupRoutineExercise = z.object({
   exercise_id: z.string().uuid(),
   position: z.number().int(),
   target_sets: z.number().int().nullable(),
+  // Optional: backups exported before rep ranges existed don't have these keys (import → NULL).
+  target_reps_min: z.number().int().nullable().optional(),
+  target_reps_max: z.number().int().nullable().optional(),
 });
 
 const backupSession = z.object({
