@@ -164,6 +164,7 @@
     "removeExercise": "Failed to remove exercise",
     "updateTargetSets": "Failed to update target sets",
     "updateRepRange": "Failed to update rep range",
+    "weightStep": "Failed to save the weight step",
     "startWorkout": "Failed to start workout",
     "finishWorkout": "Failed to finish workout",
     "discardWorkout": "Failed to discard workout",
@@ -363,6 +364,21 @@
     "maxWeight": "Max weight",
     "e1rm": "Est. 1RM",
     "volume": "Volume"
+  },
+  "weightStep": {
+    "chip": "step {kg} kg",
+    "chipAuto": "step {kg} kg · auto",
+    "chipLabel": "Weight step {kg} kg, tap to change",
+    "title": "Weight step",
+    "description": "How much the target weight goes up or down for this exercise. Set it to the smallest jump your equipment allows.",
+    "auto": "Automatic",
+    "autoFromHistory": "{kg} kg, from the weights you've logged",
+    "autoDefault": "{kg} kg, default for this muscle group",
+    "other": "Other",
+    "customLabel": "Step (kg)",
+    "row": "Weight step {kg} kg",
+    "rowAuto": "Weight step {kg} kg (auto)",
+    "edit": "Change weight step"
   },
   "profile": {
     "title": "Profile",
