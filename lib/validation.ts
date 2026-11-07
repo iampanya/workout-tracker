@@ -67,6 +67,17 @@ export const updateRoutineRepRangeSchema = z.object({
     .nullable(),
 });
 
+// Per-exercise weight step for the next-session target (exercise_settings.weight_step_kg,
+// numeric(5,2) with CHECK > 0 AND <= 50). null = back to automatic.
+export const updateWeightStepSchema = z.object({
+  weightStepKg: z
+    .number()
+    .positive()
+    .max(50)
+    .refine((kg) => Math.abs(Math.round(kg * 100) - kg * 100) < 1e-6)
+    .nullable(),
+});
+
 // --- Backup file (Export/Import) ---------------------------------------------
 // Shape of the JSON produced by the Export button and accepted by Import. Row
 // schemas stay permissive on the exact column set (extra keys are stripped by

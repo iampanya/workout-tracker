@@ -3,9 +3,12 @@ import type { LastSession } from "@/lib/sessions/last-session";
 import {
   DEFAULT_REP_RANGE,
   REP_RANGE_PRESETS,
+  WEIGHT_STEP_PRESETS,
+  inferStepFromWeights,
   nextTarget,
   parseRepRange,
   repRangeValue,
+  resolveWeightStep,
   stepFor,
 } from "./progression";
 
@@ -112,5 +115,89 @@ describe("rep range values", () => {
 
   it("offers the default among the presets", () => {
     expect(REP_RANGE_PRESETS).toContainEqual(DEFAULT_REP_RANGE);
+  });
+});
+
+describe("inferStepFromWeights", () => {
+  it("returns the most common gap between neighbouring weights", () => {
+    expect(inferStepFromWeights([10, 12, 14, 16])).toBe(2);
+    expect(inferStepFromWeights([40, 45, 50, 52.5])).toBe(5);
+  });
+
+  it("ignores duplicates, order and non-positive weights", () => {
+    expect(inferStepFromWeights([14, 10, 12, 12, 0, 10])).toBe(2);
+  });
+
+  it("is not dragged down by a single typo once there is enough history", () => {
+    expect(inferStepFromWeights([60, 61, 65, 70, 75])).toBe(5);
+  });
+
+  it("breaks a tie with the smaller gap", () => {
+    expect(inferStepFromWeights([20, 22.5, 27.5])).toBe(2.5); // gaps 2.5, 5
+  });
+
+  it("handles fractional machine and plate steps", () => {
+    expect(inferStepFromWeights([4.5, 9, 13.5, 18])).toBe(4.5);
+    expect(inferStepFromWeights([20, 21.25, 22.5])).toBe(1.25);
+  });
+
+  it("returns null with fewer than two distinct weights", () => {
+    expect(inferStepFromWeights([])).toBeNull();
+    expect(inferStepFromWeights([60, 60])).toBeNull();
+    expect(inferStepFromWeights([0, 60])).toBeNull();
+  });
+});
+
+describe("resolveWeightStep", () => {
+  it("prefers the custom step but still reports the automatic one", () => {
+    expect(resolveWeightStep({ customKg: 5, loggedWeights: [10, 12, 14], muscleGroup: "Shoulders" })).toEqual({
+      kg: 5,
+      source: "custom",
+      autoKg: 2,
+      autoSource: "history",
+    });
+  });
+
+  it("falls back to the history inference", () => {
+    expect(resolveWeightStep({ customKg: null, loggedWeights: [10, 12, 14], muscleGroup: "Legs" })).toEqual({
+      kg: 2,
+      source: "history",
+      autoKg: 2,
+      autoSource: "history",
+    });
+  });
+
+  it("falls back to the muscle-group default without history", () => {
+    expect(resolveWeightStep({ customKg: null, loggedWeights: [60], muscleGroup: "Legs" })).toEqual({
+      kg: 5,
+      source: "default",
+      autoKg: 5,
+      autoSource: "default",
+    });
+    expect(resolveWeightStep({ customKg: 2, loggedWeights: [], muscleGroup: null })).toEqual({
+      kg: 2,
+      source: "custom",
+      autoKg: 1.25,
+      autoSource: "default",
+    });
+  });
+});
+
+describe("nextTarget with a per-exercise step", () => {
+  it("adds and removes exactly the step it is given", () => {
+    expect(nextTarget([session([set(12, 12), set(12, 12)])], R, 2)).toEqual({
+      weightKg: 14,
+      reps: 8,
+      reason: "addWeight",
+    });
+    const stalled = [session([set(50, 6)]), session([set(50, 6)], "2026-09-24")];
+    expect(nextTarget(stalled, R, 5)).toEqual({ weightKg: 45, reps: 8, reason: "reset" });
+  });
+});
+
+describe("WEIGHT_STEP_PRESETS", () => {
+  it("is sorted and every value is a positive 2-decimal step", () => {
+    expect([...WEIGHT_STEP_PRESETS].sort((a, b) => a - b)).toEqual(WEIGHT_STEP_PRESETS);
+    for (const kg of WEIGHT_STEP_PRESETS) expect(Math.round(kg * 100) / 100).toBe(kg);
   });
 });

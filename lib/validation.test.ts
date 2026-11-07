@@ -7,6 +7,7 @@ import {
   logSetSchema,
   isMuscleGroup,
   isValidationKey,
+  updateWeightStepSchema,
 } from "./validation";
 
 describe("createExerciseSchema", () => {
@@ -115,5 +116,19 @@ describe("validation messages", () => {
   it("recognizes only known keys", () => {
     expect(isValidationKey("nameRequired")).toBe(true);
     expect(isValidationKey("Name is required")).toBe(false);
+  });
+});
+
+describe("updateWeightStepSchema", () => {
+  it("accepts a positive step up to 50 kg with at most two decimals, or null", () => {
+    for (const weightStepKg of [0.5, 1.25, 2, 4.5, 50, null]) {
+      expect(updateWeightStepSchema.safeParse({ weightStepKg }).success).toBe(true);
+    }
+  });
+
+  it("rejects zero, negatives, over 50 kg and more than two decimals", () => {
+    for (const weightStepKg of [0, -1, 50.01, 1.234, Number.NaN]) {
+      expect(updateWeightStepSchema.safeParse({ weightStepKg }).success).toBe(false);
+    }
   });
 });

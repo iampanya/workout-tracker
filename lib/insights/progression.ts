@@ -23,12 +23,68 @@ export const REP_RANGE_PRESETS: RepRange[] = [
 
 const STEP_BY_GROUP: Record<string, number> = { Legs: 5, Chest: 2.5, Back: 2.5 };
 
-// Weight added when the top of the range is reached: big lower-body lifts move faster.
+// Muscle-group default weight step, used when an exercise has no custom step and too little
+// history (resolveWeightStep). Big lower-body lifts move faster.
 export function stepFor(muscleGroup: string | null): number {
   return STEP_BY_GROUP[muscleGroup ?? ""] ?? 1.25;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// Where the weight step for an exercise came from. "custom" = set by the user
+// (exercise_settings), "history" = inferred from the weights they have logged, "default" = stepFor.
+export type WeightStepSource = "custom" | "history" | "default";
+// kg = the step in use; autoKg/autoSource = what it would be with no custom value.
+export type WeightStep = {
+  kg: number;
+  source: WeightStepSource;
+  autoKg: number;
+  autoSource: "history" | "default";
+};
+
+// Chips in WeightStepSheet: dumbbell racks (1, 2, 2.5), fractional plates (1.25), lb-based stacks
+// (4.5 ≈ 10 lb), plate pairs and stacks (5, 10).
+export const WEIGHT_STEP_PRESETS = [1, 1.25, 2, 2.5, 4.5, 5, 10];
+
+// The most common gap between neighbouring distinct weights (tie → the smaller gap), or null with
+// fewer than two. The mode rather than the smallest gap, so one typo needs to be outvoted rather
+// than winning outright.
+export function inferStepFromWeights(weights: number[]): number | null {
+  const distinct = [...new Set(weights.filter((w) => w > 0))].sort((a, b) => a - b);
+  if (distinct.length < 2) return null;
+  const counts = new Map<number, number>();
+  for (let i = 1; i < distinct.length; i++) {
+    const gap = round2(distinct[i] - distinct[i - 1]);
+    counts.set(gap, (counts.get(gap) ?? 0) + 1);
+  }
+  let best: number | null = null;
+  let bestCount = 0;
+  for (const [gap, count] of counts) {
+    if (count > bestCount || (count === bestCount && best !== null && gap < best)) {
+      best = gap;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+// custom → inferred from logged working weights → muscle-group default.
+export function resolveWeightStep({
+  customKg,
+  loggedWeights,
+  muscleGroup,
+}: {
+  customKg: number | null;
+  loggedWeights: number[];
+  muscleGroup: string | null;
+}): WeightStep {
+  const inferred = inferStepFromWeights(loggedWeights);
+  const autoKg = inferred ?? stepFor(muscleGroup);
+  const autoSource = inferred !== null ? "history" : "default";
+  return customKg !== null
+    ? { kg: customKg, source: "custom", autoKg, autoSource }
+    : { kg: autoKg, source: autoSource, autoKg, autoSource };
+}
 
 // A session's working sets at its heaviest working weight, or null when it had none.
 function topSets(session: LastSession): { weight: number; lowestReps: number; allReps: number[] } | null {
