@@ -1,6 +1,6 @@
 import type { LastSession } from "@/lib/sessions/last-session";
 import type { PrRecord } from "@/lib/pr";
-import type { NextTarget, RepRange } from "@/lib/insights/progression";
+import type { NextTarget, RepRange, WeightStep } from "@/lib/insights/progression";
 
 export type SetEntry = {
   id: string;
@@ -26,6 +26,11 @@ export type ExerciseEntry = {
   target: NextTarget | null;
   // The routine's rep range for this exercise, else DEFAULT_REP_RANGE.
   repRange: RepRange;
+  // The exercise's last completed sessions, newest first (getRecentSessionSets), kept so the
+  // client can recompute `target` when the weight step changes.
+  recentSessions: LastSession[];
+  // Step used by `target` (custom → inferred from logged weights → muscle-group default).
+  weightStep: WeightStep;
 };
 
 export type SetFormInput = { weight: string; reps: string; warmup: boolean };

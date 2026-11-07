@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { getWeightSteps } from "@/lib/exercises/settings";
 import {
   startSessionForUser,
   addExerciseToSessionForUser,
@@ -29,12 +30,19 @@ export async function startSession(input: unknown) {
 export async function addExerciseToSession(sessionId: string, exerciseId: string) {
   const userId = await requireUserId();
   const sessionExercise = await addExerciseToSessionForUser(prisma, userId, sessionId, exerciseId);
-  const [pr, recent] = await Promise.all([
+  const [pr, recent, steps] = await Promise.all([
     getPriorPr(prisma, userId, exerciseId),
     getRecentSessionSets(prisma, userId, [exerciseId], sessionId),
+    getWeightSteps(prisma, userId, [exerciseId]),
   ]);
   const recentSessions = recent[exerciseId] ?? [];
-  return { ...sessionExercise, pr, lastSession: recentSessions[0] ?? null, recentSessions };
+  return {
+    ...sessionExercise,
+    pr,
+    lastSession: recentSessions[0] ?? null,
+    recentSessions,
+    weightStep: steps[exerciseId] ?? null,
+  };
 }
 
 export async function removeExerciseFromSession(sessionExerciseId: string) {

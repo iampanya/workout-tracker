@@ -7,6 +7,7 @@ import {
   ClockCounterClockwise,
   PencilSimple,
   Plus,
+  Sliders,
   Target,
   Trash,
   Trophy,
@@ -23,6 +24,8 @@ import {
   workingSetNumbers,
 } from "@/lib/sessions/summary";
 import { formatPr } from "@/lib/pr";
+import { WeightStepSheet } from "@/components/exercises/WeightStepSheet";
+import type { WeightStep } from "@/lib/insights/progression";
 import { SetEditor } from "./SetEditor";
 import { WarmupToggle, WeightRepsFields, isValidSetInput } from "./SetForm";
 import type { ExerciseEntry, SetEntry, SetFormInput, SetValues } from "./types";
@@ -54,9 +57,10 @@ function LastTimeHint({ exercise }: { exercise: ExerciseEntry }) {
   );
 }
 
-function TargetHint({ exercise }: { exercise: ExerciseEntry }) {
+function TargetHint({ exercise, onEditStep }: { exercise: ExerciseEntry; onEditStep: () => void }) {
   const t = useTranslations("log");
-  const { target, repRange } = exercise;
+  const tw = useTranslations("weightStep");
+  const { target, repRange, weightStep } = exercise;
   if (!target) return null;
   const reason = {
     addReps: t("targetReason.addReps"),
@@ -69,6 +73,23 @@ function TargetHint({ exercise }: { exercise: ExerciseEntry }) {
       <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="min-w-0">
         {t("target", { weight: target.weightKg, reps: target.reps })} · {reason}
+        {/* Bodyweight targets (repsOnly) never change weight, so the step is irrelevant there. */}
+        {target.reason !== "repsOnly" && (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={onEditStep}
+              aria-label={tw("chipLabel", { kg: weightStep.kg })}
+              className="ml-0.5 inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 px-2 align-middle text-[11px] font-medium [touch-action:manipulation] hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Sliders className="h-3 w-3" aria-hidden />
+              {weightStep.source === "custom"
+                ? tw("chip", { kg: weightStep.kg })
+                : tw("chipAuto", { kg: weightStep.kg })}
+            </button>
+          </>
+        )}
       </span>
     </p>
   );
@@ -86,6 +107,7 @@ export function ExerciseCard({
   onUpdateSet,
   onDeleteSet,
   onRemove,
+  onWeightStepSaved,
 }: {
   exercise: ExerciseEntry;
   expanded: boolean;
@@ -98,11 +120,21 @@ export function ExerciseCard({
   onUpdateSet: (set: SetEntry, values: SetValues) => Promise<boolean>;
   onDeleteSet: (set: SetEntry) => void;
   onRemove: () => void;
+  onWeightStepSaved: (step: WeightStep) => void;
 }) {
   const tc = useTranslations("common");
   const t = useTranslations("log");
   const [input, setInput] = useState<SetFormInput>(() => initialInput(exercise));
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [stepSheetOpen, setStepSheetOpen] = useState(false);
+  // A new target (the weight step changed) re-prefills the add-set form, but only while nothing
+  // is logged yet; after that the form repeats the last set. Adjusting state during render is
+  // React's pattern for "reset when a prop changes" (no effect, no flash of the old value).
+  const [prefilledTarget, setPrefilledTarget] = useState(exercise.target);
+  if (exercise.target !== prefilledTarget) {
+    setPrefilledTarget(exercise.target);
+    if (exercise.sets.length === 0) setInput(initialInput(exercise));
+  }
 
   const workingSets = exercise.sets.filter((s) => !s.is_warmup).length;
   const hasPendingSet = exercise.sets.some((s) => s.pending);
@@ -164,7 +196,7 @@ export function ExerciseCard({
             )}
           </div>
           <LastTimeHint exercise={exercise} />
-          <TargetHint exercise={exercise} />
+          <TargetHint exercise={exercise} onEditStep={() => setStepSheetOpen(true)} />
         </div>
         <IconButton
           icon={<Trash className="h-4 w-4" />}
@@ -174,6 +206,14 @@ export function ExerciseCard({
           className="-mr-2 -mt-2 shrink-0"
         />
       </div>
+
+      <WeightStepSheet
+        open={stepSheetOpen}
+        onClose={() => setStepSheetOpen(false)}
+        exerciseId={exercise.exerciseId}
+        weightStep={exercise.weightStep}
+        onSaved={onWeightStepSaved}
+      />
 
       {blocked && (
         <p className="mt-1 text-sm text-danger">

@@ -21,7 +21,12 @@ import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ExercisePicker, type ExerciseOption } from "@/components/ui/ExercisePicker";
 import { Toast } from "@/components/ui/Toast";
-import { DEFAULT_REP_RANGE, nextTarget, stepFor } from "@/lib/insights/progression";
+import {
+  DEFAULT_REP_RANGE,
+  nextTarget,
+  resolveWeightStep,
+  type WeightStep,
+} from "@/lib/insights/progression";
 import { ExerciseCard } from "./ExerciseCard";
 import { RestTimer } from "./RestTimer";
 import { SessionNotes } from "./SessionNotes";
@@ -252,6 +257,9 @@ export function LoggingClient({
   // Errors propagate to ExercisePicker, which shows them in the sheet and serializes adds.
   async function handleAddExercise(exercise: ExerciseOption) {
     const added = await addExerciseToSession(sessionId, exercise.id);
+    const weightStep =
+      added.weightStep ??
+      resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: exercise.muscleGroup });
     setExercises((prev) => [
       ...prev,
       {
@@ -262,11 +270,24 @@ export function LoggingClient({
         pr: added.pr,
         lastSession: added.lastSession,
         targetSets: null,
-        target: nextTarget(added.recentSessions, DEFAULT_REP_RANGE, stepFor(exercise.muscleGroup)),
+        target: nextTarget(added.recentSessions, DEFAULT_REP_RANGE, weightStep.kg),
         repRange: DEFAULT_REP_RANGE,
+        recentSessions: added.recentSessions,
+        weightStep,
       },
     ]);
     setExpandedId(added.id);
+  }
+
+  // A step belongs to the exercise, so it applies to every entry of it in this session.
+  function handleWeightStepSaved(exerciseId: string, weightStep: WeightStep) {
+    setExercises((prev) =>
+      prev.map((ex) =>
+        ex.exerciseId === exerciseId
+          ? { ...ex, weightStep, target: nextTarget(ex.recentSessions, ex.repRange, weightStep.kg) }
+          : ex
+      )
+    );
   }
 
   function requestRemoveExercise(exercise: ExerciseEntry) {
@@ -392,6 +413,7 @@ export function LoggingClient({
             onUpdateSet={(set, values) => handleUpdateSet(exercise.sessionExerciseId, set, values)}
             onDeleteSet={(set) => handleDeleteSet(exercise.sessionExerciseId, set)}
             onRemove={() => requestRemoveExercise(exercise)}
+            onWeightStepSaved={(step) => handleWeightStepSaved(exercise.exerciseId, step)}
           />
         ))}
       </div>

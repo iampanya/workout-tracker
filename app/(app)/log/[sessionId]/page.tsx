@@ -3,7 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
-import { DEFAULT_REP_RANGE, nextTarget, stepFor } from "@/lib/insights/progression";
+import { DEFAULT_REP_RANGE, nextTarget, resolveWeightStep } from "@/lib/insights/progression";
+import { getWeightSteps } from "@/lib/exercises/settings";
 import { getRoutineTargets, type RoutineTarget } from "@/lib/routines/service";
 import { getPriorPrs, getRecentSessionSets } from "@/lib/sessions/service";
 import { sessionDisplayName } from "@/lib/sessions/history";
@@ -49,12 +50,13 @@ export default async function LogSessionPage({
   );
 
   const exerciseIds = [...new Set(sessionExercises.map((se) => se.exercise_id))];
-  const [prMap, recentSessions, routineTargets] = await Promise.all([
+  const [prMap, recentSessions, routineTargets, weightSteps] = await Promise.all([
     getPriorPrs(prisma, userId, exerciseIds),
     getRecentSessionSets(prisma, userId, exerciseIds, sessionId),
     session.routine_id
       ? getRoutineTargets(prisma, userId, session.routine_id)
       : Promise.resolve({} as Record<string, RoutineTarget>),
+    getWeightSteps(prisma, userId, exerciseIds),
   ]);
 
   const exercises = sessionExercises.map((se) => {
@@ -62,6 +64,9 @@ export default async function LogSessionPage({
     const ls = recent[0];
     const routineTarget = routineTargets[se.exercise_id];
     const repRange = routineTarget?.repRange ?? DEFAULT_REP_RANGE;
+    const weightStep =
+      weightSteps[se.exercise_id] ??
+      resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: se.exercises.muscle_group });
     return {
       sessionExerciseId: se.id,
       exerciseId: se.exercise_id,
@@ -73,8 +78,10 @@ export default async function LogSessionPage({
       // Formatted on the server: Node and the browser disagree on Thai short weekdays (hydration).
       lastSession: ls ? { ...ls, dateLabel: formatShortDate(ls.sessionDate, locale) } : null,
       targetSets: routineTarget?.targetSets ?? null,
-      target: nextTarget(recent, repRange, stepFor(se.exercises.muscle_group)),
+      target: nextTarget(recent, repRange, weightStep.kg),
       repRange,
+      recentSessions: recent,
+      weightStep,
     };
   });
 
