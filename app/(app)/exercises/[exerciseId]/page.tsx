@@ -13,11 +13,14 @@ import {
 import { aggregateSessionSeries } from "@/lib/progress";
 import { estimateOneRepMax } from "@/lib/pr";
 import { formatRelativeDate } from "@/lib/sessions/summary";
+import { getWeightSteps } from "@/lib/exercises/settings";
+import { resolveWeightStep } from "@/lib/insights/progression";
 import { muscleLabel } from "@/components/ui/muscle";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressChart } from "./ProgressChart";
+import { WeightStepRow } from "./WeightStepRow";
 
 // Sets (chronological) → one entry per session, newest first (two sessions on the same day keep
 // their logged order, reversed), sets in logged order.
@@ -48,17 +51,21 @@ export default async function ExerciseProgressPage({
 
   // Independent reads, run in parallel. The exercise lookup is scoped to presets + the user's
   // own (replaces RLS), so another user's custom exercise resolves to null.
-  const [exercise, history, pr] = await Promise.all([
+  const [exercise, history, pr, weightSteps] = await Promise.all([
     prisma.exercises.findFirst({
       where: { id: exerciseId, OR: [{ user_id: null }, { user_id: userId }] },
       select: { name: true, muscle_group: true },
     }),
     getExerciseHistory(prisma, userId, exerciseId),
     getExercisePr(prisma, userId, exerciseId),
+    getWeightSteps(prisma, userId, [exerciseId]),
   ]);
   if (!exercise) {
     notFound();
   }
+  const weightStep =
+    weightSteps[exerciseId] ??
+    resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: exercise.muscle_group });
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
   const bestE1rm = series.reduce((best, point) => Math.max(best, point.e1rm), 0);
   const sessions = groupBySession(history);
@@ -76,6 +83,7 @@ export default async function ExerciseProgressPage({
       <div>
         <h1 className="text-2xl font-semibold">{exercise.name}</h1>
         {exercise.muscle_group && <p className="text-sm text-muted">{muscleLabel(tm, exercise.muscle_group)}</p>}
+        <WeightStepRow exerciseId={exerciseId} initial={weightStep} />
       </div>
 
       {history.length === 0 ? (
