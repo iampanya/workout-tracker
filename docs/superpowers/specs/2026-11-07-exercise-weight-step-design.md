@@ -54,8 +54,13 @@ runs. Hand-write the migration folder like `0003_body_scans`/`0004_routine_rep_r
 
 ```ts
 export type WeightStepSource = "custom" | "history" | "default";
-// kg = the step in use; autoKg = what it would be with no custom value (history, else default).
-export type WeightStep = { kg: number; source: WeightStepSource; autoKg: number };
+// kg = the step in use; autoKg/autoSource = what it would be with no custom value.
+export type WeightStep = {
+  kg: number;
+  source: WeightStepSource;
+  autoKg: number;
+  autoSource: "history" | "default";
+};
 
 export const WEIGHT_STEP_PRESETS = [1, 1.25, 2, 2.5, 4.5, 5, 10];
 
@@ -73,22 +78,24 @@ export function resolveWeightStep(input: {
   difference, so one typo (e.g. 61 among 60/65/70) does not drag the step down to 1.
   - `[10, 12, 14, 16]` → 2
   - `[40, 45, 50, 52.5]` → 5
-  - `[60, 61, 65, 70]` → 5 (diffs 1, 4, 5, 5)
+  - `[60, 61, 65, 70, 75]` → 5 (diffs 1, 4, 5, 5). With too little history a typo can still
+    win a tie (`[60, 61, 65, 70]` → 1); the custom setting covers that.
   - `[60]` → null
-- `resolveWeightStep`: `autoKg = inferStepFromWeights(loggedWeights) ?? stepFor(muscleGroup)`.
-  With `customKg` set → `{ kg: customKg, source: "custom", autoKg }`; else `kg = autoKg` with source
-  `"history"` or `"default"` depending on which branch produced it.
+- `resolveWeightStep`: `autoKg = inferStepFromWeights(loggedWeights) ?? stepFor(muscleGroup)`, and
+  `autoSource` says which one produced it. With `customKg` set → `source: "custom", kg: customKg`;
+  else `kg = autoKg, source = autoSource`.
 - `nextTarget(recent, range, step)` is unchanged. Callers pass `weightStep.kg` instead of
   `stepFor(...)`, so `addWeight` and `reset` both use it.
 
 ## 3. Service (`lib/exercises/settings.ts`)
 
-- `getWeightSteps(db, userId, exercises: { id: string; muscle_group: string | null }[]):
-  Promise<Record<string, WeightStep>>`. Two queries in parallel: the user's `exercise_settings` rows
-  for those ids, and the distinct working weights:
+- `getWeightSteps(db, userId, exerciseIds: string[]): Promise<Record<string, WeightStep>>`. Three
+  queries in parallel: the exercises visible to the user (preset or own) for their muscle groups, the
+  user's `exercise_settings` rows for those ids, and the distinct working weights:
   `select distinct exercise_id, weight_kg from sets where user_id = $1 and exercise_id in (...) and
   not is_warmup and weight_kg > 0` (served by the existing `sets_user_exercise_idx`). Coerce `Decimal`
-  with `Number()`, then `resolveWeightStep` per exercise. Empty input → `{}` without querying.
+  with `Number()`, then `resolveWeightStep` per exercise. Exercises the user cannot see are absent.
+  Empty input → `{}` without querying.
 - `setWeightStepForUser(db, userId, exerciseId, kg: number | null): Promise<WeightStep>`. First check
   the exercise is visible to the caller (preset, or `user_id = userId`); otherwise throw. `null` deletes
   the row (back to automatic); a number upserts it. Validate with a zod schema in `lib/validation.ts`
@@ -101,14 +108,17 @@ export function resolveWeightStep(input: {
 ## 4. Log screen
 
 - `app/(app)/log/[sessionId]/page.tsx`: add `getWeightSteps` to the second `Promise.all` (it needs
-  the exercise list from the first). Each exercise entry gets `weightStep`, `recentSessions` (the
+  the exercise ids from the first). Each exercise entry gets `weightStep`, `recentSessions` (the
   client needs them to recompute the target), and `target: nextTarget(recent, repRange,
   weightStep.kg)`.
 - `types.ts` `ExerciseEntry`: add `weightStep: WeightStep` and `recentSessions: LastSession[]`.
 - `addExerciseToSession` (`lib/actions/sessions.ts`) also returns `weightStep`; `LoggingClient` uses
   it instead of `stepFor(exercise.muscleGroup)` for exercises added mid-session.
 - `ExerciseCard` `TargetHint`: after the reason, a tappable chip "step {kg} kg" (plus "· auto" when
-  `source !== "custom"`) that opens `WeightStepSheet`. No target (no history yet) → no chip.
+  `source !== "custom"`) that opens `WeightStepSheet`. No target (no history yet) or a bodyweight
+  `repsOnly` target → no chip.
+- A step change applies to every entry of that exercise in the session (the same exercise can be
+  added twice).
 - On save, `LoggingClient` replaces that exercise's `weightStep` and recomputes `target =
   nextTarget(recentSessions, repRange, kg)` on the client. If the exercise has no logged sets yet, the
   add-set form resets to the new target (key the form state on the target, or reset it in
@@ -120,7 +130,8 @@ export function resolveWeightStep(input: {
 A shared client component built on `Sheet`. Props: `exerciseId`, `weightStep`, `onSaved(step)`,
 `open`/`onClose`.
 
-- An "Automatic ({autoKg} kg, from history | default)" option, which saves `null`.
+- An "Automatic" option showing `autoKg` and whether it comes from history or the default
+  (`autoSource`); it saves `null`.
 - Chips for `WEIGHT_STEP_PRESETS` and a `NumberField` for any other value; the current custom value
   is preselected.
 - A Save button, disabled while the action is pending. On failure, show the translated
@@ -129,8 +140,7 @@ A shared client component built on `Sheet`. Props: `exerciseId`, `weightStep`, `
 ## 6. Exercise page `/exercises/[exerciseId]`
 
 Under the name/muscle group, a small row "Weight step {kg} kg (auto)" with an edit button that opens
-the same `WeightStepSheet`. `page.tsx` adds `getWeightSteps` to its `Promise.all` (it already has the
-exercise's muscle group). Because the page is a server component, the row and sheet live in a small
+the same `WeightStepSheet`. `page.tsx` adds `getWeightSteps` to its `Promise.all` . Because the page is a server component, the row and sheet live in a small
 client wrapper that holds the step in state and updates it from `onSaved`.
 
 ## 7. i18n
