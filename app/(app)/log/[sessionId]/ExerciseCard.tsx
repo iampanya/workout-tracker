@@ -80,7 +80,6 @@ function TargetHint({ exercise, onEditStep }: { exercise: ExerciseEntry; onEditS
             <button
               type="button"
               onClick={onEditStep}
-              aria-label={tw("chipLabel", { kg: weightStep.kg })}
               className="ml-0.5 inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 px-2 align-middle text-[11px] font-medium [touch-action:manipulation] hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Sliders className="h-3 w-3" aria-hidden />
@@ -131,7 +130,11 @@ export function ExerciseCard({
   // is logged yet; after that the form repeats the last set. Adjusting state during render is
   // React's pattern for "reset when a prop changes" (no effect, no flash of the old value).
   const [prefilledTarget, setPrefilledTarget] = useState(exercise.target);
-  if (exercise.target !== prefilledTarget) {
+  // Compared by value: a recomputed target with the same weight and reps must not overwrite typing.
+  if (
+    exercise.target?.weightKg !== prefilledTarget?.weightKg ||
+    exercise.target?.reps !== prefilledTarget?.reps
+  ) {
     setPrefilledTarget(exercise.target);
     if (exercise.sets.length === 0) setInput(initialInput(exercise));
   }

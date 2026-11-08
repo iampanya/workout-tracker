@@ -368,7 +368,6 @@
   "weightStep": {
     "chip": "step {kg} kg",
     "chipAuto": "step {kg} kg · auto",
-    "chipLabel": "Weight step {kg} kg, tap to change",
     "title": "Weight step",
     "description": "How much the target weight goes up or down for this exercise. Set it to the smallest jump your equipment allows.",
     "auto": "Automatic",

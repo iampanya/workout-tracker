@@ -44,7 +44,7 @@ export function WeightStepSheet({
 const OTHER_STEP = 0.5;
 
 function chipClass(active: boolean) {
-  return `flex min-h-11 items-center justify-center rounded-lg border px-2 text-sm font-medium tabular-nums transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
+  return `flex min-h-11 rounded-lg border px-2 text-sm font-medium tabular-nums transition [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 ${
     active
       ? "border-accent bg-accent text-accent-foreground"
       : "border-border bg-surface-muted text-foreground hover:bg-border/40"
@@ -84,6 +84,11 @@ function WeightStepForm({
   const value: number | null | undefined =
     choice === "auto" ? null : choice === "other" ? (otherValid ? otherKg : undefined) : choice;
 
+  function pick(next: Choice) {
+    setChoice(next);
+    setError(null);
+  }
+
   async function save() {
     if (value === undefined) return;
     setPending(true);
@@ -115,7 +120,7 @@ function WeightStepForm({
           type="button"
           aria-pressed={choice === "auto"}
           disabled={pending}
-          onClick={() => setChoice("auto")}
+          onClick={() => pick("auto")}
           className={`${chipClass(choice === "auto")} flex-col items-start px-3 py-2 text-left`}
         >
           <span>{t("auto")}</span>
@@ -133,8 +138,8 @@ function WeightStepForm({
               type="button"
               aria-pressed={choice === kg}
               disabled={pending}
-              onClick={() => setChoice(kg)}
-              className={chipClass(choice === kg)}
+              onClick={() => pick(kg)}
+              className={`${chipClass(choice === kg)} items-center justify-center`}
             >
               {kg}
             </button>
@@ -143,8 +148,8 @@ function WeightStepForm({
             type="button"
             aria-pressed={choice === "other"}
             disabled={pending}
-            onClick={() => setChoice("other")}
-            className={chipClass(choice === "other")}
+            onClick={() => pick("other")}
+            className={`${chipClass(choice === "other")} items-center justify-center`}
           >
             {t("other")}
           </button>
@@ -154,8 +159,14 @@ function WeightStepForm({
           <NumberField
             label={t("customLabel")}
             value={other}
-            onChange={setOther}
-            onStep={(delta) => setOther((prev) => applyStep(prev, delta, OTHER_STEP))}
+            onChange={(v) => {
+              setOther(v);
+              setError(null);
+            }}
+            onStep={(delta) => {
+              setOther((prev) => applyStep(prev, delta, OTHER_STEP));
+              setError(null);
+            }}
             step={OTHER_STEP}
           />
         )}
