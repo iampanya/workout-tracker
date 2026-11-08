@@ -46,9 +46,15 @@ export type WeightStep = {
 // (4.5 ≈ 10 lb), plate pairs and stacks (5, 10).
 export const WEIGHT_STEP_PRESETS = [1, 1.25, 2, 2.5, 4.5, 5, 10];
 
-// The most common gap between neighbouring distinct weights (tie → the smaller gap), or null with
-// fewer than two. The mode rather than the smallest gap, so one typo needs to be outvoted rather
-// than winning outright.
+// Inference plausibility gate: the most common gap is only believed when it shows up at least
+// MIN_GAP_OCCURRENCES times and is no larger than the biggest preset (a 20 kg "step" is a ramp-up
+// or a sparse history, not a progression step).
+export const MIN_GAP_OCCURRENCES = 2;
+export const MAX_INFERRED_STEP = Math.max(...WEIGHT_STEP_PRESETS);
+
+// The most common gap between neighbouring distinct weights (tie → the smaller gap), or null when
+// there is none that passes the gate above. The mode rather than the smallest gap, so one typo
+// needs to be outvoted rather than winning outright. `weights` should be per-session top weights.
 export function inferStepFromWeights(weights: number[]): number | null {
   const distinct = [...new Set(weights.filter((w) => w > 0))].sort((a, b) => a - b);
   if (distinct.length < 2) return null;
@@ -65,10 +71,11 @@ export function inferStepFromWeights(weights: number[]): number | null {
       bestCount = count;
     }
   }
+  if (best === null || bestCount < MIN_GAP_OCCURRENCES || best > MAX_INFERRED_STEP) return null;
   return best;
 }
 
-// custom → inferred from logged working weights → muscle-group default.
+// custom → inferred from per-session top weights → muscle-group default.
 export function resolveWeightStep({
   customKg,
   loggedWeights,

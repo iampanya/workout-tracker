@@ -11,8 +11,13 @@ import {
 } from "@/lib/sessions/service";
 import { getWeightSteps, setWeightStepForUser } from "./settings";
 
-// One completed session of `exerciseId` with the given working (and warmup) weights.
-async function logWeights(userId: string, exerciseId: string, working: number[], warmups: number[] = []) {
+// One session of `exerciseId` with the given working (and warmup) weights; completed unless told not.
+async function logSession(
+  userId: string,
+  exerciseId: string,
+  working: number[],
+  { warmups = [], finish = true }: { warmups?: number[]; finish?: boolean } = {}
+) {
   const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-10-01" });
   const se = await addExerciseToSessionForUser(prisma, userId, session.id, exerciseId);
   for (const weightKg of warmups) {
@@ -21,7 +26,12 @@ async function logWeights(userId: string, exerciseId: string, working: number[],
   for (const weightKg of working) {
     await logSetForUser(prisma, userId, { sessionExerciseId: se.id, weightKg, reps: 8, isWarmup: false });
   }
-  await finishSessionForUser(prisma, userId, session.id);
+  if (finish) await finishSessionForUser(prisma, userId, session.id);
+}
+
+// One completed session per top weight: history that infers the gap between them.
+async function logTops(userId: string, exerciseId: string, tops: number[], warmups: number[] = []) {
+  for (const top of tops) await logSession(userId, exerciseId, [top], { warmups });
 }
 
 async function shoulderPresets() {
@@ -49,11 +59,11 @@ describe("getWeightSteps", () => {
     });
   });
 
-  it("infers from logged working weights, ignoring warmups", async () => {
+  it("infers from per-session top weights, ignoring warmups", async () => {
     const { userId } = await createTestUser();
     const [preset] = await shoulderPresets();
-    // Warmups 11/13 would make the gap 1 if they counted.
-    await logWeights(userId, preset.id, [10, 12, 14], [11, 13]);
+    // A 16 kg warmup is heavier than the first tops; if it counted as the top the gaps would differ.
+    await logTops(userId, preset.id, [10, 12, 14], [16]);
     expect((await getWeightSteps(prisma, userId, [preset.id]))[preset.id]).toEqual({
       kg: 2,
       source: "history",
@@ -63,11 +73,31 @@ describe("getWeightSteps", () => {
   });
 });
 
+describe("getWeightSteps history signal", () => {
+  const defaulted = { kg: 1.25, source: "default", autoKg: 1.25, autoSource: "default" };
+
+  it("does not read a ramp within one session as a step", async () => {
+    const { userId } = await createTestUser();
+    const [preset] = await shoulderPresets();
+    await logSession(userId, preset.id, [20, 40, 60, 80, 100]);
+    expect((await getWeightSteps(prisma, userId, [preset.id]))[preset.id]).toEqual(defaulted);
+  });
+
+  it("ignores the top of an unfinished session", async () => {
+    const { userId } = await createTestUser();
+    const [preset] = await shoulderPresets();
+    await logTops(userId, preset.id, [10, 12]);
+    await logSession(userId, preset.id, [14], { finish: false });
+    // Tops 10, 12 only: one gap is not enough; with 14 counted it would infer 2.
+    expect((await getWeightSteps(prisma, userId, [preset.id]))[preset.id]).toEqual(defaulted);
+  });
+});
+
 describe("setWeightStepForUser", () => {
   it("sets, updates and clears a custom step", async () => {
     const { userId } = await createTestUser();
     const [preset] = await shoulderPresets();
-    await logWeights(userId, preset.id, [10, 12, 14]);
+    await logTops(userId, preset.id, [10, 12, 14]);
 
     expect(await setWeightStepForUser(prisma, userId, preset.id, { weightStepKg: 5 })).toEqual({
       kg: 5,
@@ -115,7 +145,7 @@ describe("setWeightStepForUser", () => {
     expect(await prisma.exercise_settings.count({ where: { exercise_id: mine.id } })).toBe(0);
 
     // B's history doesn't feed A's inference.
-    await logWeights(b, p2.id, [20, 25, 30]);
+    await logTops(b, p2.id, [20, 25, 30]);
     expect((await getWeightSteps(prisma, a, [p2.id]))[p2.id].source).toBe("default");
     expect((await getWeightSteps(prisma, b, [p2.id]))[p2.id]).toMatchObject({ kg: 5, source: "history" });
   });

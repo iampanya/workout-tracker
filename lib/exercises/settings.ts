@@ -1,5 +1,5 @@
 // Per-user exercise settings. Today that is only the weight step used by the next-session target:
-// a custom value from exercise_settings, else inferred from the user's logged working weights, else
+// a custom value from exercise_settings, else inferred from the top working weight of each completed session, else
 // the muscle-group default (resolveWeightStep). Every query is scoped to the user (no RLS).
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { resolveWeightStep, type WeightStep } from "@/lib/insights/progression";
@@ -22,14 +22,21 @@ export async function getWeightSteps(
       where: { user_id: userId, exercise_id: { in: ids } },
       select: { exercise_id: true, weight_step_kg: true },
     }),
-    // Distinct working weights per exercise (sets_user_exercise_idx covers the filter).
+    // Per completed session, the heaviest working weight of each exercise (the "top set"). Ramp-ups
+    // and drop sets inside one session thus count once. Only the user_id prefix of
+    // sets_user_exercise_idx is usable here (the exercise filter casts to text).
     db.$queryRaw<{ exercise_id: string; weight_kg: Prisma.Decimal | number }[]>(Prisma.sql`
-      select distinct exercise_id::text as exercise_id, weight_kg
-      from sets
-      where user_id = ${userId}::uuid
-        and exercise_id::text in (${Prisma.join(ids)})
-        and not is_warmup
-        and weight_kg > 0`),
+      select st.exercise_id::text as exercise_id, max(st.weight_kg) as weight_kg
+      from sets st
+      join session_exercises se on se.id = st.session_exercise_id
+      join sessions s on s.id = se.session_id
+      where st.user_id = ${userId}::uuid
+        and s.user_id = ${userId}::uuid
+        and st.exercise_id::text in (${Prisma.join(ids)})
+        and s.completed_at is not null
+        and not st.is_warmup
+        and st.weight_kg > 0
+      group by s.id, st.exercise_id`),
   ]);
 
   const custom = new Map(settings.map((row) => [row.exercise_id, Number(row.weight_step_kg)]));
@@ -74,5 +81,7 @@ export async function setWeightStepForUser(
       update: { weight_step_kg: weightStepKg, updated_at: new Date() },
     });
   }
-  return (await getWeightSteps(db, userId, [exerciseId]))[exerciseId];
+  const step = (await getWeightSteps(db, userId, [exerciseId]))[exerciseId];
+  if (!step) throw new Error("Exercise not found");
+  return step;
 }

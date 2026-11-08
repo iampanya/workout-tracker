@@ -133,7 +133,14 @@ describe("inferStepFromWeights", () => {
   });
 
   it("breaks a tie with the smaller gap", () => {
-    expect(inferStepFromWeights([20, 22.5, 27.5])).toBe(2.5); // gaps 2.5, 5
+    expect(inferStepFromWeights([20, 22.5, 25, 30, 35])).toBe(2.5); // gaps 2.5, 2.5, 5, 5
+  });
+
+  it("needs the gap to repeat and be a plausible step", () => {
+    expect(inferStepFromWeights([50, 60])).toBeNull(); // a single gap
+    expect(inferStepFromWeights([20, 60])).toBeNull(); // single gap, too large anyway
+    expect(inferStepFromWeights([20, 40, 60, 80, 100])).toBeNull(); // mode 20 kg > 10
+    expect(inferStepFromWeights([20, 30, 40])).toBe(10); // the largest accepted step
   });
 
   it("handles fractional machine and plate steps", () => {
@@ -145,6 +152,7 @@ describe("inferStepFromWeights", () => {
     expect(inferStepFromWeights([])).toBeNull();
     expect(inferStepFromWeights([60, 60])).toBeNull();
     expect(inferStepFromWeights([0, 60])).toBeNull();
+    expect(inferStepFromWeights([10, 12])).toBeNull(); // one gap is not enough evidence
   });
 });
 

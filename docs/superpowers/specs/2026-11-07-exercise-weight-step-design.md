@@ -14,7 +14,7 @@ Goal: the target weight (both `addWeight` and `reset`) lands on a weight the equ
 using a step per exercise, resolved in this order:
 
 1. **custom**: the step the user set for this exercise;
-2. **history**: inferred from the weights the user has logged for this exercise;
+2. **history**: inferred from the per-session top working weights of the user's completed sessions for this exercise;
 3. **default**: today's `stepFor(muscleGroup)`.
 
 This supersedes the training-insights spec's "No per-exercise setting" decision
@@ -72,14 +72,19 @@ export function resolveWeightStep(input: {
 }): WeightStep;
 ```
 
-- `inferStepFromWeights`: take the distinct weights > 0, sort ascending, compute the differences
-  between neighbours (rounded to 2 decimals), and return the **most frequent** difference. A tie goes
-  to the smaller difference. Fewer than two distinct weights → `null`. The mode, not the smallest
-  difference, so one typo (e.g. 61 among 60/65/70) does not drag the step down to 1.
+- `inferStepFromWeights`: its input is the **per-session top working weight** (heaviest non-warmup set
+  > 0) of each completed session of the exercise, so ramp-ups and drop sets inside a session count
+  once. Take the distinct weights > 0, sort ascending, compute the differences between neighbours
+  (rounded to 2 decimals), and return the **most frequent** difference. A tie goes to the smaller
+  difference. Plausibility gate: the mode is accepted only if it occurs **at least twice**
+  (`MIN_GAP_OCCURRENCES`) and is **≤ 10 kg** (`MAX_INFERRED_STEP`, the largest preset); otherwise
+  `null` (fall back to the muscle-group default). Fewer than two distinct weights → `null`. The mode,
+  not the smallest difference, so one typo (e.g. 61 among 60/65/70) does not drag the step down to 1.
   - `[10, 12, 14, 16]` → 2
   - `[40, 45, 50, 52.5]` → 5
-  - `[60, 61, 65, 70, 75]` → 5 (diffs 1, 4, 5, 5). With too little history a typo can still
-    win a tie (`[60, 61, 65, 70]` → 1); the custom setting covers that.
+  - `[60, 61, 65, 70, 75]` → 5 (diffs 1, 4, 5, 5). With too little history the gate returns null
+    instead (`[60, 61, 65, 70]` → each gap once → null).
+  - `[50, 60]` → null (one gap); `[20, 40, 60, 80, 100]` → null (mode 20 kg > 10)
   - `[60]` → null
 - `resolveWeightStep`: `autoKg = inferStepFromWeights(loggedWeights) ?? stepFor(muscleGroup)`, and
   `autoSource` says which one produced it. With `customKg` set → `source: "custom", kg: customKg`;
@@ -159,11 +164,12 @@ history", "default", custom-value label, aria-labels, and the `errors.weightStep
 ## Testing
 
 - `npm test` (`lib/insights/progression.test.ts`): `inferStepFromWeights` (mode, tie → smaller, a
-  single typo, fewer than two weights, 1.25 and 4.5 steps, duplicates and zeros ignored);
+  single typo, the ≥2-occurrence and ≤10 kg gate, fewer than two weights, 1.25 and 4.5 steps, duplicates and zeros ignored);
   `resolveWeightStep` priority and `autoKg`; `nextTarget` adding and resetting with steps 2 and 5.
 - `test:db` (`lib/exercises/settings.test.ts`; picked up automatically because `test:db` runs every
-  test file not excluded): upsert, update, delete back to automatic; history inference from logged
-  sets, ignoring warmups and 0 kg; invalid values rejected; isolation: A's setting is not visible to B,
+  test file not excluded): upsert, update, delete back to automatic; history inference from
+  per-session tops of completed sessions (warmups, 0 kg, unfinished sessions and a ramp within one
+  session do not count); invalid values rejected; isolation: A's setting is not visible to B,
   B cannot set a step on A's custom exercise, B's sets do not affect A's inference.
 - `npx tsc --noEmit && npm run lint`; the local schema fingerprint diffed before/after the migration shows only the new table.
 - Browser (signed in with Google, mobile width, Thai and English): an exercise with dumbbell history

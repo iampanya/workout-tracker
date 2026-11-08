@@ -95,7 +95,7 @@ The target reps for an exercise in a routine (`routine_exercises.target_reps_min
 The weight × reps suggested for an exercise's next session (`nextTarget`, `lib/insights/progression.ts`): add a rep until every top set reaches the top of the rep range, then add weight by the exercise's **Weight step** and restart at the bottom; two stalled sessions below the range at the same weight drop the weight one step.
 
 **Weight step**:
-How much an exercise's next target adds or removes when it changes weight. The user's custom value for that exercise (`exercise_settings`), else the most common gap between the weights they have logged for it, else the muscle-group default (Legs +5, Chest/Back +2.5, others +1.25 kg). Separate from the +/− stepper on the weight field, which always moves 2.5 kg.
+How much an exercise's next target adds or removes when it changes weight. The user's custom value for that exercise (`exercise_settings`), else the most common gap between the top working weights of their completed sessions for it (accepted only if the gap occurs at least twice and is at most 10 kg), else the muscle-group default (Legs +5, Chest/Back +2.5, others +1.25 kg). Separate from the +/− stepper on the weight field, which always moves 2.5 kg.
 
 **Plateau**:
 An exercise whose best estimated 1RM of its last 3 sessions is between 0% and −5% of its best before them (needs 4+ sessions in the 8-week window). Above 0% is progressing, −5% or lower is declining.
