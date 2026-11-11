@@ -13,10 +13,8 @@ import {
   listInProgressSessions,
   listPrsFromLastCompletedSession,
   getOverviewStats,
-  getWeeklyVolume,
   listTopPrs,
 } from "./service";
-import { getWeekStart } from "@/lib/date";
 
 type SetSeed = { weightKg: number; reps: number; isWarmup: boolean };
 
@@ -146,39 +144,6 @@ describe("getOverviewStats", () => {
     const stats = await getOverviewStats(prisma, userId, "2026-09-08");
     expect(stats.volumeThisWeekKg).toBe(1220);
     expect(stats.sessionsThisWeek).toBe(1);
-  });
-});
-
-describe("getWeeklyVolume", () => {
-  let userId: string;
-
-  beforeAll(async () => {
-    userId = (await createTestUser()).userId;
-  });
-
-  it("buckets non-warmup volume by week and zero-fills the rest of the window", async () => {
-    const exercise = await createCustomExerciseForUser(prisma, userId, {
-      name: `Weekly Volume ${Date.now()}`,
-      muscleGroup: "Back",
-    });
-    const today = "2026-03-25"; // Wed
-
-    await seedCompletedSessionWithSets(userId, "2026-03-24", exercise.id, [
-      { weightKg: 50, reps: 10, isWarmup: false }, // 500 (current week)
-      { weightKg: 20, reps: 5, isWarmup: true }, // excluded
-    ]);
-    await seedCompletedSessionWithSets(userId, "2026-03-16", exercise.id, [
-      { weightKg: 60, reps: 5, isWarmup: false }, // 300 (previous week)
-    ]);
-
-    const result = await getWeeklyVolume(prisma, userId, 8, today);
-    expect(result).toHaveLength(8);
-
-    const current = result.find((b) => b.weekStart === getWeekStart("2026-03-24"));
-    expect(current?.volumeKg).toBe(500);
-    const previous = result.find((b) => b.weekStart === getWeekStart("2026-03-16"));
-    expect(previous?.volumeKg).toBe(300);
-    expect(result.reduce((sum, b) => sum + b.volumeKg, 0)).toBe(800);
   });
 });
 

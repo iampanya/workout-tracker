@@ -8,7 +8,6 @@ import { getInProgressSessions } from "@/lib/dashboard/current";
 import {
   listPrsFromLastCompletedSession,
   getOverviewStats,
-  getWeeklyVolume,
   listTopPrs,
 } from "@/lib/dashboard/service";
 import { getLatestBodySummary, listBodyGoals } from "@/lib/body/service";
@@ -29,12 +28,11 @@ const MAX_PRS = 6;
 export default async function DashboardPage() {
   const user = await getAuthUser();
   const today = getTodayString();
-  const [inProgress, newPrs, overview, weeklyVolume, topPrs, recentWorkouts, bodySummary, bodyGoals, insights] =
+  const [inProgress, newPrs, overview, topPrs, recentWorkouts, bodySummary, bodyGoals, insights] =
     await Promise.all([
       getInProgressSessions(),
       listPrsFromLastCompletedSession(prisma, user!.id),
       getOverviewStats(prisma, user!.id, today),
-      getWeeklyVolume(prisma, user!.id, 8, today),
       listTopPrs(prisma, user!.id, MAX_PRS),
       listCompletedSessions(prisma, user!.id, { take: 5 }),
       getLatestBodySummary(prisma, user!.id),
@@ -49,6 +47,8 @@ export default async function DashboardPage() {
   ]);
   const relativeLabels = { today: tc("today"), yesterday: tc("yesterday") };
   const freeform = tc("freeformWorkout");
+  // The insights window (8 weeks, working sets of completed sessions) doubles as the chart's data.
+  const weeklyVolume = insights.consistency.weeks.map(({ weekStart, volumeKg }) => ({ weekStart, volumeKg }));
   const hasWeeklyVolume = weeklyVolume.some((w) => w.volumeKg > 0);
   // With a workout already open, the primary CTA resumes it instead of starting a second one.
   const current = inProgress[0] ?? null;

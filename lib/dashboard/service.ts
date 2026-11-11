@@ -80,55 +80,6 @@ export async function getOverviewStats(
   return { streakDays, sessionsThisWeek, volumeThisWeekKg };
 }
 
-export type WeeklyVolumePoint = { weekStart: string; volumeKg: number };
-
-// Training volume (Σ weight_kg × reps over non-warmup sets) bucketed by Monday-start week of
-// each session's session_date, oldest→newest, zero-filled across the window.
-export async function getWeeklyVolume(
-  db: PrismaClient,
-  userId: string,
-  weeks = 8,
-  todayStr: string = getTodayString()
-): Promise<WeeklyVolumePoint[]> {
-  const buckets: WeeklyVolumePoint[] = [];
-  const bucketIndex = new Map<string, number>();
-  for (let i = weeks - 1; i >= 0; i--) {
-    const weekStart = getWeekStart(addDays(todayStr, -i * 7));
-    if (!bucketIndex.has(weekStart)) {
-      bucketIndex.set(weekStart, buckets.length);
-      buckets.push({ weekStart, volumeKg: 0 });
-    }
-  }
-  const windowStart = buckets[0].weekStart;
-
-  const sets = await db.sets.findMany({
-    where: {
-      user_id: userId,
-      is_warmup: false,
-      session_exercises: {
-        sessions: {
-          completed_at: { not: null },
-          session_date: { gte: new Date(windowStart), lte: new Date(todayStr) },
-        },
-      },
-    },
-    select: {
-      weight_kg: true,
-      reps: true,
-      session_exercises: { select: { sessions: { select: { session_date: true } } } },
-    },
-  });
-
-  for (const set of sets) {
-    const weekStart = getWeekStart(toDateOnlyString(set.session_exercises.sessions.session_date));
-    const idx = bucketIndex.get(weekStart);
-    if (idx === undefined) continue;
-    buckets[idx].volumeKg += Number(set.weight_kg) * set.reps;
-  }
-
-  return buckets;
-}
-
 export type TopPr = { exerciseId: string; exerciseName: string } & PrRecord;
 
 // All-time top lifts from the live exercise_prs view (read via raw SQL — it's a view, not a
