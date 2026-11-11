@@ -15,7 +15,7 @@ import {
   parseRepRange,
   repRangeValue,
   type RepRange,
-} from "@/lib/insights/progression";
+} from "@/lib/routines/rep-range";
 import { IconButton } from "@/components/ui/IconButton";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";

@@ -4,6 +4,7 @@ import { ListPlus } from "@phosphor-icons/react/ssr";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getRoutineWithExercises } from "@/lib/routines/service";
+import { toRepRange } from "@/lib/routines/rep-range";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoutineExerciseRow } from "./RoutineExerciseRow";
@@ -62,11 +63,7 @@ export default async function RoutineEditorPage({
               name={entry.exercise.name}
               muscleGroup={entry.exercise.muscle_group}
               targetSets={entry.target_sets}
-              repRange={
-                entry.target_reps_min !== null && entry.target_reps_max !== null
-                  ? { min: entry.target_reps_min, max: entry.target_reps_max }
-                  : null
-              }
+              repRange={toRepRange(entry.target_reps_min, entry.target_reps_max)}
               isFirst={index === 0}
               isLast={index === exercises.length - 1}
             />

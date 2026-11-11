@@ -1,13 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { LastSession } from "@/lib/sessions/last-session";
+import { DEFAULT_REP_RANGE } from "@/lib/routines/rep-range";
 import {
-  DEFAULT_REP_RANGE,
-  REP_RANGE_PRESETS,
   WEIGHT_STEP_PRESETS,
+  defaultWeightStep,
   inferStepFromWeights,
   nextTarget,
-  parseRepRange,
-  repRangeValue,
   resolveWeightStep,
   stepFor,
 } from "./progression";
@@ -103,18 +101,10 @@ describe("stepFor", () => {
   });
 });
 
-describe("rep range values", () => {
-  it("round-trips through the select value", () => {
-    expect(repRangeValue({ min: 6, max: 10 })).toBe("6-10");
-    expect(repRangeValue(null)).toBe("");
-    expect(parseRepRange("6-10")).toEqual({ min: 6, max: 10 });
-    expect(parseRepRange("")).toBeNull();
-    expect(parseRepRange("10-6")).toBeNull();
-    expect(parseRepRange("x")).toBeNull();
-  });
-
-  it("offers the default among the presets", () => {
-    expect(REP_RANGE_PRESETS).toContainEqual(DEFAULT_REP_RANGE);
+describe("defaultWeightStep", () => {
+  it("is the muscle-group default with no custom value or history", () => {
+    expect(defaultWeightStep("Legs")).toEqual({ kg: 5, source: "default", autoKg: 5, autoSource: "default" });
+    expect(defaultWeightStep(null)).toEqual({ kg: 1.25, source: "default", autoKg: 1.25, autoSource: "default" });
   });
 });
 

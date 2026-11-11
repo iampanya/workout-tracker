@@ -3,7 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { getAuthUser } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { listExercises, listRecentExerciseIds } from "@/lib/exercises/service";
-import { DEFAULT_REP_RANGE, nextTarget, resolveWeightStep } from "@/lib/insights/progression";
+import { defaultWeightStep, nextTarget } from "@/lib/insights/progression";
+import { DEFAULT_REP_RANGE } from "@/lib/routines/rep-range";
 import { getWeightSteps } from "@/lib/exercises/settings";
 import { getRoutineTargets, type RoutineTarget } from "@/lib/routines/service";
 import { getPriorPrs, getRecentSessionSets } from "@/lib/sessions/service";
@@ -64,9 +65,7 @@ export default async function LogSessionPage({
     const ls = recent[0];
     const routineTarget = routineTargets[se.exercise_id];
     const repRange = routineTarget?.repRange ?? DEFAULT_REP_RANGE;
-    const weightStep =
-      weightSteps[se.exercise_id] ??
-      resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: se.exercises.muscle_group });
+    const weightStep = weightSteps[se.exercise_id] ?? defaultWeightStep(se.exercises.muscle_group);
     return {
       sessionExerciseId: se.id,
       exerciseId: se.exercise_id,

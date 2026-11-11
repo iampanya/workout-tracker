@@ -12,7 +12,7 @@ import {
   updateRoutineExerciseTargetSetsForUser,
   updateRoutineExerciseRepRangeForUser,
 } from "@/lib/routines/service";
-import type { RepRange } from "@/lib/insights/progression";
+import type { RepRange } from "@/lib/routines/rep-range";
 
 export async function createRoutine(input: unknown) {
   const userId = await requireUserId();

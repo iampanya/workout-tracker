@@ -14,7 +14,7 @@ import { aggregateSessionSeries } from "@/lib/progress";
 import { estimateOneRepMax } from "@/lib/pr";
 import { formatRelativeDate } from "@/lib/sessions/summary";
 import { getWeightSteps } from "@/lib/exercises/settings";
-import { resolveWeightStep } from "@/lib/insights/progression";
+import { defaultWeightStep } from "@/lib/insights/progression";
 import { muscleLabel } from "@/components/ui/muscle";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -63,9 +63,7 @@ export default async function ExerciseProgressPage({
   if (!exercise) {
     notFound();
   }
-  const weightStep =
-    weightSteps[exerciseId] ??
-    resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: exercise.muscle_group });
+  const weightStep = weightSteps[exerciseId] ?? defaultWeightStep(exercise.muscle_group);
   const series = aggregateSessionSeries(history.filter((s) => !s.is_warmup));
   const bestE1rm = series.reduce((best, point) => Math.max(best, point.e1rm), 0);
   const sessions = groupBySession(history);

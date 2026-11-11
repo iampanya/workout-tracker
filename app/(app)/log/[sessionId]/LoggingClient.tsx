@@ -21,12 +21,8 @@ import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ExercisePicker, type ExerciseOption } from "@/components/ui/ExercisePicker";
 import { Toast } from "@/components/ui/Toast";
-import {
-  DEFAULT_REP_RANGE,
-  nextTarget,
-  resolveWeightStep,
-  type WeightStep,
-} from "@/lib/insights/progression";
+import { defaultWeightStep, nextTarget, type WeightStep } from "@/lib/insights/progression";
+import { DEFAULT_REP_RANGE } from "@/lib/routines/rep-range";
 import { ExerciseCard } from "./ExerciseCard";
 import { RestTimer } from "./RestTimer";
 import { SessionNotes } from "./SessionNotes";
@@ -257,9 +253,7 @@ export function LoggingClient({
   // Errors propagate to ExercisePicker, which shows them in the sheet and serializes adds.
   async function handleAddExercise(exercise: ExerciseOption) {
     const added = await addExerciseToSession(sessionId, exercise.id);
-    const weightStep =
-      added.weightStep ??
-      resolveWeightStep({ customKg: null, loggedWeights: [], muscleGroup: exercise.muscleGroup });
+    const weightStep = added.weightStep ?? defaultWeightStep(exercise.muscleGroup);
     setExercises((prev) => [
       ...prev,
       {

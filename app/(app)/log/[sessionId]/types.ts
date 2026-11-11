@@ -1,6 +1,7 @@
 import type { LastSession } from "@/lib/sessions/last-session";
 import type { PrRecord } from "@/lib/pr";
-import type { NextTarget, RepRange, WeightStep } from "@/lib/insights/progression";
+import type { NextTarget, WeightStep } from "@/lib/insights/progression";
+import type { RepRange } from "@/lib/routines/rep-range";
 
 export type SetEntry = {
   id: string;

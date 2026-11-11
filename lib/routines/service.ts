@@ -5,7 +5,7 @@ import {
   updateRoutineTargetSetsSchema,
   updateRoutineRepRangeSchema,
 } from "@/lib/validation";
-import type { RepRange } from "@/lib/insights/progression";
+import { toRepRange, type RepRange } from "./rep-range";
 
 export type Routine = routines;
 export type RoutineExercise = routine_exercises;
@@ -201,10 +201,7 @@ export async function getRoutineTargets(
       row.exercise_id,
       {
         targetSets: row.target_sets,
-        repRange:
-          row.target_reps_min !== null && row.target_reps_max !== null
-            ? { min: row.target_reps_min, max: row.target_reps_max }
-            : null,
+        repRange: toRepRange(row.target_reps_min, row.target_reps_max),
       },
     ])
   );
