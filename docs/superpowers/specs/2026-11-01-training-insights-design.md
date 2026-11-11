@@ -76,7 +76,9 @@ before the code.
 entry for the exercise has a range, use it; otherwise `DEFAULT_REP_RANGE`. Exercises added mid-session
 always use the default.
 
-Rep ranges are **not** in the JSON backup in this phase (like body scans); CLAUDE.md says so.
+Rep ranges round-trip through the JSON backup as optional `target_reps_min`/`target_reps_max` keys
+(older files import as NULL). *Updated after implementation:* this was first out of scope, then added in
+`29736d91` (`import_backup` in `0005_backup_rep_ranges`); CLAUDE.md documents it.
 
 ## 3. Analysis (`lib/insights/analysis.ts`, pure)
 
@@ -181,5 +183,4 @@ an `InsightsCard` on the dashboard (deload signal, else plateau + low-volume cou
 ## Out of scope (follow-ups)
 
 - Phase 2: AI evaluation and program recommendation that saves as a routine.
-- Rep ranges in the JSON backup.
 - Per-exercise weight step, rep range on freeform sessions, RPE/RIR logging.

@@ -91,6 +91,21 @@ describe("getWeightSteps history signal", () => {
     // Tops 10, 12 only: one gap is not enough; with 14 counted it would infer 2.
     expect((await getWeightSteps(prisma, userId, [preset.id]))[preset.id]).toEqual(defaulted);
   });
+
+  it("ignores 0 kg sets", async () => {
+    const { userId } = await createTestUser();
+    const [preset] = await shoulderPresets();
+    await logTops(userId, preset.id, [2, 4]);
+    // logSetForUser rejects 0 kg, but older/imported rows can hold it: insert one directly.
+    const session = await startSessionForUser(prisma, userId, { sessionDate: "2026-10-01" });
+    const se = await addExerciseToSessionForUser(prisma, userId, session.id, preset.id);
+    await prisma.sets.create({
+      data: { user_id: userId, session_exercise_id: se.id, exercise_id: preset.id, set_number: 1, weight_kg: 0, reps: 10 },
+    });
+    await finishSessionForUser(prisma, userId, session.id);
+    // Tops 2, 4 only: one gap is not enough; with 0 counted it would infer 2.
+    expect((await getWeightSteps(prisma, userId, [preset.id]))[preset.id]).toEqual(defaulted);
+  });
 });
 
 describe("setWeightStepForUser", () => {
