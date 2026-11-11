@@ -23,8 +23,7 @@ export async function getWeightSteps(
       select: { exercise_id: true, weight_step_kg: true },
     }),
     // Per completed session, the heaviest working weight of each exercise (the "top set"). Ramp-ups
-    // and drop sets inside one session thus count once. Only the user_id prefix of
-    // sets_user_exercise_idx is usable here (the exercise filter casts to text).
+    // and drop sets inside one session thus count once. Served by sets_user_exercise_idx.
     db.$queryRaw<{ exercise_id: string; weight_kg: Prisma.Decimal | number }[]>(Prisma.sql`
       select st.exercise_id::text as exercise_id, max(st.weight_kg) as weight_kg
       from sets st
@@ -32,7 +31,7 @@ export async function getWeightSteps(
       join sessions s on s.id = se.session_id
       where st.user_id = ${userId}::uuid
         and s.user_id = ${userId}::uuid
-        and st.exercise_id::text in (${Prisma.join(ids)})
+        and st.exercise_id = any(${ids}::uuid[])
         and s.completed_at is not null
         and not st.is_warmup
         and st.weight_kg > 0

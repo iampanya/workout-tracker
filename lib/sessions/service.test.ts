@@ -569,9 +569,6 @@ describe("getRecentSessionSets", () => {
       },
       { sessionDate: "2026-03-01", sets: [{ weight_kg: 50, reps: 10, is_warmup: false }] },
     ]);
-
-    const one = await getRecentSessionSets(prisma, userId, [exercise.id], current.id, 1);
-    expect(one[exercise.id].map((s) => s.sessionDate)).toEqual(["2026-03-08"]);
   });
 
   it("never returns another user's sets", async () => {

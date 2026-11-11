@@ -244,6 +244,9 @@ export async function discardSessionForUser(
   await db.sessions.deleteMany({ where: { id: sessionId, user_id: userId } });
 }
 
+// The "Last" hint reads the newest session; the next-session target compares the newest two.
+const RECENT_SESSION_COUNT = 2;
+
 // For each exercise, the sets the user logged in their most recent *completed* sessions that
 // included it, newest first (excluding `excludeSessionId`, i.e. the session being logged right
 // now). The first powers the "Last" hint; the first two drive the next-session target.
@@ -251,8 +254,7 @@ export async function getRecentSessionSets(
   db: PrismaClient,
   userId: string,
   exerciseIds: string[],
-  excludeSessionId: string,
-  limit = 2
+  excludeSessionId: string
 ): Promise<Record<string, LastSession[]>> {
   if (exerciseIds.length === 0) return {};
   // Sessions (not session_exercises rows) are ranked per exercise: latest by session date, then
@@ -269,13 +271,13 @@ export async function getRecentSessionSets(
         ) as rn
       from session_exercises se
       join sessions s on s.id = se.session_id
-      where se.user_id::text = ${userId}
-        and s.user_id::text = ${userId}
-        and se.exercise_id::text in (${Prisma.join(exerciseIds)})
+      where se.user_id = ${userId}::uuid
+        and s.user_id = ${userId}::uuid
+        and se.exercise_id = any(${exerciseIds}::uuid[])
         and s.completed_at is not null
-        and s.id::text <> ${excludeSessionId}
+        and s.id <> ${excludeSessionId}::uuid
     ) ranked
-    where rn <= ${limit}
+    where rn <= ${RECENT_SESSION_COUNT}
     order by exercise_id, rn, position`);
   if (recent.length === 0) return {};
 
@@ -287,12 +289,16 @@ export async function getRecentSessionSets(
 
   // Rows arrive grouped by (exercise, session) in rank order, entries by position, so consecutive
   // rows of the same session merge into one LastSession.
+  const setsByEntry = new Map<string, LastSession["sets"]>();
+  for (const set of sets) {
+    const list = setsByEntry.get(set.session_exercise_id) ?? [];
+    list.push({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup });
+    setsByEntry.set(set.session_exercise_id, list);
+  }
   const result: Record<string, LastSession[]> = {};
   let lastKey = "";
   for (const row of recent) {
-    const rowSets = sets
-      .filter((set) => set.session_exercise_id === row.id)
-      .map((set) => ({ weight_kg: Number(set.weight_kg), reps: set.reps, is_warmup: set.is_warmup }));
+    const rowSets = setsByEntry.get(row.id) ?? [];
     const key = `${row.exercise_id}:${row.session_id}`;
     const sessions = (result[row.exercise_id] ??= []);
     if (key === lastKey) {
